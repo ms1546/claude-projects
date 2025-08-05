@@ -112,3 +112,6 @@ custom_rules:
     regex: '\/\/\s*MARK:[^\s]'
     message: "Add a space after MARK:"
     severity: warning
+
+# Ensure trailing newline is enforced
+trailing_newline: error

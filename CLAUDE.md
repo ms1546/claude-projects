@@ -175,6 +175,10 @@ xcodebuild -exportArchive -archivePath ./build/TrainAlert.xcarchive -exportPath 
 - Use extensions to organize code
 - Follow SOLID principles
 - Add MARK: comments for organization
+- **IMPORTANT: Always ensure files end with a newline character**
+  - This follows POSIX standards and prevents git diff issues
+  - SwiftLint will flag files without trailing newlines
+  - Configure your editor to automatically add newlines at EOF
 
 ## Important Implementation Notes
 
