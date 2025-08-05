@@ -1,0 +1,114 @@
+# SwiftLint Configuration for TrainAlert
+
+# Paths to include
+included:
+  - TrainAlert
+
+# Paths to exclude
+excluded:
+  - Carthage
+  - Pods
+  - DerivedData
+  - .build
+  - .swiftpm
+
+# Rules
+opt_in_rules:
+  - array_init
+  - closure_end_indentation
+  - closure_spacing
+  - collection_alignment
+  - contains_over_filter_count
+  - contains_over_filter_is_empty
+  - empty_collection_literal
+  - empty_count
+  - empty_string
+  - enum_case_associated_values_count
+  - explicit_init
+  - fallthrough
+  - first_where
+  - flatmap_over_map_reduce
+  - last_where
+  - literal_expression_end_indentation
+  - modifier_order
+  - multiline_arguments
+  - multiline_function_chains
+  - multiline_literal_brackets
+  - multiline_parameters
+  - multiline_parameters_brackets
+  - operator_usage_whitespace
+  - optional_enum_case_matching
+  - prefer_self_type_over_type_of_self
+  - prefer_zero_over_explicit_init
+  - redundant_nil_coalescing
+  - redundant_type_annotation
+  - sorted_first_last
+  - trailing_closure
+  - unneeded_parentheses_in_closure_argument
+  - vertical_parameter_alignment_on_call
+  - yoda_condition
+
+# Rule Configuration
+line_length:
+  warning: 120
+  error: 150
+  ignores_comments: true
+  ignores_urls: true
+
+type_body_length:
+  warning: 300
+  error: 500
+
+file_length:
+  warning: 500
+  error: 1000
+
+function_body_length:
+  warning: 50
+  error: 100
+
+function_parameter_count:
+  warning: 6
+  error: 8
+
+type_name:
+  min_length: 3
+  max_length: 40
+
+identifier_name:
+  min_length: 2
+  max_length: 40
+  excluded:
+    - i
+    - j
+    - k
+    - x
+    - y
+    - z
+    - id
+
+trailing_whitespace:
+  ignores_empty_lines: true
+
+vertical_whitespace:
+  max_empty_lines: 2
+
+# Custom Rules
+custom_rules:
+  no_print:
+    name: "No Print Statements"
+    regex: '^\s*print\('
+    message: "Use proper logging instead of print statements"
+    severity: warning
+
+  no_force_unwrapping:
+    name: "Avoid Force Unwrapping"
+    regex: '!\s*\n'
+    message: "Force unwrapping should be avoided"
+    severity: warning
+
+  mark_spacing:
+    name: "MARK Comment Spacing"
+    regex: '\/\/\s*MARK:[^\s]'
+    message: "Add a space after MARK:"
+    severity: warning
