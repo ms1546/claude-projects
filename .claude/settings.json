@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit",
+      "Write",
+      "Read",
+      "Glob",
+      "Grep",
+      "LS",
+      "MultiEdit",
+      "NotebookEdit",
+      "TodoWrite",
+      "Task",
+      "ExitPlanMode",
+      "Bash"
+    ],
+    "deny": [
+      "WebFetch",
+      "WebSearch",
+      "Bash(echo $*)",
+      "Bash(printenv*)",
+      "Bash(env*)",
+      "Bash(export*)",
+      "Bash(set*)",
+      "Bash(*GITHUB_PERSONAL_ACCESS_TOKEN*)",
+      "Bash(*API_KEY*)",
+      "Bash(*SECRET*)",
+      "Bash(*TOKEN*)",
+      "Bash(*PASSWORD*)"
+    ]
+  }
+}
