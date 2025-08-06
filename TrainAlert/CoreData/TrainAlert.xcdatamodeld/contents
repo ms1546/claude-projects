@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="21754" systemVersion="22G74" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="YES" userDefinedModelVersionIdentifier="">
+    <entity name="Alert" representedClassName="Alert" syncable="YES" codeGenerationType="class">
+        <attribute name="alertId" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="characterStyle" optional="YES" attributeType="String"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="isActive" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="notificationDistance" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="notificationTime" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="snoozeInterval" attributeType="Integer 16" defaultValueString="5" usesScalarValueType="YES"/>
+        <relationship name="histories" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="History" inverseName="alert" inverseEntity="History"/>
+        <relationship name="station" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Station" inverseName="alerts" inverseEntity="Station"/>
+    </entity>
+    <entity name="History" representedClassName="History" syncable="YES" codeGenerationType="class">
+        <attribute name="historyId" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="message" attributeType="String"/>
+        <attribute name="notifiedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="alert" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Alert" inverseName="histories" inverseEntity="Alert"/>
+    </entity>
+    <entity name="Station" representedClassName="Station" syncable="YES" codeGenerationType="class">
+        <attribute name="isFavorite" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="lastUsedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="latitude" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="lines" optional="YES" attributeType="String"/>
+        <attribute name="longitude" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="name" attributeType="String"/>
+        <attribute name="stationId" attributeType="String"/>
+        <relationship name="alerts" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Alert" inverseName="station" inverseEntity="Alert"/>
+    </entity>
+</model>
