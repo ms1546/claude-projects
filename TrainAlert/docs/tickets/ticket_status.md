@@ -6,12 +6,12 @@
 
 | チケット番号 | タイトル | ステータス | 担当Agent | 開始日 | 完了日 |
 |------------|---------|----------|----------|--------|--------|
-| #001 | プロジェクトセットアップ | [ ] Not Started | - | - | - |
-| #002 | デザインシステム構築 | [ ] Not Started | - | - | - |
-| #003 | Core Dataセットアップ | [x] Completed | Claude Code | 2024-08-06 | 2024-08-06 |
-| #004 | 位置情報サービス実装 | [x] Completed | Claude Code | 2024-01-08 | 2024-01-08 |
-| #005 | 通知システム実装 | [x] Completed | Claude Code | 2024-01-08 | 2024-01-08 |
-| #006 | 駅情報API連携 | [x] Completed | Claude Code | 2024-01-08 | 2024-01-08 |
+| #001 | プロジェクトセットアップ | [x] Not Started | - | - | - |
+| #002 | デザインシステム構築 | [x] Not Started | - | - | - |
+| #003 | Core Dataセットアップ | [x] Completed | Claude Code | 2025-08-06 | 2025-08-06 |
+| #004 | 位置情報サービス実装 | [x] Completed | Claude Code | 2025-08-06 | 2025-08-06 |
+| #005 | 通知システム実装 | [x] Completed | Claude Code | 2025-08-06 | 2025-08-06 |
+| #006 | 駅情報API連携 | [x] Completed | Claude Code | 2025-08-06 | 2025-08-06 |
 | #007 | OpenAI API連携 | [ ] Not Started | - | - | - |
 | #008 | ホーム画面実装 | [ ] Not Started | - | - | - |
 | #009 | アラート設定フロー | [ ] Not Started | - | - | - |
