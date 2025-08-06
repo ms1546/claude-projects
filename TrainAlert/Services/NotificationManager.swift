@@ -144,7 +144,8 @@ class NotificationManager: NSObject, ObservableObject {
         for stationName: String,
         arrivalTime: Date,
         currentLocation: CLLocation?,
-        targetLocation: CLLocation
+        targetLocation: CLLocation,
+        characterStyle: CharacterStyle = .friendly
     ) async throws {
         
         guard isPermissionGranted else {
@@ -157,11 +158,12 @@ class NotificationManager: NSObject, ObservableObject {
         // Cancel existing notification with same identifier
         cancelNotification(identifier: identifier)
         
-        let content = createTrainAlertContent(
+        let content = await createTrainAlertContent(
             stationName: stationName,
             arrivalTime: arrivalTime,
             currentLocation: currentLocation,
-            targetLocation: targetLocation
+            targetLocation: targetLocation,
+            characterStyle: characterStyle
         )
         
         let trigger = UNTimeIntervalNotificationTrigger(
@@ -197,7 +199,7 @@ class NotificationManager: NSObject, ObservableObject {
         // Cancel existing location notification
         cancelNotification(identifier: identifier)
         
-        let content = createLocationAlertContent(stationName: stationName)
+        let content = await createLocationAlertContent(stationName: stationName, characterStyle: settings.characterStyle)
         
         let region = CLCircularRegion(
             center: targetLocation.coordinate,
@@ -240,7 +242,7 @@ class NotificationManager: NSObject, ObservableObject {
         let snoozeIdentifier = "\(originalIdentifier)_snooze_\(currentCount + 1)"
         snoozeCounters[originalIdentifier] = currentCount + 1
         
-        let content = createSnoozeAlertContent(stationName: stationName, snoozeCount: currentCount + 1)
+        let content = await createSnoozeAlertContent(stationName: stationName, snoozeCount: currentCount + 1, characterStyle: settings.characterStyle)
         
         let trigger = UNTimeIntervalNotificationTrigger(
             timeInterval: settings.snoozeInterval,
@@ -265,8 +267,9 @@ class NotificationManager: NSObject, ObservableObject {
         stationName: String,
         arrivalTime: Date,
         currentLocation: CLLocation?,
-        targetLocation: CLLocation
-    ) -> UNMutableNotificationContent {
+        targetLocation: CLLocation,
+        characterStyle: CharacterStyle
+    ) async -> UNMutableNotificationContent {
         
         let content = UNMutableNotificationContent()
         content.categoryIdentifier = NotificationCategory.trainAlert.identifier
@@ -277,11 +280,33 @@ class NotificationManager: NSObject, ObservableObject {
         formatter.locale = Locale(identifier: "ja_JP")
         
         let timeString = formatter.string(from: arrivalTime)
+        let minutesUntilArrival = Int(arrivalTime.timeIntervalSinceNow / 60)
+        let arrivalTimeString = minutesUntilArrival > 0 ? "\(minutesUntilArrival)分後" : "まもなく"
         
-        // Create character-based message
-        let messages = getCharacterMessages(for: settings.characterStyle, stationName: stationName)
-        content.title = messages.title
-        content.body = "\(messages.body)\n到着予定時刻: \(timeString)"
+        // Try to generate message using OpenAI API
+        var generatedMessage: String?
+        do {
+            generatedMessage = try await OpenAIClient.shared.generateNotificationMessage(
+                for: stationName,
+                arrivalTime: arrivalTimeString,
+                characterStyle: characterStyle
+            )
+        } catch {
+            print("❌ OpenAI API error: \(error.localizedDescription)")
+        }
+        
+        // Use generated message or fallback to preset
+        if let message = generatedMessage {
+            content.title = "🚃 \(stationName)駅だよ！"
+            content.body = message
+        } else {
+            // Fallback to preset messages
+            let messages = getCharacterMessages(for: characterStyle, stationName: stationName)
+            content.title = messages.title
+            content.body = messages.body
+        }
+        
+        content.body += "\n到着予定時刻: \(timeString)"
         
         // Add distance info if available
         if let currentLocation = currentLocation {
@@ -303,14 +328,31 @@ class NotificationManager: NSObject, ObservableObject {
         return content
     }
     
-    private func createLocationAlertContent(stationName: String) -> UNMutableNotificationContent {
+    private func createLocationAlertContent(stationName: String, characterStyle: CharacterStyle) async -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         content.categoryIdentifier = NotificationCategory.trainAlert.identifier
         content.sound = .defaultCritical
         
-        let messages = getLocationBasedMessages(for: settings.characterStyle, stationName: stationName)
-        content.title = messages.title
-        content.body = messages.body
+        // Try to generate message using OpenAI API
+        var generatedMessage: String?
+        do {
+            generatedMessage = try await OpenAIClient.shared.generateNotificationMessage(
+                for: stationName,
+                arrivalTime: "まもなく",
+                characterStyle: characterStyle
+            )
+        } catch {
+            print("❌ OpenAI API error: \(error.localizedDescription)")
+        }
+        
+        if let message = generatedMessage {
+            content.title = "📍 \(stationName)駅に到着！"
+            content.body = message
+        } else {
+            let messages = getLocationBasedMessages(for: characterStyle, stationName: stationName)
+            content.title = messages.title
+            content.body = messages.body
+        }
         
         content.userInfo = [
             "stationName": stationName,
@@ -322,14 +364,33 @@ class NotificationManager: NSObject, ObservableObject {
         return content
     }
     
-    private func createSnoozeAlertContent(stationName: String, snoozeCount: Int) -> UNMutableNotificationContent {
+    private func createSnoozeAlertContent(stationName: String, snoozeCount: Int, characterStyle: CharacterStyle) async -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         content.categoryIdentifier = NotificationCategory.snoozeAlert.identifier
         content.sound = .defaultCritical
         
-        let messages = getSnoozeMessages(for: settings.characterStyle, stationName: stationName, count: snoozeCount)
-        content.title = messages.title
-        content.body = messages.body
+        // Try to generate message using OpenAI API for snooze
+        var generatedMessage: String?
+        do {
+            // Add snooze context to prompt
+            let snoozeContext = "（スヌーズ\(snoozeCount)回目）"
+            generatedMessage = try await OpenAIClient.shared.generateNotificationMessage(
+                for: "\(stationName)\(snoozeContext)",
+                arrivalTime: "もうすぐ",
+                characterStyle: characterStyle
+            )
+        } catch {
+            print("❌ OpenAI API error: \(error.localizedDescription)")
+        }
+        
+        if let message = generatedMessage {
+            content.title = "😴 スヌーズ\(snoozeCount)回目"
+            content.body = message
+        } else {
+            let messages = getSnoozeMessages(for: characterStyle, stationName: stationName, count: snoozeCount)
+            content.title = messages.title
+            content.body = messages.body
+        }
         
         content.userInfo = [
             "stationName": stationName,
