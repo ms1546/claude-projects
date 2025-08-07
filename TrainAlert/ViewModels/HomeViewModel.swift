@@ -262,3 +262,4 @@ struct StationData: Identifiable, Equatable {
         CLLocation(latitude: latitude, longitude: longitude)
     }
 }
+
