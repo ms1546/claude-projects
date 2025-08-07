@@ -346,45 +346,97 @@ struct HistoryCard: View {
     let date: String
     let time: String
     let character: String?
+    let message: String?
+    let isSelected: Bool
+    let onTap: (() -> Void)?
+    let onDelete: (() -> Void)?
+    
+    init(
+        stationName: String,
+        date: String,
+        time: String,
+        character: String? = nil,
+        message: String? = nil,
+        isSelected: Bool = false,
+        onTap: (() -> Void)? = nil,
+        onDelete: (() -> Void)? = nil
+    ) {
+        self.stationName = stationName
+        self.date = date
+        self.time = time
+        self.character = character
+        self.message = message
+        self.isSelected = isSelected
+        self.onTap = onTap
+        self.onDelete = onDelete
+    }
     
     var body: some View {
-        Card {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
+        Card(
+            style: isSelected ? .gradient : .default,
+            shadowStyle: isSelected ? .medium : .subtle
+        ) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
                     Text(stationName)
                         .font(.labelMedium)
                         .foregroundColor(.textPrimary)
                     
-                    HStack(spacing: 8) {
-                        Text(date)
-                            .font(.caption)
-                            .foregroundColor(.textSecondary)
-                        
-                        Text("•")
-                            .font(.caption)
-                            .foregroundColor(.textSecondary)
-                        
-                        Text(time)
-                            .font(.numbersMedium)
-                            .foregroundColor(.textSecondary)
-                    }
+                    Spacer()
                     
-                    if let character = character {
-                        Text(character)
-                            .font(.bodySmall)
-                            .foregroundColor(.lightGray)
-                    }
+                    Text(time)
+                        .font(.numbersMedium)
+                        .foregroundColor(.textSecondary)
                 }
                 
-                Spacer()
+                Text(date)
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
                 
-                Image(systemName: "clock")
-                    .font(.system(size: 16))
-                    .foregroundColor(.lightGray)
+                if let message = message {
+                    Text(message)
+                        .font(.bodySmall)
+                        .foregroundColor(.textSecondary)
+                        .lineLimit(2)
+                        .padding(.top, 4)
+                }
+                
+                HStack {
+                    if let character = character {
+                        Text(character)
+                            .font(.caption)
+                            .foregroundColor(.softBlue)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(Color.softBlue.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "clock")
+                        .font(.system(size: 14))
+                        .foregroundColor(.lightGray)
+                }
+            }
+        }
+        .scaleEffect(isSelected ? 1.02 : 1.0)
+        .animation(.easeInOut(duration: 0.2), value: isSelected)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onTap?()
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            if let onDelete = onDelete {
+                Button("削除") {
+                    onDelete()
+                }
+                .tint(.error)
             }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(stationName)、\(date)、\(time)")
+        .accessibilityHint(onTap != nil ? "タップして選択" : "")
     }
 }
 
@@ -443,7 +495,15 @@ struct Card_Previews: PreviewProvider {
                     stationName: "東京駅",
                     date: "2024年1月15日",
                     time: "09:30",
-                    character: "ギャル系キャラ"
+                    character: "ギャル系キャラ",
+                    message: "もうすぐ東京駅だよ〜！起きて起きて〜♪",
+                    isSelected: false,
+                    onTap: {
+                        print("履歴カードがタップされました")
+                    },
+                    onDelete: {
+                        print("履歴が削除されました")
+                    }
                 )
             }
             .padding()
