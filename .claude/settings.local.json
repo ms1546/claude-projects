@@ -11,5 +11,12 @@
         ]
       }
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "filesystem",
+    "github",
+    "fetch",
+    "serena",
+    "cipher"
+  ]
 }
