@@ -46,25 +46,6 @@ enum NotificationAction: String {
     }
 }
 
-enum CharacterStyle: String, CaseIterable {
-    case friendly = "friendly"
-    case energetic = "energetic"
-    case gentle = "gentle"
-    case formal = "formal"
-    
-    var displayName: String {
-        switch self {
-        case .friendly:
-            return "フレンドリー"
-        case .energetic:
-            return "元気"
-        case .gentle:
-            return "優しい"
-        case .formal:
-            return "丁寧"
-        }
-    }
-}
 
 struct NotificationContent {
     let title: String
@@ -75,10 +56,22 @@ struct NotificationContent {
 }
 
 struct NotificationSettings {
-    let defaultAdvanceTime: TimeInterval = 5 * 60 // 5 minutes
-    let snoozeInterval: TimeInterval = 1 * 60 // 1 minute
-    let maxSnoozeCount: Int = 5
-    let characterStyle: CharacterStyle = .friendly
+    let defaultAdvanceTime: TimeInterval
+    let snoozeInterval: TimeInterval
+    let maxSnoozeCount: Int
+    let characterStyle: CharacterStyle
+    
+    init(
+        defaultAdvanceTime: TimeInterval = 5 * 60,
+        snoozeInterval: TimeInterval = 1 * 60,
+        maxSnoozeCount: Int = 5,
+        characterStyle: CharacterStyle = .gyaru
+    ) {
+        self.defaultAdvanceTime = defaultAdvanceTime
+        self.snoozeInterval = snoozeInterval
+        self.maxSnoozeCount = maxSnoozeCount
+        self.characterStyle = characterStyle
+    }
 }
 
 @MainActor
@@ -406,78 +399,29 @@ class NotificationManager: NSObject, ObservableObject {
     // MARK: - Character Messages
     
     private func getCharacterMessages(for style: CharacterStyle, stationName: String) -> (title: String, body: String) {
-        switch style {
-        case .friendly:
-            return (
-                title: "🚃 もうすぐ到着だよ！",
-                body: "\(stationName)駅に間もなく到着します。起きる時間だよ〜！"
-            )
-        case .energetic:
-            return (
-                title: "⚡ 起きて起きて！",
-                body: "\(stationName)駅だよ！元気よく降りる準備をしよう！"
-            )
-        case .gentle:
-            return (
-                title: "🌸 そっとお知らせ",
-                body: "\(stationName)駅にもうすぐ到着します。ゆっくり起きてくださいね。"
-            )
-        case .formal:
-            return (
-                title: "🔔 到着通知",
-                body: "\(stationName)駅への到着をお知らせいたします。ご準備ください。"
-            )
-        }
+        let messages = style.fallbackMessages
+        return (
+            title: messages.trainAlert.title,
+            body: messages.trainAlert.body.replacingOccurrences(of: "{station}", with: stationName)
+        )
     }
     
     private func getLocationBasedMessages(for style: CharacterStyle, stationName: String) -> (title: String, body: String) {
-        switch style {
-        case .friendly:
-            return (
-                title: "📍 近づいてきたよ！",
-                body: "\(stationName)駅の近くまで来ました。降りる準備をしてね！"
-            )
-        case .energetic:
-            return (
-                title: "🎯 目標地点到達！",
-                body: "\(stationName)駅エリアに入ったよ！降車準備開始！"
-            )
-        case .gentle:
-            return (
-                title: "🗺️ 目的地付近です",
-                body: "\(stationName)駅の近くまで来ました。そろそろ準備してください。"
-            )
-        case .formal:
-            return (
-                title: "📍 位置通知",
-                body: "\(stationName)駅近辺に到着いたしました。降車のご準備をお願いします。"
-            )
-        }
+        let messages = style.fallbackMessages
+        return (
+            title: messages.locationAlert.title,
+            body: messages.locationAlert.body.replacingOccurrences(of: "{station}", with: stationName)
+        )
     }
     
     private func getSnoozeMessages(for style: CharacterStyle, stationName: String, count: Int) -> (title: String, body: String) {
-        switch style {
-        case .friendly:
-            return (
-                title: "😴 スヌーズ \(count)回目",
-                body: "まだ寝てる？\(stationName)駅だよ〜。今度こそ起きて！"
-            )
-        case .energetic:
-            return (
-                title: "⏰ 再アラーム！",
-                body: "\(stationName)駅！\(count)回目のアラームだよ！今度こそ起きよう！"
-            )
-        case .gentle:
-            return (
-                title: "🔔 再度のお知らせ",
-                body: "\(stationName)駅です。もう一度お知らせします。起きてください。"
-            )
-        case .formal:
-            return (
-                title: "🚨 再通知",
-                body: "\(stationName)駅到着の再通知です。速やかにご対応ください。"
-            )
-        }
+        let messages = style.fallbackMessages
+        return (
+            title: messages.snoozeAlert.title,
+            body: messages.snoozeAlert.body
+                .replacingOccurrences(of: "{station}", with: stationName)
+                .replacingOccurrences(of: "{count}", with: "\(count)")
+        )
     }
     
     // MARK: - Notification Management

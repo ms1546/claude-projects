@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Network
 
 // MARK: - OpenAI Models
 struct ChatCompletionRequest: Codable {
@@ -68,6 +69,21 @@ class OpenAIClient: ObservableObject {
     private var messageCache: [String: String] = [:]
     private let cacheExpiry: TimeInterval = 30 * 24 * 60 * 60 // 30日
     
+    // レート制限管理
+    private var lastRequestTime: Date = .distantPast
+    private let minimumRequestInterval: TimeInterval = 1.0 // 1秒間隔
+    private var requestCount: Int = 0
+    private var requestResetTime: Date = Date()
+    private let maxRequestsPerMinute: Int = 20
+    
+    // リトライ設定
+    private let maxRetryAttempts: Int = 3
+    private let baseRetryDelay: TimeInterval = 1.0
+    
+    // ネットワーク監視
+    private let networkMonitor = NWPathMonitor()
+    private var isNetworkAvailable = true
+    
     private init() {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 30
@@ -76,6 +92,9 @@ class OpenAIClient: ObservableObject {
         
         // APIキーをKeychainから読み込む
         self.apiKey = KeychainHelper.shared.getAPIKey()
+        
+        // ネットワーク監視開始
+        setupNetworkMonitoring()
     }
     
     // MARK: - API Key Management
@@ -88,12 +107,37 @@ class OpenAIClient: ObservableObject {
         return apiKey != nil && !apiKey!.isEmpty
     }
     
+    /// API キーの有効性を検証
+    func validateAPIKey(_ key: String) async throws -> Bool {
+        let testRequest = ChatCompletionRequest(
+            model: "gpt-3.5-turbo",
+            messages: [ChatMessage(role: "user", content: "test")],
+            temperature: 0.5,
+            maxTokens: 1
+        )
+        
+        do {
+            _ = try await callAPI(request: testRequest, apiKey: key)
+            return true
+        } catch OpenAIError.invalidAPIKey {
+            return false
+        } catch {
+            // ネットワークエラーなどの場合は判断できないのでtrueを返す
+            return true
+        }
+    }
+    
     // MARK: - Message Generation
     func generateNotificationMessage(
         for station: String,
         arrivalTime: String,
         characterStyle: CharacterStyle
     ) async throws -> String {
+        
+        // ネットワーク接続チェック
+        guard isNetworkAvailable else {
+            throw OpenAIError.networkUnavailable
+        }
         
         // キャッシュチェック
         let cacheKey = "\(station)_\(characterStyle.rawValue)"
@@ -130,20 +174,79 @@ class OpenAIClient: ObservableObject {
             maxTokens: 100
         )
         
-        // API呼び出し
-        let response = try await callAPI(request: request, apiKey: apiKey)
+        // API呼び出し（リトライ付き）
+        let response = try await callAPIWithRetry(request: request, apiKey: apiKey)
         
-        guard let message = response.choices.first?.message.content else {
+        guard let message = response.choices.first?.message.content,
+              !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw OpenAIError.invalidResponse
         }
         
-        // キャッシュに保存
-        saveToCache(message: message, for: cacheKey)
+        // メッセージの長さをチェック（30-50文字の範囲内か）
+        let cleanedMessage = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanedMessage.count < 10 || cleanedMessage.count > 100 {
+            print("⚠️ Generated message length is out of expected range: \(cleanedMessage.count) characters")
+        }
         
-        return message
+        // キャッシュに保存
+        saveToCache(message: cleanedMessage, for: cacheKey)
+        
+        return cleanedMessage
     }
     
     // MARK: - Private Methods
+    
+    /// API呼び出し（リトライ機能付き）
+    private func callAPIWithRetry(request: ChatCompletionRequest, apiKey: String) async throws -> ChatCompletionResponse {
+        var lastError: Error?
+        
+        for attempt in 1...maxRetryAttempts {
+            do {
+                // レート制限チェック
+                try await enforceRateLimit()
+                
+                let response = try await callAPI(request: request, apiKey: apiKey)
+                
+                // 成功した場合はリクエストカウントを更新
+                updateRequestCount()
+                
+                return response
+                
+            } catch OpenAIError.rateLimitExceeded {
+                lastError = OpenAIError.rateLimitExceeded
+                
+                if attempt < maxRetryAttempts {
+                    let delay = calculateRetryDelay(for: attempt)
+                    print("⏳ Rate limit exceeded. Retrying in \(delay) seconds... (Attempt \(attempt)/\(maxRetryAttempts))")
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                } else {
+                    print("❌ Rate limit exceeded. Max retry attempts reached.")
+                    throw OpenAIError.rateLimitExceeded
+                }
+                
+            } catch OpenAIError.serverError {
+                lastError = OpenAIError.serverError
+                
+                if attempt < maxRetryAttempts {
+                    let delay = calculateRetryDelay(for: attempt)
+                    print("⏳ Server error. Retrying in \(delay) seconds... (Attempt \(attempt)/\(maxRetryAttempts))")
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                } else {
+                    print("❌ Server error. Max retry attempts reached.")
+                    throw OpenAIError.serverError
+                }
+                
+            } catch {
+                lastError = error
+                // その他のエラーはリトライしない
+                throw error
+            }
+        }
+        
+        // ここに到達することはないはずだが、安全のため
+        throw lastError ?? OpenAIError.invalidResponse
+    }
+    
     private func callAPI(request: ChatCompletionRequest, apiKey: String) async throws -> ChatCompletionResponse {
         guard let url = URL(string: "\(baseURL)/chat/completions") else {
             throw OpenAIError.invalidURL
@@ -199,6 +302,60 @@ class OpenAIClient: ObservableObject {
         let message: String
         let timestamp: Date
     }
+    
+    // MARK: - Rate Limiting
+    
+    private func enforceRateLimit() async throws {
+        let now = Date()
+        
+        // 1分ごとにリクエストカウントをリセット
+        if now.timeIntervalSince(requestResetTime) >= 60 {
+            requestCount = 0
+            requestResetTime = now
+        }
+        
+        // 1分間のリクエスト数制限チェック
+        if requestCount >= maxRequestsPerMinute {
+            let waitTime = 60 - now.timeIntervalSince(requestResetTime)
+            if waitTime > 0 {
+                print("⏱️ Rate limit reached. Waiting \(Int(waitTime)) seconds...")
+                try await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
+                requestCount = 0
+                requestResetTime = Date()
+            }
+        }
+        
+        // 最小リクエスト間隔チェック
+        let timeSinceLastRequest = now.timeIntervalSince(lastRequestTime)
+        if timeSinceLastRequest < minimumRequestInterval {
+            let waitTime = minimumRequestInterval - timeSinceLastRequest
+            try await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
+        }
+        
+        lastRequestTime = Date()
+    }
+    
+    private func updateRequestCount() {
+        requestCount += 1
+    }
+    
+    private func calculateRetryDelay(for attempt: Int) -> TimeInterval {
+        // 指数バックオフ: 1秒, 2秒, 4秒
+        return baseRetryDelay * pow(2.0, Double(attempt - 1))
+    }
+    
+    // MARK: - Network Monitoring
+    
+    private func setupNetworkMonitoring() {
+        let queue = DispatchQueue(label: "NetworkMonitor")
+        networkMonitor.start(queue: queue)
+        
+        networkMonitor.pathUpdateHandler = { [weak self] path in
+            DispatchQueue.main.async {
+                self?.isNetworkAvailable = path.status == .satisfied
+            }
+        }
+    }
 }
 
 // MARK: - OpenAI Error
@@ -209,6 +366,7 @@ enum OpenAIError: LocalizedError {
     case invalidResponse
     case rateLimitExceeded
     case serverError
+    case networkUnavailable
     case httpError(statusCode: Int)
     
     var errorDescription: String? {
@@ -225,40 +383,14 @@ enum OpenAIError: LocalizedError {
             return "API利用制限に達しました"
         case .serverError:
             return "サーバーエラーが発生しました"
+        case .networkUnavailable:
+            return "ネットワークに接続できません"
         case .httpError(let statusCode):
             return "HTTPエラー: \(statusCode)"
         }
     }
 }
 
-// MARK: - Character Style Extension
-extension CharacterStyle {
-    var systemPrompt: String {
-        switch self {
-        case .friendly:
-            return "あなたは優しくて親しみやすいお姉さんです。丁寧で温かい言葉遣いで、相手を優しく起こします。"
-        case .energetic:
-            return "あなたは元気いっぱいのギャル系女子です。明るくテンション高めで、ポジティブなエネルギーで相手を起こします。"
-        case .gentle:
-            return "あなたは穏やかで優しい性格の人です。相手を気遣いながら、そっと起こすような言葉を使います。"
-        case .formal:
-            return "あなたは礼儀正しい執事です。敬語を使い、品格のある言葉遣いで相手を起こします。"
-        }
-    }
-    
-    var tone: String {
-        switch self {
-        case .friendly:
-            return "親しみやすく丁寧な口調"
-        case .energetic:
-            return "元気でカジュアルな口調（〜だよ！など）"
-        case .gentle:
-            return "優しく穏やかな口調"
-        case .formal:
-            return "丁寧な敬語"
-        }
-    }
-}
 
 // MARK: - Keychain Helper
 class KeychainHelper {
