@@ -45,5 +45,12 @@
 		<string>fetch</string>
 		<string>processing</string>
 	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.trainalert.location.update</string>
+		<string>com.trainalert.notification.retry</string>
+		<string>com.trainalert.data.cleanup</string>
+		<string>com.trainalert.crash.upload</string>
+	</array>
 </dict>
 </plist>
