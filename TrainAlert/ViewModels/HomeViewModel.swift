@@ -9,6 +9,7 @@ import Foundation
 import Combine
 import CoreData
 import CoreLocation
+import OSLog
 
 @MainActor
 class HomeViewModel: ObservableObject {
@@ -18,6 +19,8 @@ class HomeViewModel: ObservableObject {
     private let coreDataManager: CoreDataManager
     private let locationManager: LocationManager
     private let notificationManager: NotificationManager
+    private let performanceMonitor = PerformanceMonitor.shared
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "TrainAlert", category: "HomeViewModel")
     
     // MARK: - Published Properties
     
@@ -54,77 +57,152 @@ class HomeViewModel: ObservableObject {
     // MARK: - Private Properties
     
     private var cancellables = Set<AnyCancellable>()
+    private var dataRefreshTask: Task<Void, Never>?
+    private var locationUpdateTask: Task<Void, Never>?
+    
+    // Weak references to prevent retain cycles
+    private weak var appState: AppState?
     
     // MARK: - Initialization
     
     init(
         coreDataManager: CoreDataManager = CoreDataManager.shared,
         locationManager: LocationManager = LocationManager(),
-        notificationManager: NotificationManager = NotificationManager.shared
+        notificationManager: NotificationManager = NotificationManager.shared,
+        appState: AppState? = nil
     ) {
         self.coreDataManager = coreDataManager
         self.locationManager = locationManager
         self.notificationManager = notificationManager
+        self.appState = appState
         
         setupSubscriptions()
-        loadInitialData()
+        loadInitialDataIfNeeded()
+        
+        logger.info("HomeViewModel initialized")
+    }
+    
+    deinit {
+        cleanup()
+        logger.info("HomeViewModel deinitialized")
     }
     
     // MARK: - Public Methods
     
-    /// Refresh all data
+    /// Refresh all data with performance monitoring
     func refresh() async {
-        isLoading = true
-        errorMessage = nil
+        // Cancel any existing refresh task
+        dataRefreshTask?.cancel()
         
-        do {
-            await loadActiveAlerts()
-            await loadRecentStations()
-            await updateLocation()
+        dataRefreshTask = Task { @MainActor in
+            performanceMonitor.startTimer(for: "Home Data Refresh")
+            isLoading = true
+            errorMessage = nil
+            
+            // Use TaskGroup for concurrent operations
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask {
+                    await self.loadActiveAlerts()
+                }
+                
+                group.addTask {
+                    await self.loadRecentStations()
+                }
+                
+                if self.locationStatus == .authorized {
+                    group.addTask {
+                        await self.updateLocation()
+                    }
+                }
+            }
+            
             refreshDate = Date()
-        } catch {
-            errorMessage = error.localizedDescription
+            isLoading = false
+            performanceMonitor.endTimer(for: "Home Data Refresh")
+            performanceMonitor.logMemoryUsage(context: "Home Refresh Complete")
         }
         
-        isLoading = false
+        await dataRefreshTask?.value
     }
     
-    /// Start location updates
+    /// Start location updates with performance optimization
     func startLocationUpdates() {
-        locationManager.requestAuthorization()
-        locationManager.startUpdatingLocation()
-    }
-    
-    /// Stop location updates
-    func stopLocationUpdates() {
-        locationManager.stopUpdatingLocation()
-    }
-    
-    /// Toggle alert status
-    func toggleAlert(_ alert: Alert) {
-        do {
-            alert.toggleActive()
-            try coreDataManager.saveContext()
+        guard locationUpdateTask == nil else { return }
+        
+        locationUpdateTask = Task {
+            performanceMonitor.startTimer(for: "Location Updates Start")
             
-            Task {
-                await loadActiveAlerts()
+            locationManager.requestAuthorization()
+            
+            // Only start location updates if we have active alerts
+            if !activeAlerts.isEmpty {
+                locationManager.startUpdatingLocation()
+                logger.info("Location updates started with \(activeAlerts.count) active alerts")
+            } else {
+                logger.info("Skipped location updates - no active alerts")
             }
-        } catch {
-            errorMessage = "アラートの状態を変更できませんでした"
+            
+            performanceMonitor.endTimer(for: "Location Updates Start")
         }
     }
     
-    /// Delete alert
-    func deleteAlert(_ alert: Alert) {
-        do {
-            coreDataManager.viewContext.delete(alert)
-            try coreDataManager.saveContext()
-            
-            Task {
+    /// Stop location updates and cleanup
+    func stopLocationUpdates() {
+        locationUpdateTask?.cancel()
+        locationUpdateTask = nil
+        
+        locationManager.stopUpdatingLocation()
+        logger.info("Location updates stopped")
+    }
+    
+    /// Toggle alert status with optimized Core Data operations
+    func toggleAlert(_ alert: Alert) {
+        performanceMonitor.startTimer(for: "Toggle Alert")
+        
+        Task {
+            do {
+                try await coreDataManager.performBackgroundTask { context in
+                    // Get the alert in the background context
+                    let backgroundAlert = try context.existingObject(with: alert.objectID) as! Alert
+                    backgroundAlert.toggleActive()
+                }
+                
                 await loadActiveAlerts()
+                logger.info("Alert toggled successfully")
+                
+            } catch {
+                await MainActor.run {
+                    errorMessage = "アラートの状態を変更できませんでした"
+                    logger.error("Failed to toggle alert: \(error.localizedDescription)")
+                }
             }
-        } catch {
-            errorMessage = "アラートを削除できませんでした"
+            
+            performanceMonitor.endTimer(for: "Toggle Alert")
+        }
+    }
+    
+    /// Delete alert with optimized Core Data operations
+    func deleteAlert(_ alert: Alert) {
+        performanceMonitor.startTimer(for: "Delete Alert")
+        
+        Task {
+            do {
+                try await coreDataManager.performBackgroundTask { context in
+                    let backgroundAlert = try context.existingObject(with: alert.objectID) as! Alert
+                    context.delete(backgroundAlert)
+                }
+                
+                await loadActiveAlerts()
+                logger.info("Alert deleted successfully")
+                
+            } catch {
+                await MainActor.run {
+                    errorMessage = "アラートを削除できませんでした"
+                    logger.error("Failed to delete alert: \(error.localizedDescription)")
+                }
+            }
+            
+            performanceMonitor.endTimer(for: "Delete Alert")
         }
     }
     
@@ -134,89 +212,193 @@ class HomeViewModel: ObservableObject {
         print("Quick alert creation for \(station.name)")
     }
     
-    /// Request necessary permissions
+    /// Request necessary permissions with performance tracking
     func requestPermissions() async {
-        // Request location permission
-        locationManager.requestAuthorization()
+        performanceMonitor.startTimer(for: "Request Permissions")
         
-        // Request notification permission
-        do {
-            try await notificationManager.requestAuthorization()
-        } catch {
-            errorMessage = "通知の許可が必要です"
+        // Request permissions concurrently
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask {
+                self.locationManager.requestAuthorization()
+            }
+            
+            group.addTask {
+                do {
+                    try await self.notificationManager.requestAuthorization()
+                } catch {
+                    await MainActor.run {
+                        self.errorMessage = "通知の許可が必要です"
+                    }
+                }
+            }
         }
+        
+        performanceMonitor.endTimer(for: "Request Permissions")
+        logger.info("Permission requests completed")
     }
     
     // MARK: - Private Methods
     
     private func setupSubscriptions() {
-        // Subscribe to location updates
+        // Subscribe to location updates with debouncing
         locationManager.$location
+            .compactMap { $0 }
+            .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
             .receive(on: DispatchQueue.main)
-            .assign(to: \.currentLocation, on: self)
+            .sink { [weak self] location in
+                self?.currentLocation = location
+                self?.performanceMonitor.logMemoryUsage(context: "Location Update")
+            }
             .store(in: &cancellables)
         
         // Subscribe to location errors
         locationManager.$lastError
             .compactMap { $0 }
+            .debounce(for: .seconds(1), scheduler: DispatchQueue.main)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] error in
                 self?.errorMessage = error.localizedDescription
+                self?.logger.warning("Location error: \(error.localizedDescription)")
+            }
+            .store(in: &cancellables)
+        
+        // Monitor app state changes
+        NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
+            .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
+            .sink { [weak self] _ in
+                Task { @MainActor in
+                    await self?.refresh()
+                }
             }
             .store(in: &cancellables)
     }
     
-    private func loadInitialData() {
+    private func loadInitialDataIfNeeded() {
+        // Only load data if not already loaded
+        guard activeAlerts.isEmpty && recentStations.isEmpty else { return }
+        
         Task {
             await loadActiveAlerts()
             await loadRecentStations()
+            logger.debug("Initial data loaded")
         }
     }
     
     @MainActor
     private func loadActiveAlerts() async {
         do {
+            performanceMonitor.startTimer(for: "Load Active Alerts")
+            
             let request = Alert.activeAlertsFetchRequest()
-            activeAlerts = try coreDataManager.viewContext.fetch(request)
+            request.fetchBatchSize = 20
+            request.returnsObjectsAsFaults = false
+            
+            activeAlerts = try await coreDataManager.optimizedFetch(request)
+            
+            performanceMonitor.endTimer(for: "Load Active Alerts")
+            logger.debug("Loaded \(activeAlerts.count) active alerts")
+            
         } catch {
             errorMessage = "アクティブなアラートを読み込めませんでした"
+            logger.error("Failed to load active alerts: \(error.localizedDescription)")
         }
     }
     
     @MainActor
     private func loadRecentStations() async {
         do {
-            // Get recent stations from alert history
+            performanceMonitor.startTimer(for: "Load Recent Stations")
+            
+            // Get recent stations from alert history with optimized fetch
             let request = Alert.recentAlertsFetchRequest(limit: 5)
-            let recentAlerts = try coreDataManager.viewContext.fetch(request)
+            request.fetchBatchSize = 5
+            request.relationshipKeyPathsForPrefetching = ["station"]
+            
+            let recentAlerts = try await coreDataManager.optimizedFetch(request)
             
             // Extract unique stations and convert to StationData
             let stations = recentAlerts.compactMap { $0.station }
-            let uniqueStations = Array(NSOrderedSet(array: stations.map { station in
-                StationData(
-                    id: station.stationId ?? "",
-                    name: station.name ?? "",
-                    latitude: station.latitude,
-                    longitude: station.longitude,
-                    lines: station.lineArray
-                )
-            })).compactMap { $0 as? StationData }
+            let uniqueStationData = stations
+                .reduce(into: [String: StationData]()) { dict, station in
+                    guard let stationId = station.stationId else { return }
+                    dict[stationId] = StationData(
+                        id: stationId,
+                        name: station.name ?? "",
+                        latitude: station.latitude,
+                        longitude: station.longitude,
+                        lines: station.lineArray
+                    )
+                }
+                .values
             
-            recentStations = Array(uniqueStations.prefix(3))
+            recentStations = Array(uniqueStationData.prefix(3))
+            
+            performanceMonitor.endTimer(for: "Load Recent Stations")
+            logger.debug("Loaded \(recentStations.count) recent stations")
+            
         } catch {
             errorMessage = "最近使用した駅を読み込めませんでした"
+            logger.error("Failed to load recent stations: \(error.localizedDescription)")
         }
     }
     
     private func updateLocation() async {
-        guard locationStatus == .authorized else { return }
+        guard locationStatus == .authorized else {
+            logger.debug("Skipped location update - not authorized")
+            return
+        }
         
         // Location is updated through the subscription to locationManager.$location
-        // This method can be used for manual location updates if needed
+        // This method ensures location manager is active if needed
+        if !activeAlerts.isEmpty && locationManager.location == nil {
+            locationManager.startUpdatingLocation()
+            logger.debug("Started location updates for active alerts")
+        }
+    }
+    
+    // MARK: - Cleanup
+    
+    private func cleanup() {
+        dataRefreshTask?.cancel()
+        locationUpdateTask?.cancel()
+        
+        cancellables.removeAll()
+        
+        // Stop location updates if running
+        locationManager.stopUpdatingLocation()
+        
+        logger.debug("HomeViewModel cleanup completed")
     }
 }
 
 // MARK: - Supporting Types
+
+// MARK: - Memory Management
+
+extension HomeViewModel {
+    
+    /// Check for memory leaks and excessive usage
+    func checkMemoryUsage() {
+        performanceMonitor.logMemoryUsage(context: "HomeViewModel")
+        
+        if performanceMonitor.checkMemoryLeak(threshold: 30.0) {
+            logger.warning("Potential memory leak detected in HomeViewModel")
+        }
+    }
+    
+    /// Force cleanup of resources
+    func forceCleanup() {
+        cleanup()
+        
+        // Clear data to free memory
+        activeAlerts.removeAll()
+        recentStations.removeAll()
+        currentLocation = nil
+        errorMessage = nil
+        
+        logger.info("Forced cleanup completed")
+    }
+}
 
 extension HomeViewModel {
     enum LocationStatus {
@@ -246,20 +428,26 @@ extension HomeViewModel {
 
 // MARK: - StationData
 
-/// Data transfer object for station information
-struct StationData: Identifiable, Equatable {
+/// Data transfer object for station information with memory optimization
+struct StationData: Identifiable, Equatable, Hashable {
     let id: String
     let name: String
     let latitude: Double
     let longitude: Double
     let lines: [String]
     
+    // Computed properties are not stored, saving memory
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }
     
     var location: CLLocation {
         CLLocation(latitude: latitude, longitude: longitude)
+    }
+    
+    // Implement Hashable for efficient Set operations
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 }
 
