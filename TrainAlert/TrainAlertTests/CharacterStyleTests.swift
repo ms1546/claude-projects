@@ -262,3 +262,4 @@ final class CharacterStyleTests: XCTestCase {
         XCTAssertNil(CharacterStyle(rawValue: "GYARU"))
     }
 }
+
