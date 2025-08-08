@@ -1,0 +1,64 @@
+{
+  "configurations" : [
+    {
+      "id" : "1A2B3C4D-5678-90AB-CDEF-123456789012",
+      "name" : "Unit Tests Configuration",
+      "options" : {
+        "codeCoverage" : {
+          "enabled" : true
+        },
+        "commandLineArgsEnabled" : false,
+        "environmentVariablesEnabled" : false,
+        "testTimeoutsEnabled" : true
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "addressSanitizer" : {
+      "enabled" : false
+    },
+    "codeCoverage" : {
+      "enabled" : true
+    },
+    "commandLineArgsEnabled" : false,
+    "environmentVariablesEnabled" : false,
+    "language" : "ja",
+    "locationScenario" : {
+      "identifier" : "Tokyo, Japan",
+      "referenceType" : "built-in"
+    },
+    "region" : "JP",
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:TrainAlert.xcodeproj",
+      "identifier" : "TrainAlert",
+      "name" : "TrainAlert"
+    },
+    "testTimeoutsEnabled" : true,
+    "threadSanitizer" : {
+      "enabled" : false
+    },
+    "undefinedBehaviorSanitizer" : {
+      "enabled" : false
+    }
+  },
+  "testTargets" : [
+    {
+      "selectedTests" : [
+        "LocationManagerTests",
+        "NotificationManagerTests", 
+        "OpenAIClientTests",
+        "CharacterStyleTests",
+        "StationAPIClientTests",
+        "ViewModelTests",
+        "CoreDataTests",
+        "ExtensionsTests"
+      ],
+      "target" : {
+        "containerPath" : "container:TrainAlert.xcodeproj",
+        "identifier" : "TrainAlertTests",
+        "name" : "TrainAlertTests"
+      }
+    }
+  ],
+  "version" : 1
+}

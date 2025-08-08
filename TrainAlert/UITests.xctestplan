@@ -1,0 +1,70 @@
+{
+  "configurations" : [
+    {
+      "id" : "2B3C4D5E-6789-01BC-DEF0-123456789ABC",
+      "name" : "UI Tests Configuration",
+      "options" : {
+        "codeCoverage" : {
+          "enabled" : false
+        },
+        "commandLineArgsEnabled" : true,
+        "environmentVariablesEnabled" : true,
+        "testTimeoutsEnabled" : true,
+        "uiTestingScreenshotsLifetime" : "keepNever"
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "addressSanitizer" : {
+      "enabled" : false
+    },
+    "codeCoverage" : {
+      "enabled" : false
+    },
+    "commandLineArgsEnabled" : true,
+    "commandLineArgs" : [
+      "--testing",
+      "--ui-testing"
+    ],
+    "environmentVariablesEnabled" : true,
+    "environmentVariables" : {
+      "TESTING" : "1",
+      "UI_TESTING" : "1"
+    },
+    "language" : "ja",
+    "locationScenario" : {
+      "identifier" : "Tokyo, Japan", 
+      "referenceType" : "built-in"
+    },
+    "region" : "JP",
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:TrainAlert.xcodeproj",
+      "identifier" : "TrainAlert",
+      "name" : "TrainAlert"
+    },
+    "testTimeoutsEnabled" : true,
+    "threadSanitizer" : {
+      "enabled" : false
+    },
+    "undefinedBehaviorSanitizer" : {
+      "enabled" : false
+    },
+    "uiTestingScreenshotsLifetime" : "keepNever"
+  },
+  "testTargets" : [
+    {
+      "selectedTests" : [
+        "TrainAlertUITestsLaunchTests",
+        "AlertSetupFlowUITests",
+        "SettingsUITests",
+        "HistoryUITests"
+      ],
+      "target" : {
+        "containerPath" : "container:TrainAlert.xcodeproj",
+        "identifier" : "TrainAlertUITests",
+        "name" : "TrainAlertUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

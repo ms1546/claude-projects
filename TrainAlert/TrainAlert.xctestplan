@@ -1,0 +1,62 @@
+{
+  "configurations" : [
+    {
+      "id" : "8A9B5C3F-1234-5678-9ABC-DEF123456789",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "addressSanitizer" : {
+      "enabled" : false
+    },
+    "codeCoverage" : {
+      "enabled" : true
+    },
+    "commandLineArgsEnabled" : false,
+    "environmentVariablesEnabled" : false,
+    "language" : "ja",
+    "locationScenario" : {
+      "identifier" : "Tokyo, Japan",
+      "referenceType" : "built-in"
+    },
+    "region" : "JP",
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:TrainAlert.xcodeproj",
+      "identifier" : "TrainAlert",
+      "name" : "TrainAlert"
+    },
+    "testTimeoutsEnabled" : true,
+    "threadSanitizer" : {
+      "enabled" : false
+    },
+    "undefinedBehaviorSanitizer" : {
+      "enabled" : false
+    }
+  },
+  "testTargets" : [
+    {
+      "skippedTests" : [
+
+      ],
+      "target" : {
+        "containerPath" : "container:TrainAlert.xcodeproj",
+        "identifier" : "TrainAlertTests",
+        "name" : "TrainAlertTests"
+      }
+    },
+    {
+      "skippedTests" : [
+
+      ],
+      "target" : {
+        "containerPath" : "container:TrainAlert.xcodeproj",
+        "identifier" : "TrainAlertUITests",
+        "name" : "TrainAlertUITests"
+      }
+    }
+  ],
+  "version" : 1
+}
