@@ -185,7 +185,7 @@ class OpenAIClient: ObservableObject {
         // メッセージの長さをチェック（30-50文字の範囲内か）
         let cleanedMessage = message.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleanedMessage.count < 10 || cleanedMessage.count > 100 {
-            print("⚠️ Generated message length is out of expected range: \(cleanedMessage.count) characters")
+            // ⚠️ Generated message length is out of expected range
         }
         
         // キャッシュに保存
@@ -217,10 +217,10 @@ class OpenAIClient: ObservableObject {
                 
                 if attempt < maxRetryAttempts {
                     let delay = calculateRetryDelay(for: attempt)
-                    print("⏳ Rate limit exceeded. Retrying in \(delay) seconds... (Attempt \(attempt)/\(maxRetryAttempts))")
+                    // ⏳ Rate limit exceeded. Retrying...
                     try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 } else {
-                    print("❌ Rate limit exceeded. Max retry attempts reached.")
+                    // ❌ Rate limit exceeded. Max retry attempts reached.
                     throw OpenAIError.rateLimitExceeded
                 }
                 
@@ -229,10 +229,10 @@ class OpenAIClient: ObservableObject {
                 
                 if attempt < maxRetryAttempts {
                     let delay = calculateRetryDelay(for: attempt)
-                    print("⏳ Server error. Retrying in \(delay) seconds... (Attempt \(attempt)/\(maxRetryAttempts))")
+                    // ⏳ Server error. Retrying...
                     try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 } else {
-                    print("❌ Server error. Max retry attempts reached.")
+                    // ❌ Server error. Max retry attempts reached.
                     throw OpenAIError.serverError
                 }
                 
@@ -318,7 +318,7 @@ class OpenAIClient: ObservableObject {
         if requestCount >= maxRequestsPerMinute {
             let waitTime = 60 - now.timeIntervalSince(requestResetTime)
             if waitTime > 0 {
-                print("⏱️ Rate limit reached. Waiting \(Int(waitTime)) seconds...")
+                // ⏱️ Rate limit reached. Waiting...
                 try await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
                 requestCount = 0
                 requestResetTime = Date()

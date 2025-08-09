@@ -131,7 +131,7 @@ class HomeViewModel: ObservableObject {
     /// Create quick alert for recent station
     func createQuickAlert(for station: StationData) {
         // Implementation will be completed when alert creation flow is implemented
-        print("Quick alert creation for \(station.name)")
+        // Quick alert creation for station
     }
     
     /// Request necessary permissions
