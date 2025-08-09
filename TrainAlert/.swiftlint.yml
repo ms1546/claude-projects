@@ -2,7 +2,7 @@
 
 # Paths to include
 included:
-  - TrainAlert
+  - .
 
 # Paths to exclude
 excluded:

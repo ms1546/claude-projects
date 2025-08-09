@@ -40,7 +40,7 @@ jobs:
     - name: Run SwiftLint
       run: |
         cd TrainAlert
-        swiftlint --reporter github-actions-logging
+        swiftlint --config .swiftlint.yml --reporter github-actions-logging .
         
     - name: Check for trailing newlines
       run: |
