@@ -1,0 +1,67 @@
+{
+  "configurations" : [
+    {
+      "id" : "3C4D5E6F-7890-12CD-EF01-23456789BCDE",
+      "name" : "Integration Tests Configuration",
+      "options" : {
+        "codeCoverage" : {
+          "enabled" : true
+        },
+        "commandLineArgsEnabled" : true,
+        "environmentVariablesEnabled" : true,
+        "testTimeoutsEnabled" : true
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "addressSanitizer" : {
+      "enabled" : false
+    },
+    "codeCoverage" : {
+      "enabled" : true
+    },
+    "commandLineArgsEnabled" : true,
+    "commandLineArgs" : [
+      "--integration-testing",
+      "--mock-apis"
+    ],
+    "environmentVariablesEnabled" : true,
+    "environmentVariables" : {
+      "INTEGRATION_TESTING" : "1",
+      "MOCK_API_RESPONSES" : "1",
+      "DISABLE_ANIMATIONS" : "1"
+    },
+    "language" : "ja",
+    "locationScenario" : {
+      "identifier" : "Tokyo, Japan",
+      "referenceType" : "built-in"
+    },
+    "region" : "JP",
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:TrainAlert.xcodeproj",
+      "identifier" : "TrainAlert",
+      "name" : "TrainAlert"
+    },
+    "testTimeoutsEnabled" : true,
+    "threadSanitizer" : {
+      "enabled" : false
+    },
+    "undefinedBehaviorSanitizer" : {
+      "enabled" : false
+    }
+  },
+  "testTargets" : [
+    {
+      "selectedTests" : [
+        "IntegrationTests",
+        "BackgroundProcessingIntegrationTests"
+      ],
+      "target" : {
+        "containerPath" : "container:TrainAlert.xcodeproj",
+        "identifier" : "TrainAlertTests",
+        "name" : "TrainAlertTests"
+      }
+    }
+  ],
+  "version" : 1
+}

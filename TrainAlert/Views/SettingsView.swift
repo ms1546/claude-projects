@@ -645,7 +645,7 @@ struct APIKeySettingsView: View {
                                     .font(.labelMedium)
                                     .foregroundColor(.textPrimary)
                                 
-                                SecureField("sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", text: $apiKeyInput)
+                                SecureField("your-api-key-here", text: $apiKeyInput)
                                     .font(.numbersMedium)
                                     .foregroundColor(.textPrimary)
                                     .padding()

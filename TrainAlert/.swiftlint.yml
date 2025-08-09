@@ -2,7 +2,16 @@
 
 # Paths to include
 included:
-  - TrainAlert
+  - .
+  - Views
+  - ViewModels
+  - Models
+  - Services
+  - Utilities
+  - DesignSystem
+  - CoreData
+  - TrainAlertTests
+  - TrainAlertUITests
 
 # Paths to exclude
 excluded:
@@ -115,3 +124,5 @@ custom_rules:
 
 # Ensure trailing newline is enforced
 trailing_newline: error
+
+# Reporter type is set via command line in GitHub Actions

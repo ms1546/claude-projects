@@ -56,10 +56,12 @@ struct LineResponseData: Codable {
 
 struct LineInfo: Codable {
     let name: String
+    // swiftlint:disable:next identifier_name
     let company_name: String?
     
     enum CodingKeys: String, CodingKey {
         case name
+        // swiftlint:disable:next identifier_name
         case company_name
     }
 }
@@ -147,7 +149,7 @@ class StationAPICache {
                 let key = "\(CacheKeys.stationData)_\(location.latitude)_\(location.longitude)"
                 self.userDefaults.set(encoded, forKey: key)
             } catch {
-                print("Failed to cache station data: \(error)")
+                // Failed to cache station data
             }
         }
     }
@@ -176,7 +178,7 @@ class StationAPICache {
                 let key = "\(CacheKeys.lineData)_\(data.stationName)"
                 self.userDefaults.set(encoded, forKey: key)
             } catch {
-                print("Failed to cache line data: \(error)")
+                // Failed to cache line data
             }
         }
     }
@@ -243,7 +245,7 @@ class StationAPIClient: ObservableObject {
         
         // Check cache first
         if let cachedData = cache.getCachedStationData(for: location) {
-            print("Using cached station data")
+            // Using cached station data
             return cachedData.stations
         }
         
@@ -305,7 +307,7 @@ class StationAPIClient: ObservableObject {
     func getStationLines(stationName: String) async throws -> [LineInfo] {
         // Check cache first
         if let cachedData = cache.getCachedLineData(for: stationName) {
-            print("Using cached line data for \(stationName)")
+            // Using cached line data
             return cachedData.lines
         }
         

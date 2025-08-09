@@ -348,7 +348,7 @@ class HistoryViewModel: ObservableObject {
     private func showUndoDeleteOption(for history: History) {
         // This would typically show a snackbar or toast with undo option
         // For now, we'll just log the action
-        print("History deleted. Undo option would be shown here.")
+        // History deleted. Undo option would be shown here.
     }
 }
 

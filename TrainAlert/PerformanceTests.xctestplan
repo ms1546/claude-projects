@@ -1,0 +1,94 @@
+{
+  "configurations" : [
+    {
+      "id" : "4D5E6F70-8901-23DE-F012-3456789CDEF0",
+      "name" : "Performance Tests Configuration",
+      "options" : {
+        "codeCoverage" : {
+          "enabled" : false
+        },
+        "commandLineArgsEnabled" : true,
+        "environmentVariablesEnabled" : true,
+        "testTimeoutsEnabled" : true
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "addressSanitizer" : {
+      "enabled" : false
+    },
+    "codeCoverage" : {
+      "enabled" : false
+    },
+    "commandLineArgsEnabled" : true,
+    "commandLineArgs" : [
+      "--performance-testing",
+      "--disable-animations"
+    ],
+    "environmentVariablesEnabled" : true,
+    "environmentVariables" : {
+      "PERFORMANCE_TESTING" : "1",
+      "DISABLE_ANIMATIONS" : "1",
+      "PERFORMANCE_BASELINE" : "1"
+    },
+    "language" : "ja",
+    "locationScenario" : {
+      "identifier" : "Tokyo, Japan",
+      "referenceType" : "built-in"
+    },
+    "region" : "JP",
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:TrainAlert.xcodeproj",
+      "identifier" : "TrainAlert",
+      "name" : "TrainAlert"
+    },
+    "testTimeoutsEnabled" : true,
+    "threadSanitizer" : {
+      "enabled" : false
+    },
+    "undefinedBehaviorSanitizer" : {
+      "enabled" : false
+    }
+  },
+  "testTargets" : [
+    {
+      "selectedTests" : [
+        "LocationManagerTests/testLocationUpdatePerformance",
+        "StationAPIClientTests/testStationConversionPerformance",
+        "StationAPIClientTests/testCacheOperationPerformance", 
+        "NotificationManagerTests/testNotificationContentCreationPerformance",
+        "NotificationManagerTests/testCharacterStyleIterationPerformance",
+        "OpenAIClientTests/testMultipleCharacterStylesPerformance",
+        "CharacterStyleTests/testCharacterStylePerformance",
+        "ExtensionsTests/testColorCreationPerformance",
+        "ExtensionsTests/testLocationDistanceCalculationPerformance",
+        "ExtensionsTests/testAngleConversionPerformance",
+        "CoreDataTests/testMassDataCreationPerformance",
+        "CoreDataTests/testMassFetchPerformance",
+        "IntegrationTests/testCompleteFlowPerformance",
+        "IntegrationTests/testConcurrentAPIRequests",
+        "BackgroundProcessingIntegrationTests/testBackgroundProcessingPerformance"
+      ],
+      "target" : {
+        "containerPath" : "container:TrainAlert.xcodeproj",
+        "identifier" : "TrainAlertTests",
+        "name" : "TrainAlertTests"
+      }
+    },
+    {
+      "selectedTests" : [
+        "AlertSetupFlowUITests/testAlertSetupFlowPerformance",
+        "AlertSetupFlowUITests/testStationSearchPerformance",
+        "SettingsUITests/testSettingsScreenPerformance",
+        "HistoryUITests/testHistoryScreenPerformance",
+        "HistoryUITests/testHistorySearchPerformance"
+      ],
+      "target" : {
+        "containerPath" : "container:TrainAlert.xcodeproj",
+        "identifier" : "TrainAlertUITests",
+        "name" : "TrainAlertUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

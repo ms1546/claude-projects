@@ -91,7 +91,7 @@ class OpenAIClient: ObservableObject {
         self.session = URLSession(configuration: configuration)
         
         // APIキーをKeychainから読み込む
-        self.apiKey = KeychainHelper.shared.getAPIKey()
+        self.apiKey = try? KeychainManager.shared.getOpenAIAPIKey()
         
         // ネットワーク監視開始
         setupNetworkMonitoring()
@@ -100,7 +100,7 @@ class OpenAIClient: ObservableObject {
     // MARK: - API Key Management
     func setAPIKey(_ key: String) {
         self.apiKey = key
-        KeychainHelper.shared.saveAPIKey(key)
+        try? KeychainManager.shared.saveOpenAIAPIKey(key)
     }
     
     func hasAPIKey() -> Bool {
@@ -185,7 +185,7 @@ class OpenAIClient: ObservableObject {
         // メッセージの長さをチェック（30-50文字の範囲内か）
         let cleanedMessage = message.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleanedMessage.count < 10 || cleanedMessage.count > 100 {
-            print("⚠️ Generated message length is out of expected range: \(cleanedMessage.count) characters")
+            // ⚠️ Generated message length is out of expected range
         }
         
         // キャッシュに保存
@@ -217,10 +217,10 @@ class OpenAIClient: ObservableObject {
                 
                 if attempt < maxRetryAttempts {
                     let delay = calculateRetryDelay(for: attempt)
-                    print("⏳ Rate limit exceeded. Retrying in \(delay) seconds... (Attempt \(attempt)/\(maxRetryAttempts))")
+                    // ⏳ Rate limit exceeded. Retrying...
                     try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 } else {
-                    print("❌ Rate limit exceeded. Max retry attempts reached.")
+                    // ❌ Rate limit exceeded. Max retry attempts reached.
                     throw OpenAIError.rateLimitExceeded
                 }
                 
@@ -229,10 +229,10 @@ class OpenAIClient: ObservableObject {
                 
                 if attempt < maxRetryAttempts {
                     let delay = calculateRetryDelay(for: attempt)
-                    print("⏳ Server error. Retrying in \(delay) seconds... (Attempt \(attempt)/\(maxRetryAttempts))")
+                    // ⏳ Server error. Retrying...
                     try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 } else {
-                    print("❌ Server error. Max retry attempts reached.")
+                    // ❌ Server error. Max retry attempts reached.
                     throw OpenAIError.serverError
                 }
                 
@@ -318,7 +318,7 @@ class OpenAIClient: ObservableObject {
         if requestCount >= maxRequestsPerMinute {
             let waitTime = 60 - now.timeIntervalSince(requestResetTime)
             if waitTime > 0 {
-                print("⏱️ Rate limit reached. Waiting \(Int(waitTime)) seconds...")
+                // ⏱️ Rate limit reached. Waiting...
                 try await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
                 requestCount = 0
                 requestResetTime = Date()
@@ -392,44 +392,3 @@ enum OpenAIError: LocalizedError {
 }
 
 
-// MARK: - Keychain Helper
-class KeychainHelper {
-    static let shared = KeychainHelper()
-    
-    private let apiKeyKey = "com.trainalert.openai.apikey"
-    
-    private init() {}
-    
-    func saveAPIKey(_ key: String) {
-        let data = key.data(using: .utf8)!
-        
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: apiKeyKey,
-            kSecValueData as String: data
-        ]
-        
-        SecItemDelete(query as CFDictionary)
-        SecItemAdd(query as CFDictionary, nil)
-    }
-    
-    func getAPIKey() -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: apiKeyKey,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-        
-        var dataTypeRef: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
-        
-        if status == errSecSuccess,
-           let data = dataTypeRef as? Data,
-           let key = String(data: data, encoding: .utf8) {
-            return key
-        }
-        
-        return nil
-    }
-}

@@ -567,7 +567,7 @@ struct HistoryView: View {
             }
         } catch {
             // Handle error - could show an alert
-            print("Failed to create temporary CSV file: \(error)")
+            // Failed to create temporary CSV file
         }
         
         viewModel.showingExportSheet = false

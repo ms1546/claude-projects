@@ -173,7 +173,7 @@ class NotificationManager: NSObject, ObservableObject {
         try await center.add(request)
         pendingNotifications.insert(identifier)
         
-        print("📱 Scheduled train alert for \(stationName) at \(notificationTime)")
+        // 📱 Scheduled train alert for station at notification time
     }
     
     /// Schedule a location-based notification
@@ -216,7 +216,7 @@ class NotificationManager: NSObject, ObservableObject {
         try await center.add(request)
         pendingNotifications.insert(identifier)
         
-        print("📍 Scheduled location-based alert for \(stationName)")
+        // 📍 Scheduled location-based alert for station
     }
     
     /// Schedule a snooze notification
@@ -228,14 +228,18 @@ class NotificationManager: NSObject, ObservableObject {
         // Check snooze limit
         let currentCount = snoozeCounters[originalIdentifier, default: 0]
         guard currentCount < settings.maxSnoozeCount else {
-            print("⏰ Maximum snooze count reached for \(originalIdentifier)")
+            // ⏰ Maximum snooze count reached
             return
         }
         
         let snoozeIdentifier = "\(originalIdentifier)_snooze_\(currentCount + 1)"
         snoozeCounters[originalIdentifier] = currentCount + 1
         
-        let content = await createSnoozeAlertContent(stationName: stationName, snoozeCount: currentCount + 1, characterStyle: settings.characterStyle)
+        let content = await createSnoozeAlertContent(
+            stationName: stationName,
+            snoozeCount: currentCount + 1,
+            characterStyle: settings.characterStyle
+        )
         
         let trigger = UNTimeIntervalNotificationTrigger(
             timeInterval: settings.snoozeInterval,
@@ -251,7 +255,7 @@ class NotificationManager: NSObject, ObservableObject {
         try await center.add(request)
         pendingNotifications.insert(snoozeIdentifier)
         
-        print("😴 Scheduled snooze notification #\(currentCount + 1) for \(stationName)")
+        // 😴 Scheduled snooze notification
     }
     
     // MARK: - Notification Content Creation
@@ -285,7 +289,7 @@ class NotificationManager: NSObject, ObservableObject {
                 characterStyle: characterStyle
             )
         } catch {
-            print("❌ OpenAI API error: \(error.localizedDescription)")
+            // ❌ OpenAI API error occurred
         }
         
         // Use generated message or fallback to preset
@@ -335,7 +339,7 @@ class NotificationManager: NSObject, ObservableObject {
                 characterStyle: characterStyle
             )
         } catch {
-            print("❌ OpenAI API error: \(error.localizedDescription)")
+            // ❌ OpenAI API error occurred
         }
         
         if let message = generatedMessage {
@@ -357,7 +361,11 @@ class NotificationManager: NSObject, ObservableObject {
         return content
     }
     
-    private func createSnoozeAlertContent(stationName: String, snoozeCount: Int, characterStyle: CharacterStyle) async -> UNMutableNotificationContent {
+    private func createSnoozeAlertContent(
+        stationName: String,
+        snoozeCount: Int,
+        characterStyle: CharacterStyle
+    ) async -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         content.categoryIdentifier = NotificationCategory.snoozeAlert.identifier
         content.sound = .defaultCritical
@@ -373,7 +381,7 @@ class NotificationManager: NSObject, ObservableObject {
                 characterStyle: characterStyle
             )
         } catch {
-            print("❌ OpenAI API error: \(error.localizedDescription)")
+            // ❌ OpenAI API error occurred
         }
         
         if let message = generatedMessage {

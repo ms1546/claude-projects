@@ -157,7 +157,10 @@ struct CharacterSelectView: View {
                         .background(Color.textSecondary.opacity(0.3))
                     
                     if previewMessage.isEmpty && !isGeneratingPreview {
-                        Text(selectedStyle.fallbackMessages.trainAlert.body.replacingOccurrences(of: "{station}", with: setupData.selectedStation?.name ?? "渋谷駅"))
+                        Text(selectedStyle.fallbackMessages.trainAlert.body.replacingOccurrences(
+                            of: "{station}",
+                            with: setupData.selectedStation?.name ?? "渋谷駅"
+                        ))
                             .font(.body)
                             .foregroundColor(.textPrimary)
                             .multilineTextAlignment(.leading)
