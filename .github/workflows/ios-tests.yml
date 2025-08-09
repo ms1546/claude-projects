@@ -7,7 +7,7 @@ on:
     branches: [ main, develop ]
 
 env:
-  DEVELOPER_DIR: /Applications/Xcode_15.2.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_14.3.1.app/Contents/Developer
 
 jobs:
   # Code Quality and Linting
@@ -22,7 +22,7 @@ jobs:
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '15.2'
+        xcode-version: '14.3.1'
         
     - name: Cache SwiftLint
       id: cache-swiftlint
@@ -68,12 +68,10 @@ jobs:
     strategy:
       matrix:
         simulator:
-          - device: "iPhone 15"
-            os: "17.2"
-          - device: "iPhone 15 Pro"
-            os: "17.2"
-          - device: "iPad Pro (11-inch) (4th generation)"
-            os: "17.2"
+          - device: "iPhone 14"
+            os: "16.2"
+          - device: "iPhone 13"
+            os: "16.2"
     
     steps:
     - name: Checkout Code
@@ -82,7 +80,7 @@ jobs:
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '15.2'
+        xcode-version: '14.3.1'
         
     - name: List Available Simulators
       run: xcrun simctl list devices
@@ -97,7 +95,20 @@ jobs:
           
     - name: Create Simulator
       run: |
-        SIMULATOR_ID=$(xcrun simctl create "TestSimulator" "${{ matrix.simulator.device }}" "iOS${{ matrix.simulator.os }}")
+        # Find the correct device type and runtime
+        DEVICE_TYPE=$(xcrun simctl list devicetypes | grep -i "${{ matrix.simulator.device }}" | head -1 | awk -F'(' '{print $2}' | awk -F')' '{print $1}')
+        RUNTIME=$(xcrun simctl list runtimes | grep -i "iOS ${{ matrix.simulator.os }}" | head -1 | awk -F'(' '{print $2}' | awk -F')' '{print $1}')
+        
+        if [ -z "$DEVICE_TYPE" ] || [ -z "$RUNTIME" ]; then
+          echo "Failed to find device type or runtime"
+          echo "Available device types:"
+          xcrun simctl list devicetypes
+          echo "Available runtimes:"
+          xcrun simctl list runtimes
+          exit 1
+        fi
+        
+        SIMULATOR_ID=$(xcrun simctl create "TestSimulator" "$DEVICE_TYPE" "$RUNTIME")
         echo "SIMULATOR_ID=$SIMULATOR_ID" >> $GITHUB_ENV
         xcrun simctl boot $SIMULATOR_ID
         
@@ -189,7 +200,7 @@ jobs:
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '15.2'
+        xcode-version: '14.3.1'
         
     - name: Cache DerivedData
       uses: actions/cache@v4
@@ -201,7 +212,17 @@ jobs:
           
     - name: Create UI Test Simulator
       run: |
-        SIMULATOR_ID=$(xcrun simctl create "UITestSimulator" "iPhone 15" "iOS17.2")
+        # Find the correct device type and runtime
+        DEVICE_TYPE=$(xcrun simctl list devicetypes | grep -i "iPhone 14" | head -1 | awk -F'(' '{print $2}' | awk -F')' '{print $1}')
+        RUNTIME=$(xcrun simctl list runtimes | grep -i "iOS 16.2" | head -1 | awk -F'(' '{print $2}' | awk -F')' '{print $1}')
+        
+        if [ -z "$DEVICE_TYPE" ] || [ -z "$RUNTIME" ]; then
+          echo "Using fallback simulator creation"
+          SIMULATOR_ID=$(xcrun simctl create "UITestSimulator" "iPhone 14" "iOS 16.0" || echo "")
+        else
+          SIMULATOR_ID=$(xcrun simctl create "UITestSimulator" "$DEVICE_TYPE" "$RUNTIME")
+        fi
+        
         echo "UI_SIMULATOR_ID=$SIMULATOR_ID" >> $GITHUB_ENV
         xcrun simctl boot $SIMULATOR_ID
         
@@ -258,11 +279,21 @@ jobs:
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '15.2'
+        xcode-version: '14.3.1'
         
     - name: Create Integration Test Simulator
       run: |
-        SIMULATOR_ID=$(xcrun simctl create "IntegrationTestSimulator" "iPhone 15" "iOS17.2")
+        # Find the correct device type and runtime
+        DEVICE_TYPE=$(xcrun simctl list devicetypes | grep -i "iPhone 14" | head -1 | awk -F'(' '{print $2}' | awk -F')' '{print $1}')
+        RUNTIME=$(xcrun simctl list runtimes | grep -i "iOS 16.2" | head -1 | awk -F'(' '{print $2}' | awk -F')' '{print $1}')
+        
+        if [ -z "$DEVICE_TYPE" ] || [ -z "$RUNTIME" ]; then
+          echo "Using fallback simulator creation"
+          SIMULATOR_ID=$(xcrun simctl create "IntegrationTestSimulator" "iPhone 14" "iOS 16.0" || echo "")
+        else
+          SIMULATOR_ID=$(xcrun simctl create "IntegrationTestSimulator" "$DEVICE_TYPE" "$RUNTIME")
+        fi
+        
         echo "INTEGRATION_SIMULATOR_ID=$SIMULATOR_ID" >> $GITHUB_ENV
         xcrun simctl boot $SIMULATOR_ID
         
@@ -302,11 +333,21 @@ jobs:
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '15.2'
+        xcode-version: '14.3.1'
         
     - name: Create Performance Test Simulator
       run: |
-        SIMULATOR_ID=$(xcrun simctl create "PerformanceTestSimulator" "iPhone 15" "iOS17.2")
+        # Find the correct device type and runtime
+        DEVICE_TYPE=$(xcrun simctl list devicetypes | grep -i "iPhone 14" | head -1 | awk -F'(' '{print $2}' | awk -F')' '{print $1}')
+        RUNTIME=$(xcrun simctl list runtimes | grep -i "iOS 16.2" | head -1 | awk -F'(' '{print $2}' | awk -F')' '{print $1}')
+        
+        if [ -z "$DEVICE_TYPE" ] || [ -z "$RUNTIME" ]; then
+          echo "Using fallback simulator creation"
+          SIMULATOR_ID=$(xcrun simctl create "PerformanceTestSimulator" "iPhone 14" "iOS 16.0" || echo "")
+        else
+          SIMULATOR_ID=$(xcrun simctl create "PerformanceTestSimulator" "$DEVICE_TYPE" "$RUNTIME")
+        fi
+        
         echo "PERFORMANCE_SIMULATOR_ID=$SIMULATOR_ID" >> $GITHUB_ENV
         xcrun simctl boot $SIMULATOR_ID
         
@@ -378,7 +419,7 @@ jobs:
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '15.2'
+        xcode-version: '14.3.1'
         
     - name: Setup Build Directory
       run: mkdir -p build/
@@ -448,8 +489,8 @@ jobs:
         
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "📅 **Generated:** $(date)" >> $GITHUB_STEP_SUMMARY
-        echo "🔧 **Xcode Version:** 15.2" >> $GITHUB_STEP_SUMMARY
-        echo "📱 **iOS Version:** 17.2" >> $GITHUB_STEP_SUMMARY
+        echo "🔧 **Xcode Version:** 14.3.1" >> $GITHUB_STEP_SUMMARY
+        echo "📱 **iOS Version:** 16.2" >> $GITHUB_STEP_SUMMARY
         echo "🏗️ **Build:** ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
 
   # Notify on Failure
