@@ -13,9 +13,6 @@ excluded:
   - .swiftpm
 
 # Rules
-disabled_rules:
-  - empty_count # Temporarily disabled due to false positives
-
 opt_in_rules:
   - array_init
   - closure_end_indentation

@@ -73,7 +73,7 @@ final class HistoryUITests: XCTestCase {
         if historyTable.waitForExistence(timeout: 5) {
             // Check if history items exist
             let historyCells = historyTable.cells
-            if historyCells.count > 0 {
+            if !historyCells.isEmpty {
                 let firstCell = historyCells.element(boundBy: 0)
                 XCTAssertTrue(firstCell.exists)
                 
@@ -91,7 +91,7 @@ final class HistoryUITests: XCTestCase {
         navigateToHistory()
         
         let historyTable = app.tables["履歴リスト"]
-        if historyTable.waitForExistence(timeout: 5) && historyTable.cells.count > 0 {
+        if historyTable.waitForExistence(timeout: 5) && !historyTable.cells.isEmpty {
             let firstCell = historyTable.cells.element(boundBy: 0)
             firstCell.tap()
             
@@ -296,12 +296,12 @@ final class HistoryUITests: XCTestCase {
             
             // Test selecting items
             let historyTable = app.tables["履歴リスト"]
-            if historyTable.exists && historyTable.cells.count > 0 {
+            if historyTable.exists && !historyTable.cells.isEmpty {
                 let firstCell = historyTable.cells.element(boundBy: 0)
                 firstCell.tap()
                 
                 // Cell should show selection state
-                XCTAssertTrue(firstCell.isSelected || firstCell.buttons.count > 0)
+                XCTAssertTrue(firstCell.isSelected || !firstCell.buttons.isEmpty)
                 
                 // Test select all
                 let selectAllButton = app.buttons["すべて選択"]
@@ -320,7 +320,7 @@ final class HistoryUITests: XCTestCase {
         enterSelectionMode()
         
         let historyTable = app.tables["履歴リスト"]
-        if historyTable.exists && historyTable.cells.count > 0 {
+        if historyTable.exists && !historyTable.cells.isEmpty {
             // Select first item
             let firstCell = historyTable.cells.element(boundBy: 0)
             firstCell.tap()
@@ -347,7 +347,7 @@ final class HistoryUITests: XCTestCase {
         navigateToHistory()
         
         let historyTable = app.tables["履歴リスト"]
-        if historyTable.waitForExistence(timeout: 5) && historyTable.cells.count > 0 {
+        if historyTable.waitForExistence(timeout: 5) && !historyTable.cells.isEmpty {
             let firstCell = historyTable.cells.element(boundBy: 0)
             
             // Swipe to reveal delete action
@@ -490,7 +490,7 @@ final class HistoryUITests: XCTestCase {
         navigateToHistory()
         
         let historyTable = app.tables["履歴リスト"]
-        if historyTable.waitForExistence(timeout: 5) && historyTable.cells.count > 0 {
+        if historyTable.waitForExistence(timeout: 5) && !historyTable.cells.isEmpty {
             let firstCell = historyTable.cells.element(boundBy: 0)
             
             XCTAssertTrue(firstCell.isAccessibilityElement)
