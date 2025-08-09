@@ -125,5 +125,4 @@ custom_rules:
 # Ensure trailing newline is enforced
 trailing_newline: error
 
-# Reporter type (for GitHub Actions compatibility)
-reporter: "github-actions-logging"
+# Reporter type is set via command line in GitHub Actions
