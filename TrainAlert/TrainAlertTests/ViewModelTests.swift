@@ -399,7 +399,7 @@ extension ViewModelTests {
         XCTAssertNotNil(viewModel.errorMessage)
         
         // Test with valid format
-        viewModel.openAIAPIKey = "sk-test1234567890abcdef1234567890abcdef"
+        viewModel.openAIAPIKey = "test-api-key-1234567890abcdef1234567890"
         await viewModel.validateAPIKey()
         XCTAssertTrue(viewModel.isAPIKeyValid)
     }
@@ -407,7 +407,7 @@ extension ViewModelTests {
     func testSettingsViewModelClearAPIKey() {
         let viewModel = SettingsViewModel()
         
-        viewModel.openAIAPIKey = "sk-test1234567890abcdef1234567890abcdef"
+        viewModel.openAIAPIKey = "test-api-key-1234567890abcdef1234567890"
         viewModel.isAPIKeyValid = true
         
         viewModel.clearAPIKey()

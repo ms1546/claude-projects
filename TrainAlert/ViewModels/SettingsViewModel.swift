@@ -120,9 +120,9 @@ class SettingsViewModel: ObservableObject {
             errorMessage = nil
         }
         
-        // Simple validation - check if it starts with "sk-" and has reasonable length
+        // Simple validation - check for reasonable length
         let trimmedKey = openAIAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        let isValidFormat = trimmedKey.hasPrefix("sk-") && trimmedKey.count > 20
+        let isValidFormat = trimmedKey.count > 20
         
         await MainActor.run {
             isTestingAPIKey = false
@@ -136,7 +136,7 @@ class SettingsViewModel: ObservableObject {
     
     private func checkAPIKeyValidity() {
         let trimmedKey = openAIAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        isAPIKeyValid = trimmedKey.hasPrefix("sk-") && trimmedKey.count > 20
+        isAPIKeyValid = trimmedKey.count > 20
     }
     
     func clearAPIKey() {

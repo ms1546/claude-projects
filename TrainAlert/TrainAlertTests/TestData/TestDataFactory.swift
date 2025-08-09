@@ -365,7 +365,7 @@ class TestDataFactory {
             "vibrationIntensity": 0.8,
             "selectedCharacterStyle": "gyaru",
             "useAIGeneratedMessages": true,
-            "openAIAPIKey": "sk-test1234567890abcdef1234567890abcdef",
+            "openAIAPIKey": "test-api-key-1234567890abcdef1234567890",
             "selectedLanguage": "ja",
             "distanceUnit": "metric",
             "use24HourFormat": true,

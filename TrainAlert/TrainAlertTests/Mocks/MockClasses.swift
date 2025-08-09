@@ -324,7 +324,7 @@ class MockOpenAIClient: ObservableObject {
     ]
     
     func setAPIKey(_ key: String) {
-        hasValidAPIKey = !key.isEmpty && key.hasPrefix("sk-")
+        hasValidAPIKey = !key.isEmpty && key.count > 20
     }
     
     func hasAPIKey() -> Bool {
@@ -341,7 +341,7 @@ class MockOpenAIClient: ObservableObject {
             throw OpenAIError.invalidAPIKey
         }
         
-        return key.hasPrefix("sk-") && key.count > 20
+        return key.count > 20
     }
     
     func generateNotificationMessage(

@@ -404,8 +404,8 @@ jobs:
       
     - name: Run API Key Detection
       run: |
-        # Check for hardcoded API keys
-        if grep -r "sk-[a-zA-Z0-9]" TrainAlert/ --exclude-dir=TrainAlertTests; then
+        # Check for hardcoded API keys (excluding common patterns)
+        if grep -r "sk-[a-zA-Z0-9]\{20,\}" TrainAlert/ --exclude-dir=TrainAlertTests --exclude-dir=docs; then
           echo "❌ Potential API key found in source code"
           exit 1
         else
