@@ -3,6 +3,15 @@
 # Paths to include
 included:
   - .
+  - Views
+  - ViewModels
+  - Models
+  - Services
+  - Utilities
+  - DesignSystem
+  - CoreData
+  - TrainAlertTests
+  - TrainAlertUITests
 
 # Paths to exclude
 excluded:
