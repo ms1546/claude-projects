@@ -56,10 +56,12 @@ struct LineResponseData: Codable {
 
 struct LineInfo: Codable {
     let name: String
+    // swiftlint:disable:next identifier_name
     let company_name: String?
     
     enum CodingKeys: String, CodingKey {
         case name
+        // swiftlint:disable:next identifier_name
         case company_name
     }
 }

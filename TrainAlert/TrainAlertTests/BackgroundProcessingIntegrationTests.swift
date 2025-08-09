@@ -256,7 +256,7 @@ final class BackgroundProcessingIntegrationTests: XCTestCase {
         wait(for: [expectation], timeout: 10.0)
         
         // Verify stations were created/updated
-        let allStations = testCoreDataManager.viewContext.fetch(Station.fetchRequest()) as! [Station]
+        let allStations = try testCoreDataManager.viewContext.fetch(Station.fetchRequest())
         XCTAssertGreaterThanOrEqual(allStations.count, locations.count)
     }
     
