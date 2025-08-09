@@ -13,8 +13,7 @@ import UserNotifications
 
 // MARK: - Mock LocationManager
 
-@MainActor
-class MockLocationManager: ObservableObject {
+class MockLocationManager: NSObject, ObservableObject {
     @Published var location: CLLocation?
     @Published var authorizationStatus: CLAuthorizationStatus = .notDetermined
     @Published var isUpdatingLocation = false
@@ -32,9 +31,10 @@ class MockLocationManager: ObservableObject {
     var didStopUpdatingLocation = false
     var targetStation: CLLocation?
     
-    init() {
+    override init() {
         // Set default mock location (Tokyo Station)
         self.mockLocation = CLLocation(latitude: 35.6812, longitude: 139.7673)
+        super.init()
     }
     
     func requestAuthorization() {
