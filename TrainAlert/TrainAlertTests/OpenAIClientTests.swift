@@ -60,18 +60,30 @@ final class OpenAIClientTests: XCTestCase {
             // Test train alert messages
             XCTAssertFalse(messages.trainAlert.title.isEmpty, "Train alert title should not be empty for \(style.displayName)")
             XCTAssertFalse(messages.trainAlert.body.isEmpty, "Train alert body should not be empty for \(style.displayName)")
-            XCTAssertTrue(messages.trainAlert.body.contains("{station}"), "Train alert body should contain {station} placeholder for \(style.displayName)")
+            XCTAssertTrue(
+                messages.trainAlert.body.contains("{station}"),
+                "Train alert body should contain {station} placeholder for \(style.displayName)"
+            )
             
             // Test location alert messages
             XCTAssertFalse(messages.locationAlert.title.isEmpty, "Location alert title should not be empty for \(style.displayName)")
             XCTAssertFalse(messages.locationAlert.body.isEmpty, "Location alert body should not be empty for \(style.displayName)")
-            XCTAssertTrue(messages.locationAlert.body.contains("{station}"), "Location alert body should contain {station} placeholder for \(style.displayName)")
+            XCTAssertTrue(
+                messages.locationAlert.body.contains("{station}"),
+                "Location alert body should contain {station} placeholder for \(style.displayName)"
+            )
             
             // Test snooze alert messages
             XCTAssertFalse(messages.snoozeAlert.title.isEmpty, "Snooze alert title should not be empty for \(style.displayName)")
             XCTAssertFalse(messages.snoozeAlert.body.isEmpty, "Snooze alert body should not be empty for \(style.displayName)")
-            XCTAssertTrue(messages.snoozeAlert.body.contains("{station}"), "Snooze alert body should contain {station} placeholder for \(style.displayName)")
-            XCTAssertTrue(messages.snoozeAlert.body.contains("{count}"), "Snooze alert body should contain {count} placeholder for \(style.displayName)")
+            XCTAssertTrue(
+                messages.snoozeAlert.body.contains("{station}"),
+                "Snooze alert body should contain {station} placeholder for \(style.displayName)"
+            )
+            XCTAssertTrue(
+                messages.snoozeAlert.body.contains("{count}"),
+                "Snooze alert body should contain {count} placeholder for \(style.displayName)"
+            )
         }
     }
     

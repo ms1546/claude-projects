@@ -235,7 +235,11 @@ class NotificationManager: NSObject, ObservableObject {
         let snoozeIdentifier = "\(originalIdentifier)_snooze_\(currentCount + 1)"
         snoozeCounters[originalIdentifier] = currentCount + 1
         
-        let content = await createSnoozeAlertContent(stationName: stationName, snoozeCount: currentCount + 1, characterStyle: settings.characterStyle)
+        let content = await createSnoozeAlertContent(
+            stationName: stationName,
+            snoozeCount: currentCount + 1,
+            characterStyle: settings.characterStyle
+        )
         
         let trigger = UNTimeIntervalNotificationTrigger(
             timeInterval: settings.snoozeInterval,
@@ -357,7 +361,11 @@ class NotificationManager: NSObject, ObservableObject {
         return content
     }
     
-    private func createSnoozeAlertContent(stationName: String, snoozeCount: Int, characterStyle: CharacterStyle) async -> UNMutableNotificationContent {
+    private func createSnoozeAlertContent(
+        stationName: String,
+        snoozeCount: Int,
+        characterStyle: CharacterStyle
+    ) async -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         content.categoryIdentifier = NotificationCategory.snoozeAlert.identifier
         content.sound = .defaultCritical

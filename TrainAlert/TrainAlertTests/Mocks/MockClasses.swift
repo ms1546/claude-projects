@@ -666,7 +666,13 @@ class MockCoreDataManager: CoreDataManager {
         return super.fetchStation(by: stationId)
     }
     
-    override func createAlert(for station: Station, notificationTime: Int16, notificationDistance: Double, snoozeInterval: Int16 = 5, characterStyle: String? = nil) -> Alert {
+    override func createAlert(
+        for station: Station,
+        notificationTime: Int16,
+        notificationDistance: Double,
+        snoozeInterval: Int16 = 5,
+        characterStyle: String? = nil
+    ) -> Alert {
         let alert = super.createAlert(
             for: station,
             notificationTime: notificationTime,

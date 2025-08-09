@@ -345,7 +345,7 @@ final class BackgroundProcessingIntegrationTests: XCTestCase {
             )
         }
         
-        XCTAssertTrue(mockNotificationManager.scheduledNotifications.count > 0)
+        XCTAssertFalse(mockNotificationManager.scheduledNotifications.isEmpty)
     }
     
     // MARK: - Background Performance Tests

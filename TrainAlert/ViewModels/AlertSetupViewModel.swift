@@ -176,7 +176,12 @@ class AlertSetupViewModel: ObservableObject {
                     DispatchQueue.main.async {
                         do {
                             guard let mainAlert = try self.coreDataManager.viewContext.existingObject(with: alertId) as? Alert else {
-                                continuation.resume(throwing: AlertSetupError.coreDataError(NSError(domain: "AlertSetup", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to convert to Alert object"])))
+                                let error = NSError(
+                                    domain: "AlertSetup",
+                                    code: 1,
+                                    userInfo: [NSLocalizedDescriptionKey: "Failed to convert to Alert object"]
+                                )
+                                continuation.resume(throwing: AlertSetupError.coreDataError(error))
                                 return
                             }
                             continuation.resume(returning: mainAlert)
