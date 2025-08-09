@@ -24,7 +24,8 @@ class SettingsViewModel: ObservableObject {
     
     @AppStorage("selectedCharacterStyle") var selectedCharacterStyle: String = CharacterStyle.healing.rawValue
     @AppStorage("useAIGeneratedMessages") var useAIGeneratedMessages: Bool = true
-    @AppStorage("openAIAPIKey") var openAIAPIKey: String = ""
+    // API Key is now stored in Keychain, not in UserDefaults
+    @Published var openAIAPIKey: String = ""
     
     // MARK: - App Settings
     
@@ -100,11 +101,37 @@ class SettingsViewModel: ObservableObject {
     // MARK: - Initialization
     
     init() {
+        // Load API key from Keychain
+        loadAPIKeyFromKeychain()
         checkAPIKeyValidity()
         checkNotificationPermissions()
     }
     
     // MARK: - API Key Management
+    
+    private func loadAPIKeyFromKeychain() {
+        do {
+            if let apiKey = try KeychainManager.shared.getOpenAIAPIKey() {
+                openAIAPIKey = apiKey
+            }
+        } catch {
+            // Ignore error, API key will remain empty
+        }
+    }
+    
+    func saveAPIKeyToKeychain() {
+        let trimmedKey = openAIAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        if trimmedKey.isEmpty {
+            try? KeychainManager.shared.deleteOpenAIAPIKey()
+        } else {
+            do {
+                try KeychainManager.shared.saveOpenAIAPIKey(trimmedKey)
+            } catch {
+                errorMessage = "APIキーの保存に失敗しました: \(error.localizedDescription)"
+            }
+        }
+    }
     
     func validateAPIKey() async {
         guard !openAIAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -130,6 +157,9 @@ class SettingsViewModel: ObservableObject {
             
             if !isValidFormat {
                 errorMessage = "無効なAPIキー形式です"
+            } else {
+                // Save to Keychain if valid
+                saveAPIKeyToKeychain()
             }
         }
     }
@@ -142,6 +172,8 @@ class SettingsViewModel: ObservableObject {
     func clearAPIKey() {
         openAIAPIKey = ""
         isAPIKeyValid = false
+        // Delete from Keychain
+        try? KeychainManager.shared.deleteOpenAIAPIKey()
     }
     
     // MARK: - Notification Permissions
@@ -183,6 +215,7 @@ class SettingsViewModel: ObservableObject {
         // Reset AI settings
         selectedCharacterStyle = CharacterStyle.healing.rawValue
         useAIGeneratedMessages = true
+        clearAPIKey()
         
         // Reset app settings
         selectedLanguage = "ja"

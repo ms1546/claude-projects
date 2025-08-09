@@ -91,7 +91,7 @@ class OpenAIClient: ObservableObject {
         self.session = URLSession(configuration: configuration)
         
         // APIキーをKeychainから読み込む
-        self.apiKey = KeychainHelper.shared.getAPIKey()
+        self.apiKey = try? KeychainManager.shared.getOpenAIAPIKey()
         
         // ネットワーク監視開始
         setupNetworkMonitoring()
@@ -100,7 +100,7 @@ class OpenAIClient: ObservableObject {
     // MARK: - API Key Management
     func setAPIKey(_ key: String) {
         self.apiKey = key
-        KeychainHelper.shared.saveAPIKey(key)
+        try? KeychainManager.shared.saveOpenAIAPIKey(key)
     }
     
     func hasAPIKey() -> Bool {
@@ -392,44 +392,3 @@ enum OpenAIError: LocalizedError {
 }
 
 
-// MARK: - Keychain Helper
-class KeychainHelper {
-    static let shared = KeychainHelper()
-    
-    private let apiKeyKey = "com.trainalert.openai.apikey"
-    
-    private init() {}
-    
-    func saveAPIKey(_ key: String) {
-        let data = key.data(using: .utf8)!
-        
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: apiKeyKey,
-            kSecValueData as String: data
-        ]
-        
-        SecItemDelete(query as CFDictionary)
-        SecItemAdd(query as CFDictionary, nil)
-    }
-    
-    func getAPIKey() -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: apiKeyKey,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-        
-        var dataTypeRef: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
-        
-        if status == errSecSuccess,
-           let data = dataTypeRef as? Data,
-           let key = String(data: data, encoding: .utf8) {
-            return key
-        }
-        
-        return nil
-    }
-}

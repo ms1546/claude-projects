@@ -270,7 +270,7 @@ final class SettingsUITests: XCTestCase {
             // Clear and test valid format
             apiKeyField.doubleTap()
             app.buttons["Select All"].tap()
-            apiKeyField.typeText("test-api-key-1234567890abcdef1234567890")
+            apiKeyField.typeText("test-api-key-for-testing-1234567890abcdef")
             
             if validateButton.exists {
                 validateButton.tap()
