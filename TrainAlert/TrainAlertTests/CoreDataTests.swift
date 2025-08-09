@@ -303,7 +303,7 @@ final class CoreDataTests: XCTestCase {
             
             // Verify it's deleted
             stations = try coreDataManager.viewContext.fetch(fetchRequest)
-            XCTAssertEqual(stations.count, 0)
+            XCTAssertTrue(stations.isEmpty)
             
         } catch {
             XCTFail("Delete operation failed: \(error)")
@@ -343,9 +343,9 @@ final class CoreDataTests: XCTestCase {
             let alerts = try coreDataManager.viewContext.fetch(alertFetch)
             let historyItems = try coreDataManager.viewContext.fetch(historyFetch)
             
-            XCTAssertEqual(stations.count, 0)
-            XCTAssertEqual(alerts.count, 0)
-            XCTAssertEqual(historyItems.count, 0)
+            XCTAssertTrue(stations.isEmpty)
+            XCTAssertTrue(alerts.isEmpty)
+            XCTAssertTrue(historyItems.isEmpty)
             
         } catch {
             XCTFail("Fetch after delete all failed: \(error)")
@@ -370,7 +370,7 @@ final class CoreDataTests: XCTestCase {
         let fetchRequest: NSFetchRequest<Station> = Station.fetchRequest()
         do {
             let stations = try coreDataManager.viewContext.fetch(fetchRequest)
-            XCTAssertEqual(stations.count, 0)
+            XCTAssertTrue(stations.isEmpty)
         } catch {
             XCTFail("Batch delete verification failed: \(error)")
         }
@@ -540,4 +540,5 @@ extension History {
         return history
     }
 }
+
 

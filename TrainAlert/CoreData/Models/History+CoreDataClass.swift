@@ -346,3 +346,4 @@ extension History {
         return formatter.string(from: notifiedAt)
     }
 }
+

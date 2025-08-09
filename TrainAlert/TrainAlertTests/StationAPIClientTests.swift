@@ -553,3 +553,4 @@ extension StationAPIClientTests {
         return json.data(using: .utf8)!
     }
 }
+
