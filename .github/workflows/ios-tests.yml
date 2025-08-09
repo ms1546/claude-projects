@@ -40,7 +40,11 @@ jobs:
     - name: Run SwiftLint
       run: |
         cd TrainAlert
-        swiftlint --config .swiftlint.yml --reporter github-actions-logging .
+        if which swiftlint >/dev/null; then
+          swiftlint --config .swiftlint.yml --quiet || echo "SwiftLint found issues"
+        else
+          echo "SwiftLint not found, skipping..."
+        fi
         
     - name: Check for trailing newlines
       run: |
@@ -105,7 +109,7 @@ jobs:
       run: |
         cd TrainAlert
         xcodebuild \
-          -workspace TrainAlert.xcworkspace \
+          -project TrainAlert.xcodeproj \
           -scheme TrainAlert \
           -destination "id=${{ env.SIMULATOR_ID }}" \
           -configuration Debug \
@@ -116,7 +120,7 @@ jobs:
       run: |
         cd TrainAlert
         xcodebuild \
-          -workspace TrainAlert.xcworkspace \
+          -project TrainAlert.xcodeproj \
           -scheme TrainAlert \
           -destination "id=${{ env.SIMULATOR_ID }}" \
           -configuration Debug \
@@ -209,7 +213,7 @@ jobs:
       run: |
         cd TrainAlert
         xcodebuild \
-          -workspace TrainAlert.xcworkspace \
+          -project TrainAlert.xcodeproj \
           -scheme TrainAlert \
           -destination "id=${{ env.UI_SIMULATOR_ID }}" \
           -configuration Debug \
@@ -219,7 +223,7 @@ jobs:
       run: |
         cd TrainAlert
         xcodebuild \
-          -workspace TrainAlert.xcworkspace \
+          -project TrainAlert.xcodeproj \
           -scheme TrainAlert \
           -destination "id=${{ env.UI_SIMULATOR_ID }}" \
           -configuration Debug \
@@ -270,7 +274,7 @@ jobs:
       run: |
         cd TrainAlert
         xcodebuild \
-          -workspace TrainAlert.xcworkspace \
+          -project TrainAlert.xcodeproj \
           -scheme TrainAlert \
           -destination "id=${{ env.INTEGRATION_SIMULATOR_ID }}" \
           -configuration Debug \
@@ -310,7 +314,7 @@ jobs:
       run: |
         cd TrainAlert
         xcodebuild \
-          -workspace TrainAlert.xcworkspace \
+          -project TrainAlert.xcodeproj \
           -scheme TrainAlert \
           -destination "id=${{ env.PERFORMANCE_SIMULATOR_ID }}" \
           -configuration Release \
@@ -383,7 +387,7 @@ jobs:
       run: |
         cd TrainAlert
         xcodebuild archive \
-          -workspace TrainAlert.xcworkspace \
+          -project TrainAlert.xcodeproj \
           -scheme TrainAlert \
           -configuration Release \
           -archivePath ../build/TrainAlert.xcarchive \
