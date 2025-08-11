@@ -13,7 +13,7 @@ struct StationSearchView: View {
     // MARK: - Properties
     
     @StateObject private var stationAPI = StationAPIClient()
-    @StateObject private var locationManager = LocationManager()
+    @EnvironmentObject var locationManager: LocationManager
     @ObservedObject var setupData: AlertSetupData
     
     let onStationSelected: (StationModel) -> Void
@@ -28,31 +28,30 @@ struct StationSearchView: View {
     @State private var errorMessage: String?
     @State private var showMap = false
     @State private var selectedSegment = 0 // 0: 近くの駅, 1: 検索結果, 2: お気に入り
+    @State private var searchTask: Task<Void, Never>?
     
     private let segments = ["近くの駅", "検索", "お気に入り"]
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Search Bar
-                searchBar
-                
-                // Segment Control
-                segmentControl
-                
-                // Content
-                content
-            }
-            .background(Color.backgroundPrimary)
-            .navigationTitle("駅を選択")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("マップ") {
-                        showMap = true
-                    }
-                    .foregroundColor(.trainSoftBlue)
+        VStack(spacing: 0) {
+            // Search Bar
+            searchBar
+            
+            // Segment Control
+            segmentControl
+            
+            // Content
+            content
+        }
+        .background(Color.backgroundPrimary)
+        .navigationTitle("駅を選択")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("マップ") {
+                    showMap = true
                 }
+                .foregroundColor(.trainSoftBlue)
             }
         }
         .onAppear {
@@ -83,6 +82,9 @@ struct StationSearchView: View {
                 TextField("駅名で検索", text: $searchText)
                     .textFieldStyle(PlainTextFieldStyle())
                     .foregroundColor(.textPrimary)
+                    .keyboardType(.default)
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
                 
                 if !searchText.isEmpty {
                     Button(action: { searchText = "" }) {
@@ -129,31 +131,46 @@ struct StationSearchView: View {
     }
     
     private var stationList: some View {
-        List(currentStations, id: \.id) { station in
-            StationRowView(
-                station: station,
-                isSelected: setupData.selectedStation?.id == station.id
-            ) {
-                selectStation(station)
+        Group {
+            if currentStations.isEmpty {
+                Text("検索結果がありません")
+                    .foregroundColor(.textSecondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding()
+            } else {
+                List(currentStations, id: \.id) { station in
+                    StationRowView(
+                        station: station,
+                        isSelected: setupData.selectedStation?.id == station.id
+                    ) {
+                        selectStation(station)
+                    }
+                    .listRowBackground(Color.backgroundPrimary)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                }
+                .listStyle(PlainListStyle())
+                .background(Color.backgroundPrimary)
             }
         }
-        .listStyle(PlainListStyle())
-        .background(Color.backgroundPrimary)
     }
     
     private func errorView(message: String) -> some View {
         VStack(spacing: 16) {
-            Image(systemName: "exclamationmark.triangle")
+            Image(systemName: message.contains("位置情報") ? "location.slash" : "exclamationmark.triangle")
                 .font(.system(size: 50))
-                .foregroundColor(.error)
+                .foregroundColor(message.contains("位置情報") ? .textSecondary : .error)
             
             Text(message)
                 .font(.body)
                 .foregroundColor(.textPrimary)
                 .multilineTextAlignment(.center)
+                .padding(.horizontal, 20)
             
-            PrimaryButton("再試行") {
-                loadInitialData()
+            if !message.contains("位置情報") {
+                PrimaryButton("再試行") {
+                    loadInitialData()
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -184,28 +201,35 @@ struct StationSearchView: View {
     
     private func loadNearbyStations() {
         guard let location = locationManager.location else {
+            // Request location permission instead of using default
             requestLocationPermission()
             return
         }
         
+        loadStationsForLocation(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
+    }
+    
+    private func loadStationsForLocation(latitude: Double, longitude: Double) {
         isLoading = true
         errorMessage = nil
         
         Task {
             do {
                 let stations = try await stationAPI.getNearbyStations(
-                    latitude: location.coordinate.latitude,
-                    longitude: location.coordinate.longitude
+                    latitude: latitude,
+                    longitude: longitude
                 )
                 
                 await MainActor.run {
                     self.nearbyStations = stations
                     self.isLoading = false
+                    // Loaded nearby stations
                 }
             } catch {
                 await MainActor.run {
                     self.errorMessage = "駅情報の取得に失敗しました: \(error.localizedDescription)"
                     self.isLoading = false
+                    // Error loading stations
                 }
             }
         }
@@ -218,39 +242,76 @@ struct StationSearchView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             if locationManager.location != nil {
                 loadNearbyStations()
+            } else {
+                // If still no location, show all stations
+                self.showAllStations()
             }
         }
     }
     
+    private func showAllStations() {
+        // 位置情報が利用できない場合は、メッセージを表示
+        errorMessage = "位置情報が利用できません。駅名で検索してください。"
+        isLoading = false
+        nearbyStations = []
+    }
+    
     private func performSearch(query: String) {
+        // 入力があったら検索タブに自動切り替え
+        if !query.isEmpty && selectedSegment != 1 {
+            withAnimation {
+                selectedSegment = 1
+            }
+        }
+        
+        // キャンセル処理
+        searchTask?.cancel()
+        
         guard !query.trimmingCharacters(in: .whitespaces).isEmpty else {
             searchResults = []
+            isLoading = false
             return
         }
         
         isLoading = true
         errorMessage = nil
         
-        Task {
+        // デバウンス処理（0.3秒待機）
+        searchTask = Task {
             do {
+                try await Task.sleep(nanoseconds: 300_000_000) // 0.3秒
+                
+                // タスクがキャンセルされていないかチェック
+                guard !Task.isCancelled else { return }
+                
+                // Use current location if available, otherwise search without location
                 let location = locationManager.location?.coordinate
                 let stations = try await stationAPI.searchStations(
                     query: query,
                     near: location
                 )
                 
+                // タスクがキャンセルされていないかチェック
+                guard !Task.isCancelled else { return }
+                
                 await MainActor.run {
                     self.searchResults = stations
                     self.isLoading = false
-                    // Switch to search results tab
-                    if !stations.isEmpty && selectedSegment != 1 {
-                        self.selectedSegment = 1
+                    print("Search completed: \(stations.count) results for '\(query)'")
+                    stations.forEach { station in
+                        print(" - \(station.name)")
                     }
                 }
             } catch {
+                // タスクがキャンセルされた場合は何もしない
+                if Task.isCancelled { return }
+                
                 await MainActor.run {
                     self.searchResults = []
                     self.isLoading = false
+                    if !(error is CancellationError) {
+                        // Search error occurred
+                    }
                 }
             }
         }
@@ -268,6 +329,7 @@ struct StationSearchView: View {
         let impactFeedback = UIImpactFeedbackGenerator(style: .light)
         impactFeedback.impactOccurred()
         
+        // Station selected
         onStationSelected(station)
     }
 }
@@ -289,13 +351,13 @@ struct StationRowView: View {
                     .frame(width: 24, height: 24)
                 
                 VStack(alignment: .leading, spacing: 4) {
-                    // Station Name
+                    // Station Name (Above Lines)
                     Text(station.name)
                         .font(.headline)
                         .foregroundColor(.textPrimary)
                         .lineLimit(1)
                     
-                    // Lines
+                    // Lines (Below Station Name)
                     if !station.lines.isEmpty {
                         Text(station.lines.joined(separator: " • "))
                             .font(.caption)
@@ -315,8 +377,14 @@ struct StationRowView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(isSelected ? Color.backgroundCard : Color.clear)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isSelected ? Color.backgroundCard : Color.backgroundPrimary)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                    )
+            )
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -390,6 +458,7 @@ struct StationSearchView_Previews: PreviewProvider {
             setupData: AlertSetupData(),
             onStationSelected: { _ in }
         )
+        .environmentObject(LocationManager())
         .preferredColorScheme(.dark)
     }
 }
