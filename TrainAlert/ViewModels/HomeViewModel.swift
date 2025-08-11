@@ -62,20 +62,19 @@ class HomeViewModel: ObservableObject {
     private var locationUpdateTask: Task<Void, Never>?
     
     // Weak references to prevent retain cycles
-    private weak var appState: AppState?
+    // private weak var appState: AppState? // Temporarily disabled
     
     // MARK: - Initialization
     
     init(
         coreDataManager: CoreDataManager = CoreDataManager.shared,
         locationManager: LocationManager = LocationManager(),
-        notificationManager: NotificationManager = NotificationManager.shared,
-        appState: AppState? = nil
+        notificationManager: NotificationManager = NotificationManager.shared
     ) {
         self.coreDataManager = coreDataManager
         self.locationManager = locationManager
         self.notificationManager = notificationManager
-        self.appState = appState
+        // self.appState = appState // Temporarily disabled
         
         setupSubscriptions()
         loadInitialDataIfNeeded()
@@ -89,6 +88,18 @@ class HomeViewModel: ObservableObject {
     }
     
     // MARK: - Public Methods
+    
+    /// Setup dependencies after view appears
+    func setupWithDependencies(
+        locationManager: LocationManager,
+        notificationManager: NotificationManager,
+        coreDataManager: CoreDataManager
+    ) {
+        // Dependencies are already set in init, just trigger initial load
+        Task {
+            await refresh()
+        }
+    }
     
     /// Refresh all data with performance monitoring
     func refresh() async {

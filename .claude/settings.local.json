@@ -1,9 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "mcp__serena__list_dir",
-      "mcp__serena__read_memory"
-    ]
+      "mcp__github__search_repositories"
+    ],
+    "deny": []
   },
   "enabledMcpjsonServers": [
     "filesystem",

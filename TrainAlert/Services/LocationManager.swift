@@ -56,11 +56,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
         locationManager.distanceFilter = 100
         
-        // Background location updates configuration
-        if CLLocationManager.significantLocationChangeMonitoringAvailable() {
-            locationManager.allowsBackgroundLocationUpdates = true
-            locationManager.pausesLocationUpdatesAutomatically = true
-        }
+        // Background location updates configuration will be set after authorization
     }
     
     // MARK: - Public Methods
@@ -98,7 +94,15 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         adjustAccuracyForCurrentLocation()
         
         locationManager.startUpdatingLocation()
-        startBackgroundLocationUpdates()
+        
+        // Enable background updates if we have always authorization
+        if authorizationStatus == .authorizedAlways {
+            if CLLocationManager.significantLocationChangeMonitoringAvailable() {
+                locationManager.allowsBackgroundLocationUpdates = true
+                locationManager.pausesLocationUpdatesAutomatically = true
+            }
+            startBackgroundLocationUpdates()
+        }
         
         // Start timer for dynamic updates
         startUpdateTimer()
@@ -211,6 +215,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             }
         case .authorizedAlways:
             // Enable background location updates
+            if CLLocationManager.significantLocationChangeMonitoringAvailable() {
+                locationManager.allowsBackgroundLocationUpdates = true
+                locationManager.pausesLocationUpdatesAutomatically = true
+            }
             if isUpdatingLocation {
                 startBackgroundLocationUpdates()
             }

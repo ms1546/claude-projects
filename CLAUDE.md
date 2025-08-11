@@ -11,7 +11,7 @@ iOS app to prevent oversleeping on trains using location-based and AI-generated 
 ### Environment
 - Xcode 15.0+
 - Swift 5.9
-- iOS 16.0+ (Minimum deployment target)
+- iOS 16.0 (Minimum deployment target - iOS 18は未対応)
 - SwiftUI for UI
 - M2 Mac development environment
 
