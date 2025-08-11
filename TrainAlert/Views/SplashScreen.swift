@@ -29,4 +29,196 @@ struct SplashScreen: View {
     
     // MARK: - Body
     
-    var body: some View {\n        ZStack {\n            // Background gradient\n            backgroundGradient\n            \n            VStack(spacing: 40) {\n                Spacer()\n                \n                // App logo with animation\n                appLogo\n                \n                // Loading indicator\n                loadingIndicator\n                \n                Spacer()\n                \n                // Branding text\n                brandingText\n            }\n            .padding()\n            \n            // Animated train\n            animatedTrain\n        }\n        .ignoresSafeArea()\n        .onAppear {\n            startAnimations()\n        }\n    }\n    \n    // MARK: - View Components\n    \n    private var backgroundGradient: some View {\n        LinearGradient(\n            colors: [\n                .charcoalGray,\n                .charcoalGray.opacity(0.8),\n                .softBlue.opacity(0.1)\n            ],\n            startPoint: .topLeading,\n            endPoint: .bottomTrailing\n        )\n    }\n    \n    private var appLogo: some View {\n        VStack(spacing: 16) {\n            // Train icon\n            Image(systemName: \"tram.fill\")\n                .font(.system(size: 80, weight: .ultraLight))\n                .foregroundColor(.softBlue)\n                .scaleEffect(scale)\n                .opacity(opacity)\n                .animation(\n                    .easeInOut(duration: AnimationConstants.logoAppearDuration)\n                    .repeatForever(autoreverses: true),\n                    value: scale\n                )\n            \n            // App title\n            Text(\"TrainAlert\")\n                .font(.largeTitle)\n                .fontWeight(.thin)\n                .foregroundColor(.white)\n                .opacity(opacity)\n                .animation(\n                    .easeInOut(duration: AnimationConstants.logoAppearDuration)\n                    .delay(0.2),\n                    value: opacity\n                )\n        }\n    }\n    \n    private var loadingIndicator: some View {\n        VStack(spacing: 12) {\n            // Modern loading dots\n            HStack(spacing: 8) {\n                ForEach(0..<3, id: \\.self) { index in\n                    Circle()\n                        .fill(.softBlue)\n                        .frame(width: 8, height: 8)\n                        .scaleEffect(isAnimating ? 1.2 : 0.8)\n                        .animation(\n                            .easeInOut(duration: 0.6)\n                            .repeatForever()\n                            .delay(Double(index) * 0.2),\n                            value: isAnimating\n                        )\n                }\n            }\n            \n            Text(\"読み込み中...\")\n                .font(.caption)\n                .foregroundColor(.lightGray)\n                .opacity(opacity)\n        }\n    }\n    \n    private var brandingText: some View {\n        VStack(spacing: 4) {\n            Text(\"電車寝過ごし防止アプリ\")\n                .font(.caption)\n                .foregroundColor(.lightGray)\n            \n            Text(\"Train Alert\")\n                .font(.caption2)\n                .foregroundColor(.lightGray.opacity(0.7))\n        }\n        .opacity(opacity)\n        .animation(\n            .easeInOut(duration: AnimationConstants.logoAppearDuration)\n            .delay(0.6),\n            value: opacity\n        )\n    }\n    \n    private var animatedTrain: some View {\n        VStack {\n            Spacer()\n            \n            HStack {\n                Image(systemName: \"tram\")\n                    .font(.system(size: 24))\n                    .foregroundColor(.softBlue.opacity(0.6))\n                    .offset(x: trainOffset)\n                    .animation(\n                        .easeInOut(duration: AnimationConstants.trainMoveDuration)\n                        .repeatForever(autoreverses: true),\n                        value: trainOffset\n                    )\n                \n                Spacer()\n            }\n            \n            // Track line\n            Rectangle()\n                .fill(.lightGray.opacity(0.3))\n                .frame(height: 1)\n                .opacity(opacity)\n                .padding(.horizontal)\n                .padding(.bottom, 50)\n        }\n    }\n    \n    // MARK: - Animation Methods\n    \n    private func startAnimations() {\n        // Start immediately visible animations\n        withAnimation(.easeOut(duration: AnimationConstants.logoAppearDuration)) {\n            opacity = 1.0\n        }\n        \n        // Delayed animations\n        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {\n            withAnimation {\n                isAnimating = true\n            }\n            \n            startPulseAnimation()\n            startTrainAnimation()\n        }\n    }\n    \n    private func startPulseAnimation() {\n        let timer = Timer.scheduledTimer(withTimeInterval: AnimationConstants.pulseInterval, repeats: true) { _ in\n            withAnimation(.easeInOut(duration: 0.3)) {\n                scale = scale == AnimationConstants.scaleRange.lowerBound ? \n                       AnimationConstants.scaleRange.upperBound : \n                       AnimationConstants.scaleRange.lowerBound\n            }\n        }\n        \n        // Stop timer when view disappears (handled by SwiftUI automatically)\n        RunLoop.current.add(timer, forMode: .common)\n    }\n    \n    private func startTrainAnimation() {\n        withAnimation(.easeInOut(duration: AnimationConstants.trainMoveDuration).repeatForever(autoreverses: true)) {\n            trainOffset = 100\n        }\n    }\n}\n\n// MARK: - Preview\n\n#if DEBUG\nstruct SplashScreen_Previews: PreviewProvider {\n    static var previews: some View {\n        SplashScreen()\n            .preferredColorScheme(.dark)\n            .previewDisplayName(\"SplashScreen - Dark\")\n    }\n}\n#endif
+    var body: some View {
+        ZStack {
+            // Background gradient
+            backgroundGradient
+            
+            VStack(spacing: 40) {
+                Spacer()
+                
+                // App logo with animation
+                appLogo
+                
+                // Loading indicator
+                loadingIndicator
+                
+                Spacer()
+                
+                // Branding text
+                brandingText
+            }
+            .padding()
+            
+            // Animated train
+            animatedTrain
+        }
+        .ignoresSafeArea()
+        .onAppear {
+            startAnimations()
+        }
+    }
+    
+    // MARK: - View Components
+    
+    private var backgroundGradient: some View {
+        LinearGradient(
+            colors: [
+                .trainCharcoalGray,
+                .trainCharcoalGray.opacity(0.8),
+                Color.trainSoftBlue.opacity(0.1)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+    
+    private var appLogo: some View {
+        VStack(spacing: 16) {
+            // Train icon
+            Image(systemName: "tram.fill")
+                .font(.system(size: 80, weight: .ultraLight))
+                .foregroundColor(.trainSoftBlue)
+                .scaleEffect(scale)
+                .opacity(opacity)
+                .animation(
+                    .easeInOut(duration: AnimationConstants.logoAppearDuration)
+                    .repeatForever(autoreverses: true),
+                    value: scale
+                )
+            
+            // App title
+            Text("TrainAlert")
+                .font(.largeTitle)
+                .fontWeight(.thin)
+                .foregroundColor(.white)
+                .opacity(opacity)
+                .animation(
+                    .easeInOut(duration: AnimationConstants.logoAppearDuration)
+                    .delay(0.2),
+                    value: opacity
+                )
+        }
+    }
+    
+    private var loadingIndicator: some View {
+        VStack(spacing: 12) {
+            // Modern loading dots
+            HStack(spacing: 8) {
+                ForEach(0..<3, id: \.self) { index in
+                    Circle()
+                        .fill(Color.trainSoftBlue)
+                        .frame(width: 8, height: 8)
+                        .scaleEffect(isAnimating ? 1.2 : 0.8)
+                        .animation(
+                            .easeInOut(duration: 0.6)
+                            .repeatForever()
+                            .delay(Double(index) * 0.2),
+                            value: isAnimating
+                        )
+                }
+            }
+            
+            Text("読み込み中...")
+                .font(.caption)
+                .foregroundColor(.trainLightGray)
+                .opacity(opacity)
+        }
+    }
+    
+    private var brandingText: some View {
+        VStack(spacing: 4) {
+            Text("電車寝過ごし防止アプリ")
+                .font(.caption)
+                .foregroundColor(.trainLightGray)
+            
+            Text("Train Alert")
+                .font(.caption2)
+                .foregroundColor(Color.trainLightGray.opacity(0.7))
+        }
+        .opacity(opacity)
+        .animation(
+            .easeInOut(duration: AnimationConstants.logoAppearDuration)
+            .delay(0.6),
+            value: opacity
+        )
+    }
+    
+    private var animatedTrain: some View {
+        VStack {
+            Spacer()
+            
+            HStack {
+                Image(systemName: "tram")
+                    .font(.system(size: 24))
+                    .foregroundColor(Color.trainSoftBlue.opacity(0.6))
+                    .offset(x: trainOffset)
+                    .animation(
+                        .easeInOut(duration: AnimationConstants.trainMoveDuration)
+                        .repeatForever(autoreverses: true),
+                        value: trainOffset
+                    )
+                
+                Spacer()
+            }
+            
+            // Track line
+            Rectangle()
+                .fill(Color.trainLightGray.opacity(0.3))
+                .frame(height: 1)
+                .opacity(opacity)
+                .padding(.horizontal)
+                .padding(.bottom, 50)
+        }
+    }
+    
+    // MARK: - Animation Methods
+    
+    private func startAnimations() {
+        // Start immediately visible animations
+        withAnimation(.easeOut(duration: AnimationConstants.logoAppearDuration)) {
+            opacity = 1.0
+        }
+        
+        // Delayed animations
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            withAnimation {
+                isAnimating = true
+            }
+            
+            startPulseAnimation()
+            startTrainAnimation()
+        }
+    }
+    
+    private func startPulseAnimation() {
+        let timer = Timer.scheduledTimer(withTimeInterval: AnimationConstants.pulseInterval, repeats: true) { _ in
+            withAnimation(.easeInOut(duration: 0.3)) {
+                scale = scale == AnimationConstants.scaleRange.lowerBound ? 
+                       AnimationConstants.scaleRange.upperBound : 
+                       AnimationConstants.scaleRange.lowerBound
+            }
+        }
+        
+        // Stop timer when view disappears (handled by SwiftUI automatically)
+        RunLoop.current.add(timer, forMode: .common)
+    }
+    
+    private func startTrainAnimation() {
+        withAnimation(.easeInOut(duration: AnimationConstants.trainMoveDuration).repeatForever(autoreverses: true)) {
+            trainOffset = 100
+        }
+    }
+}
+
+// MARK: - Preview
+
+#if DEBUG
+struct SplashScreen_Previews: PreviewProvider {
+    static var previews: some View {
+        SplashScreen()
+            .preferredColorScheme(.dark)
+            .previewDisplayName("SplashScreen - Dark")
+    }
+}
+#endif

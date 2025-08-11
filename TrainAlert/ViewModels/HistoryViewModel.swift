@@ -61,7 +61,7 @@ class HistoryViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let pageSize = 50
     private var currentPage = 0
-    private var canLoadMore = true
+    var canLoadMore = true
     
     // MARK: - Initialization
     

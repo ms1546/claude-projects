@@ -14,7 +14,7 @@ class AlertSetupData: ObservableObject {
     // MARK: - Properties
     
     /// 選択された駅
-    @Published var selectedStation: Station?
+    @Published var selectedStation: StationModel?
     
     /// 通知時間（分前）
     @Published var notificationTime: Int = 5
@@ -118,7 +118,7 @@ class AlertSetupData: ObservableObject {
 
 /// アラート設定の構造体
 struct AlertSettings {
-    let station: Station?
+    let station: StationModel?
     let notificationTime: Int
     let notificationDistance: Double
     let snoozeInterval: Int

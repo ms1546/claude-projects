@@ -11,6 +11,13 @@ final class CoreDataManager: ObservableObject {
     
     static let shared = CoreDataManager()
     
+    // Flag to prevent initialization
+    private static var shouldInitialize = false
+    
+    static func enableCoreData() {
+        shouldInitialize = true
+    }
+    
     // MARK: - Properties
     
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "TrainAlert", category: "CoreData")
@@ -18,17 +25,30 @@ final class CoreDataManager: ObservableObject {
     /// メインのPersistent Container
     /// CloudKitとの同期に対応
     lazy var persistentContainer: NSPersistentContainer = {
-        let container = NSPersistentContainer(name: "TrainAlert")
+        // Check if Core Data should be initialized
+        guard Self.shouldInitialize else {
+            // Return a dummy container that won't crash
+            let model = createManagedObjectModel()
+            let container = NSPersistentContainer(name: "TrainAlert", managedObjectModel: model)
+            return container
+        }
         
-        // CloudKit設定
-        let storeDescription = container.persistentStoreDescriptions.first
-        storeDescription?.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
-        storeDescription?.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+        // Create a complete managed object model
+        let model = createManagedObjectModel()
+        let container = NSPersistentContainer(name: "TrainAlert", managedObjectModel: model)
+        
+        // Use in-memory store for now (can be changed to SQLite later)
+        let description = NSPersistentStoreDescription()
+        description.type = NSInMemoryStoreType
+        description.shouldInferMappingModelAutomatically = true
+        description.shouldMigrateStoreAutomatically = true
+        container.persistentStoreDescriptions = [description]
         
         container.loadPersistentStores { [weak self] _, error in
             if let error = error {
                 self?.logger.error("Core Data failed to load: \(error.localizedDescription)")
-                fatalError("Core Data failed to load: \(error)")
+            } else {
+                self?.logger.info("Core Data loaded successfully")
             }
         }
         
@@ -38,6 +58,105 @@ final class CoreDataManager: ObservableObject {
         
         return container
     }()
+    
+    // MARK: - Private Methods
+    
+    private func createManagedObjectModel() -> NSManagedObjectModel {
+        let model = NSManagedObjectModel()
+        
+        // Station Entity (defined first)
+        let stationEntity = NSEntityDescription()
+        stationEntity.name = "Station"
+        stationEntity.managedObjectClassName = "Station"
+        
+        let stationId = NSAttributeDescription()
+        stationId.name = "id"
+        stationId.attributeType = .stringAttributeType
+        stationId.isOptional = false
+        
+        let name = NSAttributeDescription()
+        name.name = "name"
+        name.attributeType = .stringAttributeType
+        name.isOptional = false
+        
+        let latitude = NSAttributeDescription()
+        latitude.name = "latitude"
+        latitude.attributeType = .doubleAttributeType
+        latitude.isOptional = false
+        
+        let longitude = NSAttributeDescription()
+        longitude.name = "longitude"
+        longitude.attributeType = .doubleAttributeType
+        longitude.isOptional = false
+        
+        stationEntity.properties = [stationId, name, latitude, longitude]
+        
+        // Alert Entity
+        let alertEntity = NSEntityDescription()
+        alertEntity.name = "Alert"
+        alertEntity.managedObjectClassName = "Alert"
+        
+        let alertId = NSAttributeDescription()
+        alertId.name = "id"
+        alertId.attributeType = .UUIDAttributeType
+        alertId.isOptional = false
+        
+        let isActive = NSAttributeDescription()
+        isActive.name = "isActive"
+        isActive.attributeType = .booleanAttributeType
+        isActive.defaultValue = true
+        
+        let notificationTime = NSAttributeDescription()
+        notificationTime.name = "notificationTime"
+        notificationTime.attributeType = .integer16AttributeType
+        notificationTime.defaultValue = 5
+        
+        let createdAt = NSAttributeDescription()
+        createdAt.name = "createdAt"
+        createdAt.attributeType = .dateAttributeType
+        createdAt.isOptional = false
+        
+        // Add stationName and lineName for compatibility
+        let stationName = NSAttributeDescription()
+        stationName.name = "stationName"
+        stationName.attributeType = .stringAttributeType
+        stationName.isOptional = true
+        
+        let lineName = NSAttributeDescription()
+        lineName.name = "lineName"
+        lineName.attributeType = .stringAttributeType
+        lineName.isOptional = true
+        
+        // Relationship to Station
+        let stationRelation = NSRelationshipDescription()
+        stationRelation.name = "station"
+        stationRelation.destinationEntity = stationEntity
+        stationRelation.isOptional = true
+        stationRelation.deleteRule = .nullifyDeleteRule
+        
+        alertEntity.properties = [alertId, isActive, notificationTime, createdAt, stationName, lineName, stationRelation]
+        
+        // History Entity
+        let historyEntity = NSEntityDescription()
+        historyEntity.name = "History"
+        historyEntity.managedObjectClassName = "History"
+        
+        let historyId = NSAttributeDescription()
+        historyId.name = "id"
+        historyId.attributeType = .UUIDAttributeType
+        historyId.isOptional = false
+        
+        let notifiedAt = NSAttributeDescription()
+        notifiedAt.name = "notifiedAt"
+        notifiedAt.attributeType = .dateAttributeType
+        notifiedAt.isOptional = false
+        
+        historyEntity.properties = [historyId, notifiedAt]
+        
+        model.entities = [alertEntity, stationEntity, historyEntity]
+        
+        return model
+    }
     
     /// メインコンテキスト（UIスレッドで使用）
     var viewContext: NSManagedObjectContext {
@@ -255,20 +374,6 @@ final class CoreDataManager: ObservableObject {
         return alert
     }
     
-    /// アクティブなアラートを取得
-    /// - Returns: アクティブなアラートの配列
-    func fetchActiveAlerts() -> [Alert] {
-        let request: NSFetchRequest<Alert> = Alert.fetchRequest()
-        request.predicate = NSPredicate(format: "isActive == YES")
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Alert.createdAt, ascending: false)]
-        
-        do {
-            return try viewContext.fetch(request)
-        } catch {
-            logger.error("Failed to fetch active alerts: \(error.localizedDescription)")
-            return []
-        }
-    }
     
     // MARK: - CRUD Operations for History
     

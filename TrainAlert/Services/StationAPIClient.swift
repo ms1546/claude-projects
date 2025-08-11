@@ -30,13 +30,13 @@ struct StationInfo: Codable {
     let prev: String?
     
     // Convert to our Station model
-    func toStation() -> Station? {
+    func toStation() -> StationModel? {
         guard let lat = Double(y),
               let lon = Double(x) else {
             return nil
         }
         
-        return Station(
+        return StationModel(
             id: "\(name)_\(prefecture)_\(line)",
             name: name,
             latitude: lat,
@@ -100,11 +100,11 @@ enum StationAPIError: Error, LocalizedError {
 // MARK: - Cache Models
 
 struct CachedStationData: Codable {
-    let stations: [Station]
+    let stations: [StationModel]
     let timestamp: Date
     let location: CLLocationCoordinate2D
     
-    init(stations: [Station], location: CLLocationCoordinate2D) {
+    init(stations: [StationModel], location: CLLocationCoordinate2D) {
         self.stations = stations
         self.timestamp = Date()
         self.location = location
@@ -240,7 +240,7 @@ class StationAPIClient: ObservableObject {
     // MARK: - Public API Methods
     
     /// 指定された座標の最寄り駅を検索
-    func getNearbyStations(latitude: Double, longitude: Double) async throws -> [Station] {
+    func getNearbyStations(latitude: Double, longitude: Double) async throws -> [StationModel] {
         let location = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
         
         // Check cache first
@@ -362,9 +362,9 @@ class StationAPIClient: ObservableObject {
     }
     
     /// 駅名で検索（部分一致）
-    func searchStations(query: String, near location: CLLocationCoordinate2D? = nil) async throws -> [Station] {
+    func searchStations(query: String, near location: CLLocationCoordinate2D? = nil) async throws -> [StationModel] {
         // まず近くの駅を取得
-        let nearbyStations: [Station]
+        let nearbyStations: [StationModel]
         if let location = location {
             nearbyStations = try await getNearbyStations(latitude: location.latitude, longitude: location.longitude)
         } else {

@@ -16,14 +16,14 @@ struct StationSearchView: View {
     @StateObject private var locationManager = LocationManager()
     @ObservedObject var setupData: AlertSetupData
     
-    let onStationSelected: (Station) -> Void
+    let onStationSelected: (StationModel) -> Void
     
     // MARK: - State
     
     @State private var searchText = ""
-    @State private var searchResults: [Station] = []
-    @State private var nearbyStations: [Station] = []
-    @State private var favoriteStations: [Station] = []
+    @State private var searchResults: [StationModel] = []
+    @State private var nearbyStations: [StationModel] = []
+    @State private var favoriteStations: [StationModel] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showMap = false
@@ -51,7 +51,7 @@ struct StationSearchView: View {
                     Button("マップ") {
                         showMap = true
                     }
-                    .foregroundColor(.softBlue)
+                    .foregroundColor(.trainSoftBlue)
                 }
             }
         }
@@ -98,7 +98,7 @@ struct StationSearchView: View {
             
             if isLoading {
                 ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .softBlue))
+                    .progressViewStyle(CircularProgressViewStyle(tint: .trainSoftBlue))
                     .scaleEffect(0.8)
             }
         }
@@ -162,7 +162,7 @@ struct StationSearchView: View {
     
     // MARK: - Computed Properties
     
-    private var currentStations: [Station] {
+    private var currentStations: [StationModel] {
         switch selectedSegment {
         case 0:
             return nearbyStations
@@ -183,7 +183,7 @@ struct StationSearchView: View {
     }
     
     private func loadNearbyStations() {
-        guard let location = locationManager.currentLocation else {
+        guard let location = locationManager.location else {
             requestLocationPermission()
             return
         }
@@ -212,11 +212,11 @@ struct StationSearchView: View {
     }
     
     private func requestLocationPermission() {
-        locationManager.requestLocationPermission()
+        locationManager.requestAuthorization()
         
         // Monitor location authorization changes
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            if locationManager.currentLocation != nil {
+            if locationManager.location != nil {
                 loadNearbyStations()
             }
         }
@@ -233,7 +233,7 @@ struct StationSearchView: View {
         
         Task {
             do {
-                let location = locationManager.currentLocation?.coordinate
+                let location = locationManager.location?.coordinate
                 let stations = try await stationAPI.searchStations(
                     query: query,
                     near: location
@@ -261,7 +261,7 @@ struct StationSearchView: View {
         favoriteStations = []
     }
     
-    private func selectStation(_ station: Station) {
+    private func selectStation(_ station: StationModel) {
         setupData.selectedStation = station
         
         // Add haptic feedback
@@ -275,7 +275,7 @@ struct StationSearchView: View {
 // MARK: - Station Row View
 
 struct StationRowView: View {
-    let station: Station
+    let station: StationModel
     let isSelected: Bool
     let onTap: () -> Void
     
@@ -285,7 +285,7 @@ struct StationRowView: View {
                 // Station Icon
                 Image(systemName: "train.side.front.car")
                     .font(.title2)
-                    .foregroundColor(.softBlue)
+                    .foregroundColor(.trainSoftBlue)
                     .frame(width: 24, height: 24)
                 
                 VStack(alignment: .leading, spacing: 4) {
@@ -325,8 +325,8 @@ struct StationRowView: View {
 // MARK: - Station Map View
 
 struct StationMapView: View {
-    let stations: [Station]
-    let onStationSelected: (Station) -> Void
+    let stations: [StationModel]
+    let onStationSelected: (StationModel) -> Void
     
     @Environment(\.presentationMode) var presentationMode
     @State private var region = MKCoordinateRegion(
@@ -346,7 +346,7 @@ struct StationMapView: View {
                                 .font(.title2)
                                 .foregroundColor(.white)
                                 .frame(width: 30, height: 30)
-                                .background(Color.softBlue)
+                                .background(Color.trainSoftBlue)
                                 .clipShape(Circle())
                             
                             Text(station.name)

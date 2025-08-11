@@ -18,7 +18,7 @@ final class TrainAlertUITestsLaunchTests: XCTestCase {
     }
 
     func testLaunch() throws {
-        let app = XCTUIApplication()
+        let app = XCUIApplication()
         app.launch()
 
         // Insert steps here to perform after the app has launched.

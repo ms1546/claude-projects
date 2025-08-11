@@ -314,6 +314,8 @@ extension Alert {
     @NSManaged public var characterStyle: String?
     @NSManaged public var isActive: Bool
     @NSManaged public var createdAt: Date?
+    @NSManaged public var stationName: String?
+    @NSManaged public var lineName: String?
     @NSManaged public var station: Station?
     @NSManaged public var histories: NSSet?
 }

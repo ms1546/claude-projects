@@ -62,7 +62,7 @@ struct AlertReviewView: View {
                 Button(action: onBack) {
                     Image(systemName: "chevron.left")
                         .font(.title2)
-                        .foregroundColor(.softBlue)
+                        .foregroundColor(.trainSoftBlue)
                 }
                 .padding(.trailing, 8)
                 
@@ -96,7 +96,7 @@ struct AlertReviewView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "mappin.and.ellipse")
                         .font(.title2)
-                        .foregroundColor(.softBlue)
+                        .foregroundColor(.trainSoftBlue)
                     
                     VStack(alignment: .leading, spacing: 4) {
                         Text(setupData.selectedStation?.name ?? "未選択")
@@ -206,8 +206,7 @@ struct AlertReviewView: View {
             PrimaryButton(
                 "アラートを作成",
                 size: .fullWidth,
-                isLoading: isCreatingAlert,
-                isEnabled: setupData.isFormValid && !isCreatingAlert
+                isEnabled: setupData.isFormValid && !isCreatingAlert, isLoading: isCreatingAlert
             ) {
                 showConfirmation = true
             }
@@ -228,7 +227,7 @@ struct AlertReviewView: View {
     private func sectionHeader(_ title: String, systemImage: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: systemImage)
-                .foregroundColor(.softBlue)
+                .foregroundColor(.trainSoftBlue)
             
             Text(title)
                 .font(.title3)
@@ -241,7 +240,7 @@ struct AlertReviewView: View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.title3)
-                .foregroundColor(.softBlue)
+                .foregroundColor(.trainSoftBlue)
                 .frame(width: 24)
             
             Text(label)
@@ -308,13 +307,7 @@ struct AlertReviewView: View {
 struct AlertReviewView_Previews: PreviewProvider {
     static var previews: some View {
         let setupData = AlertSetupData()
-        setupData.selectedStation = Station(
-            id: "test",
-            name: "渋谷駅",
-            latitude: 35.6580,
-            longitude: 139.7016,
-            lines: ["JR山手線", "東急東横線"]
-        )
+        // setupData.selectedStation = StationModel(id: "test", name: "テスト駅", latitude: 35.681236, longitude: 139.767125, lines: ["山手線"])
         setupData.notificationTime = 5
         setupData.notificationDistance = 500
         setupData.snoozeInterval = 5

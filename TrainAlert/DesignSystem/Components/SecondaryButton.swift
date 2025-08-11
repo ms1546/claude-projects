@@ -112,7 +112,8 @@ struct SecondaryButton: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint(accessibilityHint)
-        .accessibilityAddTraits(isEnabled ? .isButton : [.isButton, .isNotEnabled])
+        .accessibilityAddTraits(.isButton)
+        .disabled(!isEnabled)
     }
     
     // MARK: - Style Properties

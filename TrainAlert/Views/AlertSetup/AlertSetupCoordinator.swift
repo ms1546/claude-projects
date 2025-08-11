@@ -116,7 +116,7 @@ struct AlertSetupCoordinator: View {
             
             VStack(spacing: 16) {
                 ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .softBlue))
+                    .progressViewStyle(CircularProgressViewStyle(tint: .trainSoftBlue))
                     .scaleEffect(1.5)
                 
                 Text("アラートを作成中...")

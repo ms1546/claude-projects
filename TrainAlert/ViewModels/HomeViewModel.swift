@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 import Combine
 import CoreData
 import CoreLocation
@@ -61,20 +62,19 @@ class HomeViewModel: ObservableObject {
     private var locationUpdateTask: Task<Void, Never>?
     
     // Weak references to prevent retain cycles
-    private weak var appState: AppState?
+    // private weak var appState: AppState? // Temporarily disabled
     
     // MARK: - Initialization
     
     init(
         coreDataManager: CoreDataManager = CoreDataManager.shared,
         locationManager: LocationManager = LocationManager(),
-        notificationManager: NotificationManager = NotificationManager.shared,
-        appState: AppState? = nil
+        notificationManager: NotificationManager = NotificationManager.shared
     ) {
         self.coreDataManager = coreDataManager
         self.locationManager = locationManager
         self.notificationManager = notificationManager
-        self.appState = appState
+        // self.appState = appState // Temporarily disabled
         
         setupSubscriptions()
         loadInitialDataIfNeeded()
@@ -83,11 +83,23 @@ class HomeViewModel: ObservableObject {
     }
     
     deinit {
-        cleanup()
+        // Cleanup handled by automatic cancellation
         logger.info("HomeViewModel deinitialized")
     }
     
     // MARK: - Public Methods
+    
+    /// Setup dependencies after view appears
+    func setupWithDependencies(
+        locationManager: LocationManager,
+        notificationManager: NotificationManager,
+        coreDataManager: CoreDataManager
+    ) {
+        // Dependencies are already set in init, just trigger initial load
+        Task {
+            await refresh()
+        }
+    }
     
     /// Refresh all data with performance monitoring
     func refresh() async {
@@ -135,9 +147,9 @@ class HomeViewModel: ObservableObject {
             locationManager.requestAuthorization()
             
             // Only start location updates if we have active alerts
-            if !activeAlerts.isEmpty {
+            if !self.activeAlerts.isEmpty {
                 locationManager.startUpdatingLocation()
-                logger.info("Location updates started with \(activeAlerts.count) active alerts")
+                logger.info("Location updates started with \(self.activeAlerts.count) active alerts")
             } else {
                 logger.info("Skipped location updates - no active alerts")
             }
@@ -218,9 +230,8 @@ class HomeViewModel: ObservableObject {
         
         // Request permissions concurrently
         await withTaskGroup(of: Void.self) { group in
-            group.addTask {
-                self.locationManager.requestAuthorization()
-            }
+            // Location authorization is synchronous
+            self.locationManager.requestAuthorization()
             
             group.addTask {
                 do {
@@ -293,10 +304,10 @@ class HomeViewModel: ObservableObject {
             request.fetchBatchSize = 20
             request.returnsObjectsAsFaults = false
             
-            activeAlerts = try await coreDataManager.optimizedFetch(request)
+            self.activeAlerts = try await coreDataManager.optimizedFetch(request)
             
             performanceMonitor.endTimer(for: "Load Active Alerts")
-            logger.debug("Loaded \(activeAlerts.count) active alerts")
+            logger.debug("Loaded \(self.activeAlerts.count) active alerts")
             
         } catch {
             errorMessage = "アクティブなアラートを読み込めませんでした"
@@ -331,10 +342,10 @@ class HomeViewModel: ObservableObject {
                 }
                 .values
             
-            recentStations = Array(uniqueStationData.prefix(3))
+            self.recentStations = Array(uniqueStationData.prefix(3))
             
             performanceMonitor.endTimer(for: "Load Recent Stations")
-            logger.debug("Loaded \(recentStations.count) recent stations")
+            logger.debug("Loaded \(self.recentStations.count) recent stations")
             
         } catch {
             errorMessage = "最近使用した駅を読み込めませんでした"

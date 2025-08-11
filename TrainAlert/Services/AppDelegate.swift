@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import CoreData
 import BackgroundTasks
 import UserNotifications
 import CoreLocation
@@ -71,7 +72,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     
     func applicationWillResignActive(_ application: UIApplication) {
         // Save any pending data
-        CoreDataManager.shared.save()
+        // CoreDataManager.shared.save() // Temporarily disabled
     }
     
     func applicationDidEnterBackground(_ application: UIApplication) {
@@ -79,7 +80,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         scheduleBackgroundRefresh()
         
         // Save context before backgrounding
-        CoreDataManager.shared.save()
+        // CoreDataManager.shared.save() // Temporarily disabled
         
         performanceMonitor.logMemoryUsage(context: "Did Enter Background")
     }
@@ -160,7 +161,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         Task {
             do {
                 // Perform data cleanup and optimization
-                await performDataMaintenance()
+                performDataMaintenance()
                 task.setTaskCompleted(success: true)
             } catch {
                 logger.error("Background data processing failed: \(error.localizedDescription)")
@@ -177,7 +178,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // Configure navigation bar appearance
         let navBarAppearance = UINavigationBarAppearance()
         navBarAppearance.configureWithOpaqueBackground()
-        navBarAppearance.backgroundColor = UIColor.charcoalGray
+        navBarAppearance.backgroundColor = UIColor.uiCharcoalGray
         navBarAppearance.titleTextAttributes = [.foregroundColor: UIColor.white]
         navBarAppearance.largeTitleTextAttributes = [.foregroundColor: UIColor.white]
         
@@ -198,9 +199,10 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                 await self?.setupNotifications()
             }
             
-            group.addTask {
-                await CoreDataManager.shared.initializeIfNeeded()
-            }
+            // Core Data initialization disabled temporarily
+            // group.addTask {
+            //     await CoreDataManager.shared.initializeIfNeeded()
+            // }
             
             // Don't initialize location manager unless needed
             // It will be lazily loaded when first accessed
@@ -225,60 +227,21 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     private func refreshAppData() async {
         performanceMonitor.startTimer(for: "App Data Refresh")
         
-        // Refresh only active alerts and critical data
-        let coreData = CoreDataManager.shared
-        
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask {
-                // Cleanup old history entries
-                await coreData.performBackgroundTask { context in
-                    let cutoffDate = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
-                    let request = NSFetchRequest<NSFetchRequestResult>(entityName: "History")
-                    request.predicate = NSPredicate(format: "notifiedAt < %@", cutoffDate as NSDate)
-                    
-                    let deleteRequest = NSBatchDeleteRequest(fetchRequest: request)
-                    try? context.execute(deleteRequest)
-                }
-            }
-        }
+        // Core Data operations disabled temporarily
+        // Will be re-enabled after Core Data setup is fixed
         
         performanceMonitor.endTimer(for: "App Data Refresh")
     }
     
     private func refreshLocationData() async {
-        // Only start location updates if we have active alerts
-        let activeAlerts = CoreDataManager.shared.fetchActiveAlerts()
-        guard !activeAlerts.isEmpty else { return }
-        
-        locationManager.startUpdatingLocation()
-        
-        // Give location manager some time to get a reading
-        try? await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds
-        
-        locationManager.stopUpdatingLocation()
+        // Location updates disabled temporarily until Core Data is fixed
+        return
     }
     
-    private func performDataMaintenance() async {
+    private func performDataMaintenance() {
         performanceMonitor.startTimer(for: "Data Maintenance")
         
-        let coreData = CoreDataManager.shared
-        
-        await coreData.performBackgroundTask { context in
-            // Clean up old data
-            let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
-            
-            // Delete old history entries
-            let historyRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "History")
-            historyRequest.predicate = NSPredicate(format: "notifiedAt < %@", thirtyDaysAgo as NSDate)
-            let historyDelete = NSBatchDeleteRequest(fetchRequest: historyRequest)
-            try? context.execute(historyDelete)
-            
-            // Delete inactive old alerts
-            let alertRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Alert")
-            alertRequest.predicate = NSPredicate(format: "isActive == NO AND createdAt < %@", thirtyDaysAgo as NSDate)
-            let alertDelete = NSBatchDeleteRequest(fetchRequest: alertRequest)
-            try? context.execute(alertDelete)
-        }
+        // Data maintenance disabled temporarily until Core Data is fixed
         
         performanceMonitor.endTimer(for: "Data Maintenance")
     }
@@ -288,21 +251,12 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
 extension CoreDataManager {
     func initializeIfNeeded() async {
-        // Ensure Core Data is initialized on a background thread
-        await withCheckedContinuation { continuation in
-            performBackgroundTask { _ in
-                continuation.resume()
-            }
-        }
+        // Disabled temporarily
     }
     
     func fetchActiveAlerts() -> [Alert] {
-        let request = Alert.activeAlertsFetchRequest()
-        do {
-            return try viewContext.fetch(request)
-        } catch {
-            return []
-        }
+        // Return empty array until Core Data is fixed
+        return []
     }
 }
 

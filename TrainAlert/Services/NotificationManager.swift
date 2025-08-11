@@ -95,7 +95,9 @@ class NotificationManager: NSObject, ObservableObject {
         super.init()
         center.delegate = self
         setupNotificationCategories()
-        checkAuthorizationStatus()
+        Task {
+            await checkAuthorizationStatus()
+        }
     }
     
     // MARK: - Authorization
@@ -123,7 +125,7 @@ class NotificationManager: NSObject, ObservableObject {
     
     /// Check current authorization status
     func checkAuthorizationStatus() async {
-        let settings = await center.getNotificationSettings()
+        let settings = await center.notificationSettings()
         await MainActor.run {
             authorizationStatus = settings.authorizationStatus
             isPermissionGranted = settings.authorizationStatus == .authorized
@@ -138,7 +140,7 @@ class NotificationManager: NSObject, ObservableObject {
         arrivalTime: Date,
         currentLocation: CLLocation?,
         targetLocation: CLLocation,
-        characterStyle: CharacterStyle = .friendly
+        characterStyle: CharacterStyle = .healing
     ) async throws {
         
         guard isPermissionGranted else {
@@ -454,7 +456,7 @@ class NotificationManager: NSObject, ObservableObject {
     
     /// Get pending notifications
     func getPendingNotifications() async -> [UNNotificationRequest] {
-        return await center.getPendingNotificationRequests()
+        return await center.pendingNotificationRequests()
     }
     
     // MARK: - Settings
@@ -552,17 +554,19 @@ class NotificationManager: NSObject, ObservableObject {
 
 extension NotificationManager: UNUserNotificationCenterDelegate {
     
-    func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
         // Show notification even when app is in foreground
-        generateNotificationHapticPattern()
+        Task { @MainActor in
+            generateNotificationHapticPattern()
+        }
         completionHandler([.alert, .sound, .badge])
     }
     
-    func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
@@ -573,10 +577,14 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
         
         switch response.actionIdentifier {
         case NotificationAction.snooze.identifier:
-            handleSnoozeAction(identifier: identifier, userInfo: userInfo)
+            Task { @MainActor in
+                handleSnoozeAction(identifier: identifier, userInfo: userInfo)
+            }
             
         case NotificationAction.dismiss.identifier, UNNotificationDefaultActionIdentifier:
-            handleDismissAction(identifier: identifier, userInfo: userInfo)
+            Task { @MainActor in
+                handleDismissAction(identifier: identifier, userInfo: userInfo)
+            }
             
         default:
             break

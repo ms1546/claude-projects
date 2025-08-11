@@ -75,7 +75,7 @@ struct AlertSettingView: View {
                 Button(action: onBack) {
                     Image(systemName: "chevron.left")
                         .font(.title2)
-                        .foregroundColor(.softBlue)
+                        .foregroundColor(.trainSoftBlue)
                 }
                 .padding(.trailing, 8)
                 
@@ -95,7 +95,7 @@ struct AlertSettingView: View {
             
             // Progress indicator
             ProgressView(value: 2, total: 4)
-                .progressViewStyle(LinearProgressViewStyle(tint: .softBlue))
+                .progressViewStyle(LinearProgressViewStyle(tint: .trainSoftBlue))
                 .frame(height: 4)
                 .clipShape(Capsule())
         }
@@ -106,7 +106,7 @@ struct AlertSettingView: View {
             HStack(spacing: 12) {
                 Image(systemName: "train.side.front.car")
                     .font(.title2)
-                    .foregroundColor(.softBlue)
+                    .foregroundColor(.trainSoftBlue)
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(setupData.selectedStation?.name ?? "駅名")
@@ -126,7 +126,7 @@ struct AlertSettingView: View {
                     onBack()
                 }
                 .font(.caption)
-                .foregroundColor(.softBlue)
+                .foregroundColor(.trainSoftBlue)
             }
             .padding(16)
         }
@@ -151,7 +151,7 @@ struct AlertSettingView: View {
                         Text(notificationTimeDisplayText)
                             .font(.title3)
                             .fontWeight(.semibold)
-                            .foregroundColor(.softBlue)
+                            .foregroundColor(.trainSoftBlue)
                     }
                     
                     VStack(alignment: .leading, spacing: 8) {
@@ -174,7 +174,7 @@ struct AlertSettingView: View {
                         ) {
                             Text("通知時間")
                         }
-                        .tint(.softBlue)
+                        .tint(.trainSoftBlue)
                     }
                 }
                 .padding(16)
@@ -201,7 +201,7 @@ struct AlertSettingView: View {
                         Text(notificationDistanceDisplayText)
                             .font(.title3)
                             .fontWeight(.semibold)
-                            .foregroundColor(.softBlue)
+                            .foregroundColor(.trainSoftBlue)
                     }
                     
                     VStack(alignment: .leading, spacing: 8) {
@@ -224,7 +224,7 @@ struct AlertSettingView: View {
                         ) {
                             Text("通知距離")
                         }
-                        .tint(.softBlue)
+                        .tint(.trainSoftBlue)
                     }
                 }
                 .padding(16)
@@ -251,7 +251,7 @@ struct AlertSettingView: View {
                         Text(snoozeIntervalDisplayText)
                             .font(.title3)
                             .fontWeight(.semibold)
-                            .foregroundColor(.softBlue)
+                            .foregroundColor(.trainSoftBlue)
                     }
                     
                     VStack(alignment: .leading, spacing: 8) {
@@ -274,7 +274,7 @@ struct AlertSettingView: View {
                         ) {
                             Text("スヌーズ間隔")
                         }
-                        .tint(.softBlue)
+                        .tint(.trainSoftBlue)
                     }
                 }
                 .padding(16)
@@ -368,7 +368,7 @@ struct AlertSettingView: View {
 struct AlertSettingView_Previews: PreviewProvider {
     static var previews: some View {
         let setupData = AlertSetupData()
-        setupData.selectedStation = Station(
+        setupData.selectedStation = StationModel(
             id: "test",
             name: "渋谷駅",
             latitude: 35.6580,

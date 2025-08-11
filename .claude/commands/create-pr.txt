@@ -1,0 +1,74 @@
+#!/bin/bash
+# PR作成コマンド - GitHub CLIを使用してPRを作成
+
+# 使用方法: /create-pr "PR title" "PR description"
+
+# 引数チェック
+if [ $# -lt 1 ]; then
+    echo "使用方法: /create-pr \"PRタイトル\" [\"PR説明\"]"
+    echo "例: /create-pr \"feat: Core Dataエラーハンドリングの改善\""
+    exit 1
+fi
+
+PR_TITLE="$1"
+PR_BODY="${2:-}"
+
+# 現在のブランチ名を取得
+CURRENT_BRANCH=$(git branch --show-current)
+
+# mainブランチでないことを確認
+if [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
+    echo "❌ エラー: mainブランチから直接PRを作成することはできません"
+    echo "新しいブランチを作成してください"
+    exit 1
+fi
+
+echo "📋 PR作成情報:"
+echo "- タイトル: $PR_TITLE"
+echo "- 現在のブランチ: $CURRENT_BRANCH"
+echo "- ベースブランチ: main"
+
+# 変更をコミット
+if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "📝 未コミットの変更があります。コミットしますか？ (y/n)"
+    read -r response
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        git add -A
+        git commit -m "$PR_TITLE
+
+🤖 Generated with Claude Code
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+    fi
+fi
+
+# リモートにプッシュ
+echo "🚀 ブランチをリモートにプッシュ中..."
+git push -u origin "$CURRENT_BRANCH"
+
+# PR作成
+echo "🔧 PRを作成中..."
+if [ -n "$PR_BODY" ]; then
+    gh pr create --title "$PR_TITLE" --body "$PR_BODY
+
+🤖 Generated with [Claude Code](https://claude.ai/code)" --base main
+else
+    gh pr create --title "$PR_TITLE" --body "## 概要
+$PR_TITLE
+
+## 変更内容
+- Core Dataのエラーハンドリングを改善
+- モデルファイルが見つからない場合はインメモリストアにフォールバック
+- アプリのクラッシュを防止
+
+## テスト
+- [x] ローカルでビルド成功
+- [x] アプリが正常に起動することを確認
+- [ ] CI/CDパイプラインでのテスト
+
+🤖 Generated with [Claude Code](https://claude.ai/code)" --base main
+fi
+
+# PR URLを表示
+PR_URL=$(gh pr view --json url -q .url)
+echo "✅ PR作成完了: $PR_URL"

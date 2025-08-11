@@ -1,0 +1,44 @@
+#!/bin/bash
+# 簡易PR作成コマンド
+
+# 現在のブランチ情報を取得
+CURRENT_BRANCH=$(git branch --show-current)
+COMMIT_COUNT=$(git rev-list --count HEAD ^origin/main 2>/dev/null || echo "0")
+
+# デフォルトのPRタイトルを生成
+DEFAULT_TITLE="$CURRENT_BRANCH"
+
+echo "🔄 現在のブランチ: $CURRENT_BRANCH"
+echo "📊 mainからのコミット数: $COMMIT_COUNT"
+
+# 変更がある場合はコミット
+if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "📝 未コミットの変更を検出しました"
+    git status --short
+    echo ""
+    echo "これらの変更をコミットしますか？ (y/n)"
+    read -r response
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        git add -A
+        echo "コミットメッセージを入力してください (空の場合はデフォルト):"
+        read -r commit_msg
+        if [ -z "$commit_msg" ]; then
+            commit_msg="Update: $CURRENT_BRANCH"
+        fi
+        git commit -m "$commit_msg
+
+🤖 Generated with Claude Code
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+    fi
+fi
+
+# プッシュ
+echo "🚀 リモートにプッシュ中..."
+git push -u origin "$CURRENT_BRANCH"
+
+# PR作成
+echo "🎯 PR作成中..."
+gh pr create --fill --base main
+
+echo "✅ 完了！"

@@ -1,0 +1,18 @@
+{
+  "agent_id": "agent6",
+  "name": "システム最適化担当",
+  "role": "system_optimizer",
+  "current_task": {
+    "ticket_id": "012",
+    "title": "バックグラウンド処理最適化",
+    "branch": "feature/ticket-012-background_processing",
+    "worktree": ".worktrees/agent6"
+  },
+  "capabilities": [
+    "background_task_optimization",
+    "location_services",
+    "notification_reliability",
+    "battery_optimization"
+  ],
+  "status": "active"
+}

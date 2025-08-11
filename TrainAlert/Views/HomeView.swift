@@ -11,321 +11,206 @@ import MapKit
 struct HomeView: View {
     
     // MARK: - Dependencies
-    
     @StateObject private var viewModel = HomeViewModel()
-    @Environment(\.scenePhase) private var scenePhase
+    @EnvironmentObject var locationManager: LocationManager
+    @EnvironmentObject var notificationManager: NotificationManager
+    @EnvironmentObject var appState: AppState
     
     // MARK: - State
-    
-    @State private var isRefreshing = false
     @State private var showingAlertSetup = false
-    @State private var selectedRecentStation: StationData?
-    
-    // MARK: - Body
+    @State private var selectedAlert: Alert?
+    @State private var showingLocationPermission = false
+    @State private var mapRegion = MKCoordinateRegion(
+        center: CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503),
+        span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
+    )
     
     var body: some View {
         NavigationView {
             ZStack {
                 // Background
-                Color.backgroundPrimary
+                Color(.systemBackground)
                     .ignoresSafeArea()
                 
                 ScrollView {
-                    LazyVStack(spacing: 20) {
-                        // Header with current status
+                    VStack(spacing: 20) {
+                        // Header Section
                         headerSection
                         
-                        // Active alerts or empty state
-                        if viewModel.hasActiveAlerts {
+                        // Quick Actions
+                        quickActionsSection
+                        
+                        // Active Alerts
+                        if !viewModel.activeAlerts.isEmpty {
                             activeAlertsSection
-                        } else {
-                            emptyStateSection
                         }
                         
-                        // Recent stations
-                        if !viewModel.recentStations.isEmpty {
-                            recentStationsSection
-                        }
-                        
-                        // Map view
-                        if viewModel.locationStatus.canShowLocation {
+                        // Map View
+                        if locationManager.authorizationStatus == .authorizedWhenInUse ||
+                           locationManager.authorizationStatus == .authorizedAlways {
                             mapSection
                         }
                         
-                        // Bottom padding for floating action button
-                        Spacer()
-                            .frame(height: 100)
+                        // Empty State
+                        if viewModel.activeAlerts.isEmpty {
+                            emptyStateSection
+                        }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                }
-                .refreshable {
-                    await viewModel.refresh()
-                }
-                
-                // Floating Action Button
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        floatingActionButton
-                    }
-                    .padding(.trailing, 20)
-                    .padding(.bottom, 20)
+                    .padding()
                 }
             }
             .navigationTitle("TrainAlert")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    refreshButton
+                    Button(action: { showingAlertSetup = true }) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.blue)
+                    }
                 }
+            }
+            .sheet(isPresented: $showingAlertSetup) {
+                AlertSetupCoordinator()
+                    .environmentObject(locationManager)
+                    .environmentObject(appState)
+            }
+            .alert("位置情報の許可が必要です", isPresented: $showingLocationPermission) {
+                Button("設定を開く") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                Button("キャンセル", role: .cancel) { }
+            } message: {
+                Text("降車駅に近づいたことをお知らせするために、位置情報の使用許可が必要です。")
             }
             .onAppear {
-                setupInitialState()
-            }
-            .onChange(of: scenePhase) { oldPhase, newPhase in
-                handleScenePhaseChange(newPhase)
-            }
-            .alert("エラー", isPresented: .constant(viewModel.errorMessage != nil)) {
-                Button("OK") {
-                    viewModel.errorMessage = nil
-                }
-            } message: {
-                if let errorMessage = viewModel.errorMessage {
-                    Text(errorMessage)
-                }
-            }
-            .alertSetup(isPresented: $showingAlertSetup) {
-                Task {
-                    await viewModel.refresh()
-                }
-            }
-            .sheet(item: $selectedRecentStation) { station in
-                QuickAlertSetupView(station: station)
+                viewModel.setupWithDependencies(
+                    locationManager: locationManager,
+                    notificationManager: notificationManager,
+                    coreDataManager: appState.coreDataManager
+                )
+                checkLocationPermission()
             }
         }
-        .navigationViewStyle(StackNavigationViewStyle())
     }
     
-    // MARK: - Header Section
+    // MARK: - View Components
     
     private var headerSection: some View {
-        VStack(spacing: 12) {
-            // Date and location status
-            HStack {
-                Text(DateFormatter.homeHeaderDateFormatter.string(from: viewModel.refreshDate))
-                    .font(.bodySmall)
-                    .foregroundColor(.textSecondary)
-                
-                Spacer()
-                
-                HStack(spacing: 4) {
-                    Image(systemName: locationStatusIcon)
-                        .font(.system(size: 12))
-                        .foregroundColor(locationStatusColor)
-                    
-                    Text(viewModel.locationStatus.displayText)
-                        .font(.caption)
-                        .foregroundColor(.textSecondary)
-                }
+        VStack(spacing: 8) {
+            Image(systemName: "tram.fill")
+                .font(.system(size: 60))
+                .foregroundColor(.blue)
+                .padding(.top)
+            
+            Text("電車寝過ごし防止アプリ")
+                .font(.headline)
+                .foregroundColor(.secondary)
+        }
+    }
+    
+    private var quickActionsSection: some View {
+        HStack(spacing: 16) {
+            QuickActionButton(
+                title: "新規アラート",
+                icon: "plus.circle",
+                color: .blue
+            ) {
+                showingAlertSetup = true
             }
             
-            // Permission requests if needed
-            if !viewModel.locationStatus.canShowLocation {
-                permissionRequestCard
+            QuickActionButton(
+                title: "位置情報",
+                icon: "location.circle",
+                color: .green
+            ) {
+                checkLocationPermission()
             }
-        }
-    }
-    
-    private var locationStatusIcon: String {
-        switch viewModel.locationStatus {
-        case .authorized:
-            return "location.fill"
-        case .denied:
-            return "location.slash"
-        case .notRequested:
-            return "location"
-        case .unknown:
-            return "location.circle"
-        }
-    }
-    
-    private var locationStatusColor: Color {
-        switch viewModel.locationStatus {
-        case .authorized:
-            return .success
-        case .denied:
-            return .error
-        case .notRequested:
-            return .warning
-        case .unknown:
-            return .lightGray
-        }
-    }
-    
-    private var permissionRequestCard: some View {
-        Card.outlined {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Image(systemName: "location.circle")
-                        .font(.system(size: 20))
-                        .foregroundColor(.softBlue)
-                    
-                    Text("位置情報の許可")
-                        .font(.labelMedium)
-                        .foregroundColor(.textPrimary)
-                }
-                
-                Text("アラート機能を使用するには位置情報の許可が必要です。")
-                    .font(.bodySmall)
-                    .foregroundColor(.textSecondary)
-                    .bodyLayout()
-                
-                PrimaryButton("許可する", size: .small) {
-                    Task {
-                        await viewModel.requestPermissions()
-                    }
+            
+            QuickActionButton(
+                title: "通知設定",
+                icon: "bell.circle",
+                color: .orange
+            ) {
+                Task {
+                    _ = try? await notificationManager.requestAuthorization()
                 }
             }
         }
     }
-    
-    // MARK: - Active Alerts Section
     
     private var activeAlertsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("アクティブなアラート")
-                .font(.displayMedium)
-                .foregroundColor(.textPrimary)
-                .headingLayout()
+                .font(.headline)
+                .padding(.horizontal, 4)
             
-            ForEach(viewModel.activeAlerts, id: \.id) { alert in
-                AlertCardView(
-                    alert: alert,
-                    onToggle: { viewModel.toggleAlert(alert) },
-                    onDelete: { viewModel.deleteAlert(alert) }
-                )
-                .transition(.asymmetric(
-                    insertion: .scale.combined(with: .opacity),
-                    removal: .scale.combined(with: .opacity)
-                ))
-            }
-        }
-    }
-    
-    // MARK: - Empty State Section
-    
-    private var emptyStateSection: some View {
-        EmptyStateView(
-            icon: "bell.slash",
-            title: "アラートが設定されていません",
-            message: "電車の乗り過ごしを防ぐために、目的地のアラートを設定しましょう。",
-            actionTitle: "アラートを設定",
-            action: { showingAlertSetup = true }
-        )
-    }
-    
-    // MARK: - Recent Stations Section
-    
-    private var recentStationsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("最近使った駅")
-                .font(.displayMedium)
-                .foregroundColor(.textPrimary)
-                .headingLayout()
-            
-            LazyVStack(spacing: 12) {
-                ForEach(viewModel.recentStations, id: \.id) { station in
-                    RecentStationCard(
-                        station: station,
-                        currentLocation: viewModel.currentLocation
-                    ) {
-                        selectedRecentStation = station
-                    }
+            ForEach(viewModel.activeAlerts) { alert in
+                HomeAlertCard(alert: alert) {
+                    viewModel.toggleAlert(alert)
+                } onDelete: {
+                    viewModel.deleteAlert(alert)
                 }
             }
         }
     }
     
-    // MARK: - Map Section
-    
     private var mapSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("現在地")
-                .font(.displayMedium)
-                .foregroundColor(.textPrimary)
-                .headingLayout()
+                .font(.headline)
+                .padding(.horizontal, 4)
             
-            MapView(
-                location: viewModel.currentLocation,
-                alerts: viewModel.activeAlerts
-            )
-            .frame(height: 200)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-    }
-    
-    // MARK: - Controls
-    
-    private var refreshButton: some View {
-        Button {
-            Task {
-                await viewModel.refresh()
-            }
-        } label: {
-            Image(systemName: "arrow.clockwise")
-                .foregroundColor(.softBlue)
-        }
-        .disabled(viewModel.isLoading)
-    }
-    
-    private var floatingActionButton: some View {
-        Button {
-            showingAlertSetup = true
-        } label: {
-            Image(systemName: "plus")
-                .font(.system(size: 20, weight: .medium))
-                .foregroundColor(.white)
-                .frame(width: 56, height: 56)
-                .background(Color.softBlue)
-                .clipShape(Circle())
-                .shadow(
-                    color: Color.black.opacity(0.2),
-                    radius: 8,
-                    x: 0,
-                    y: 4
+            Map(coordinateRegion: $mapRegion, showsUserLocation: true)
+                .frame(height: 200)
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                 )
         }
-        .scaleEffect(showingAlertSetup ? 0.9 : 1.0)
-        .animation(.easeInOut(duration: 0.2), value: showingAlertSetup)
-        .accessibilityLabel("新しいアラートを設定")
-        .accessibilityHint("ダブルタップして新しいアラートの設定を開始")
+    }
+    
+    private var emptyStateSection: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "moon.zzz.fill")
+                .font(.system(size: 80))
+                .foregroundColor(.gray.opacity(0.5))
+            
+            Text("アラートがありません")
+                .font(.title2)
+                .fontWeight(.semibold)
+            
+            Text("降車駅のアラートを設定して、\n寝過ごしを防ぎましょう")
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            
+            Button(action: { showingAlertSetup = true }) {
+                Label("アラートを作成", systemImage: "plus.circle.fill")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(Color.blue)
+                    .cornerRadius(25)
+            }
+            .padding(.top)
+        }
+        .padding(.vertical, 40)
     }
     
     // MARK: - Helper Methods
     
-    private func setupInitialState() {
-        Task {
-            await viewModel.requestPermissions()
-            await viewModel.refresh()
-        }
-        
-        viewModel.startLocationUpdates()
-    }
-    
-    private func handleScenePhaseChange(_ newPhase: ScenePhase) {
-        switch newPhase {
-        case .active:
-            Task {
-                await viewModel.refresh()
-            }
-        case .background:
-            // Keep location updates running in background
-            break
-        case .inactive:
-            break
-        @unknown default:
+    private func checkLocationPermission() {
+        switch locationManager.authorizationStatus {
+        case .notDetermined:
+            locationManager.requestAuthorization()
+        case .denied, .restricted:
+            showingLocationPermission = true
+        default:
             break
         }
     }
@@ -333,247 +218,65 @@ struct HomeView: View {
 
 // MARK: - Supporting Views
 
-/// Alert card for displaying active alerts
-struct AlertCardView: View {
+struct QuickActionButton: View {
+    let title: String
+    let icon: String
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 30))
+                    .foregroundColor(color)
+                
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(.primary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(12)
+        }
+    }
+}
+
+// Custom AlertCard for HomeView
+struct HomeAlertCard: View {
     let alert: Alert
     let onToggle: () -> Void
     let onDelete: () -> Void
     
     var body: some View {
-        Card.elevated {
-            VStack(alignment: .leading, spacing: 12) {
-                // Station and status
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(alert.station?.name ?? "不明な駅")
-                            .font(.displaySmall)
-                            .foregroundColor(.textPrimary)
-                            .headingLayout()
-                        
-                        Text("\(alert.notificationTimeDisplayString) • \(alert.notificationDistanceDisplayString)")
-                            .font(.bodySmall)
-                            .foregroundColor(.textSecondary)
-                    }
-                    
-                    Spacer()
-                    
-                    VStack(spacing: 4) {
-                        Image(systemName: alert.isActive ? "bell.fill" : "bell.slash")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(alert.isActive ? .success : .lightGray)
-                        
-                        Text(alert.isActive ? "アクティブ" : "一時停止")
-                            .font(.caption)
-                            .foregroundColor(alert.isActive ? .success : .lightGray)
-                    }
-                }
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(alert.stationName ?? "未設定")
+                    .font(.headline)
                 
-                // Character style
-                Text(alert.characterStyleEnum.displayName)
+                Text(alert.lineName ?? "")
                     .font(.caption)
-                    .foregroundColor(.softBlue)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.softBlue.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                
-                // Actions
-                HStack(spacing: 12) {
-                    Button(alert.isActive ? "一時停止" : "再開") {
-                        onToggle()
-                    }
-                    .font(.labelSmall)
-                    .foregroundColor(.softBlue)
-                    
-                    Spacer()
-                    
-                    Button("削除") {
-                        onDelete()
-                    }
-                    .font(.labelSmall)
-                    .foregroundColor(.error)
-                }
+                    .foregroundColor(.secondary)
             }
+            
+            Spacer()
+            
+            Toggle("", isOn: Binding(
+                get: { alert.isActive },
+                set: { _ in onToggle() }
+            ))
+            .labelsHidden()
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(alert.station?.name ?? "")のアラート、\(alert.isActive ? "アクティブ" : "一時停止中")")
-    }
-}
-
-/// Empty state view when no alerts are active
-struct EmptyStateView: View {
-    let icon: String
-    let title: String
-    let message: String
-    let actionTitle: String
-    let action: () -> Void
-    
-    var body: some View {
-        Card.transparent {
-            VStack(spacing: 20) {
-                Image(systemName: icon)
-                    .font(.system(size: 48))
-                    .foregroundColor(.lightGray)
-                
-                VStack(spacing: 8) {
-                    Text(title)
-                        .font(.displayMedium)
-                        .foregroundColor(.textPrimary)
-                        .multilineTextAlignment(.center)
-                        .headingLayout()
-                    
-                    Text(message)
-                        .font(.bodyMedium)
-                        .foregroundColor(.textSecondary)
-                        .multilineTextAlignment(.center)
-                        .bodyLayout()
-                }
-                
-                PrimaryButton.gradient(actionTitle) {
-                    action()
-                }
-            }
-            .padding(.vertical, 40)
-        }
-    }
-}
-
-/// Recent station card
-struct RecentStationCard: View {
-    let station: StationData
-    let currentLocation: CLLocation?
-    let action: () -> Void
-    
-    private var distanceText: String? {
-        guard let currentLocation = currentLocation else { return nil }
-        let distance = currentLocation.distance(from: station.location)
-        
-        if distance < 1000 {
-            return String(format: "%.0fm", distance)
-        } else {
-            return String(format: "%.1fkm", distance / 1000)
-        }
-    }
-    
-    var body: some View {
-        Button(action: action) {
-            Card {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(station.name)
-                            .font(.labelLarge)
-                            .foregroundColor(.textPrimary)
-                        
-                        if let distance = distanceText {
-                            Text("現在地から \(distance)")
-                                .font(.bodySmall)
-                                .foregroundColor(.textSecondary)
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(.softBlue)
-                }
-            }
-        }
-        .buttonStyle(PlainButtonStyle())
-        .accessibilityLabel("\(station.name)のクイックアラート設定")
-        .accessibilityHint("ダブルタップして素早くアラートを設定")
-    }
-}
-
-/// Simple map view showing current location and active alerts
-struct MapView: UIViewRepresentable {
-    let location: CLLocation?
-    let alerts: [Alert]
-    
-    func makeUIView(context: Context) -> MKMapView {
-        let mapView = MKMapView()
-        mapView.showsUserLocation = true
-        mapView.userTrackingMode = .none
-        mapView.isZoomEnabled = true
-        mapView.isScrollEnabled = true
-        return mapView
-    }
-    
-    func updateUIView(_ uiView: MKMapView, context: Context) {
-        if let location = location {
-            let region = MKCoordinateRegion(
-                center: location.coordinate,
-                latitudinalMeters: 5000,
-                longitudinalMeters: 5000
-            )
-            uiView.setRegion(region, animated: true)
-        }
-        
-        // Remove existing annotations
-        uiView.removeAnnotations(uiView.annotations)
-        
-        // Add alert annotations
-        for alert in alerts {
-            guard let station = alert.station else { continue }
-            let annotation = MKPointAnnotation()
-            annotation.coordinate = CLLocationCoordinate2D(
-                latitude: station.latitude,
-                longitude: station.longitude
-            )
-            annotation.title = station.name
-            annotation.subtitle = alert.isActive ? "アクティブ" : "一時停止中"
-            uiView.addAnnotation(annotation)
-        }
-    }
-}
-
-// MARK: - Placeholder Views
-
-/// Placeholder for quick alert setup view
-struct QuickAlertSetupView: View {
-    let station: StationData
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationView {
-            VStack {
-                Text("\(station.name)駅")
-                    .font(.displayLarge)
-                    .foregroundColor(.textPrimary)
-                
-                Text("クイックアラート設定")
-                    .font(.bodyMedium)
-                    .foregroundColor(.textSecondary)
-                
-                Text("この画面は今後実装されます")
-                    .font(.bodySmall)
-                    .foregroundColor(.textSecondary)
-                
-                Spacer()
-            }
-            .padding()
-            .navigationTitle("クイック設定")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("キャンセル") {
-                        dismiss()
-                    }
-                }
+        .padding()
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(12)
+        .swipeActions {
+            Button(role: .destructive, action: onDelete) {
+                Label("削除", systemImage: "trash")
             }
         }
     }
-}
-
-// MARK: - Extensions
-
-extension DateFormatter {
-    static let homeHeaderDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "M月d日 HH:mm"
-        formatter.locale = Locale(identifier: "ja_JP")
-        return formatter
-    }()
 }
 
 // MARK: - Preview
@@ -582,8 +285,9 @@ extension DateFormatter {
 struct HomeView_Previews: PreviewProvider {
     static var previews: some View {
         HomeView()
-            .preferredColorScheme(.dark)
-            .previewDisplayName("HomeView - Dark")
+            .environmentObject(LocationManager())
+            .environmentObject(NotificationManager.shared)
+            .environmentObject(AppState())
     }
 }
 #endif
