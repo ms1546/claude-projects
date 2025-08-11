@@ -108,9 +108,19 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     func stopUpdatingLocation() {
         isUpdatingLocation = false
         locationManager.stopUpdatingLocation()
-        locationManager.stopSignificantLocationChanges()
+        locationManager.stopMonitoringSignificantLocationChanges()
         updateTimer?.invalidate()
         updateTimer = nil
+    }
+    
+    /// Alias for stopSignificantLocationChanges - for compatibility
+    func stopSignificantLocationUpdates() {
+        locationManager.stopMonitoringSignificantLocationChanges()
+    }
+    
+    /// Alias for startMonitoringSignificantLocationChanges - for compatibility  
+    func startSignificantLocationUpdates() {
+        locationManager.startMonitoringSignificantLocationChanges()
     }
     
     /// Calculate distance between two locations
@@ -135,7 +145,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         
         if CLLocationManager.significantLocationChangeMonitoringAvailable() {
-            locationManager.startSignificantLocationChanges()
+            locationManager.startMonitoringSignificantLocationChanges()
         }
     }
     

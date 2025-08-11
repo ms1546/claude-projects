@@ -51,11 +51,11 @@ final class ExtensionsTests: XCTestCase {
     func testPredefinedColors() {
         // Test that predefined colors exist and are not nil
         XCTAssertNotNil(Color.darkNavy)
-        XCTAssertNotNil(Color.charcoalGray)
-        XCTAssertNotNil(Color.softBlue)
+        XCTAssertNotNil(Color.trainCharcoalGray)
+        XCTAssertNotNil(Color.trainSoftBlue)
         XCTAssertNotNil(Color.warmOrange)
         XCTAssertNotNil(Color.mintGreen)
-        XCTAssertNotNil(Color.lightGray)
+        XCTAssertNotNil(Color.trainLightGray)
         XCTAssertNotNil(Color.mediumGray)
     }
     

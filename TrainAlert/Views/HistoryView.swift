@@ -104,7 +104,7 @@ struct HistoryView: View {
                         viewModel.clearSearch()
                     }
                     .font(.bodySmall)
-                    .foregroundColor(.softBlue)
+                    .foregroundColor(.trainSoftBlue)
                 }
             }
             .padding(.horizontal, 16)
@@ -172,7 +172,7 @@ struct HistoryView: View {
                         }
                     }
                     .font(.labelMedium)
-                    .foregroundColor(.softBlue)
+                    .foregroundColor(.trainSoftBlue)
                     .padding()
                     .disabled(viewModel.isLoading)
                 }
@@ -256,7 +256,7 @@ struct HistoryView: View {
         } label: {
             Image(systemName: "ellipsis.circle")
                 .font(.system(size: 18))
-                .foregroundColor(.softBlue)
+                .foregroundColor(.trainSoftBlue)
         }
     }
     
@@ -279,7 +279,7 @@ struct HistoryView: View {
         VStack(spacing: 20) {
             Image(systemName: "clock")
                 .font(.system(size: 60))
-                .foregroundColor(.lightGray)
+                .foregroundColor(.trainLightGray)
             
             VStack(spacing: 8) {
                 Text("履歴がありません")
@@ -302,7 +302,7 @@ struct HistoryView: View {
         VStack(spacing: 20) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 50))
-                .foregroundColor(.lightGray)
+                .foregroundColor(.trainLightGray)
             
             VStack(spacing: 8) {
                 Text("検索結果なし")
@@ -320,7 +320,7 @@ struct HistoryView: View {
                 viewModel.clearSearch()
             }
             .font(.labelMedium)
-            .foregroundColor(.softBlue)
+            .foregroundColor(.trainSoftBlue)
         }
         .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -345,7 +345,7 @@ struct HistoryView: View {
                             
                             if viewModel.selectedFilter == filter {
                                 Image(systemName: "checkmark")
-                                    .foregroundColor(.softBlue)
+                                    .foregroundColor(.trainSoftBlue)
                             }
                         }
                         .padding(.vertical, 12)
@@ -359,7 +359,7 @@ struct HistoryView: View {
                     showingCustomDatePicker = true
                 }
                 .font(.bodyMedium)
-                .foregroundColor(.softBlue)
+                .foregroundColor(.trainSoftBlue)
                 .padding(.vertical, 12)
                 
                 Spacer()
@@ -401,7 +401,7 @@ struct HistoryView: View {
                             
                             if viewModel.selectedSortOption == option {
                                 Image(systemName: "checkmark")
-                                    .foregroundColor(.softBlue)
+                                    .foregroundColor(.trainSoftBlue)
                             }
                         }
                         .padding(.vertical, 12)
@@ -595,7 +595,7 @@ struct HistoryItemView: View {
                     Button(action: onTap) {
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                             .font(.system(size: 20))
-                            .foregroundColor(isSelected ? .softBlue : .lightGray)
+                            .foregroundColor(isSelected ? .trainSoftBlue : .trainLightGray)
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
@@ -623,10 +623,10 @@ struct HistoryItemView: View {
                         if let characterStyle = history.characterStyle {
                             Text(characterStyle)
                                 .font(.caption)
-                                .foregroundColor(.softBlue)
+                                .foregroundColor(.trainSoftBlue)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 2)
-                                .background(Color.softBlue.opacity(0.1))
+                                .background(Color.trainSoftBlue.opacity(0.1))
                                 .clipShape(RoundedRectangle(cornerRadius: 4))
                         }
                         

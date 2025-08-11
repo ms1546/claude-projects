@@ -101,7 +101,7 @@ struct Card<Content: View>: View {
     private var overlayView: some View {
         if style == .outlined {
             RoundedRectangle(cornerRadius: cornerRadius)
-                .stroke(Color.lightGray.opacity(0.3), lineWidth: 1)
+                .stroke(Color.trainLightGray.opacity(0.3), lineWidth: 1)
         }
     }
     
@@ -187,6 +187,21 @@ extension Card {
     }
 }
 
+// MARK: - Card Style Modifiers
+
+extension Card {
+    /// カードスタイルを変更
+    func cardStyle(_ style: CardStyle) -> Card {
+        Card(
+            style: style,
+            padding: self.padding,
+            cornerRadius: self.cornerRadius,
+            shadowStyle: self.shadowStyle,
+            content: self.content
+        )
+    }
+}
+
 // MARK: - Specialized Cards
 
 /// アラートカード（通知表示用）
@@ -206,7 +221,7 @@ struct AlertCard: View {
             switch self {
             case .active: return .success
             case .paused: return .warning
-            case .inactive: return .lightGray
+            case .inactive: return .trainLightGray
             }
         }
         
@@ -228,7 +243,7 @@ struct AlertCard: View {
     }
     
     var body: some View {
-        Card.elevated {
+        Card(style: .elevated) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
@@ -265,7 +280,7 @@ struct AlertCard: View {
                             action()
                         }
                         .font(.labelSmall)
-                        .foregroundColor(.softBlue)
+                        .foregroundColor(.trainSoftBlue)
                     }
                 }
             }
@@ -312,7 +327,7 @@ struct StationCard: View {
                     } else {
                         Image(systemName: "chevron.right")
                             .font(.system(size: 14))
-                            .foregroundColor(.lightGray)
+                            .foregroundColor(.trainLightGray)
                     }
                 }
             }
@@ -405,10 +420,10 @@ struct HistoryCard: View {
                     if let character = character {
                         Text(character)
                             .font(.caption)
-                            .foregroundColor(.softBlue)
+                            .foregroundColor(.trainSoftBlue)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 2)
-                            .background(Color.softBlue.opacity(0.1))
+                            .background(Color.trainSoftBlue.opacity(0.1))
                             .clipShape(RoundedRectangle(cornerRadius: 4))
                     }
                     
@@ -416,7 +431,7 @@ struct HistoryCard: View {
                     
                     Image(systemName: "clock")
                         .font(.system(size: 14))
-                        .foregroundColor(.lightGray)
+                        .foregroundColor(.trainLightGray)
                 }
             }
         }
@@ -454,19 +469,19 @@ struct Card_Previews: PreviewProvider {
                         .foregroundColor(.textPrimary)
                 }
                 
-                Card.elevated {
+                Card(style: .elevated) {
                     Text("エレベーションカード")
                         .font(.bodyMedium)
                         .foregroundColor(.textPrimary)
                 }
                 
-                Card.outlined {
+                Card(style: .outlined) {
                     Text("アウトラインカード")
                         .font(.bodyMedium)
                         .foregroundColor(.textPrimary)
                 }
                 
-                Card.gradient {
+                Card(style: .gradient) {
                     Text("グラデーションカード")
                         .font(.bodyMedium)
                         .foregroundColor(.textPrimary)

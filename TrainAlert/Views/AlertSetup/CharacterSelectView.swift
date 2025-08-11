@@ -68,7 +68,7 @@ struct CharacterSelectView: View {
                 Button(action: onBack) {
                     Image(systemName: "chevron.left")
                         .font(.title2)
-                        .foregroundColor(.softBlue)
+                        .foregroundColor(.trainSoftBlue)
                 }
                 .padding(.trailing, 8)
                 
@@ -88,7 +88,7 @@ struct CharacterSelectView: View {
             
             // Progress indicator
             ProgressView(value: 3, total: 4)
-                .progressViewStyle(LinearProgressViewStyle(tint: .softBlue))
+                .progressViewStyle(LinearProgressViewStyle(tint: .trainSoftBlue))
                 .frame(height: 4)
                 .clipShape(Capsule())
         }
@@ -148,7 +148,7 @@ struct CharacterSelectView: View {
                         
                         if isGeneratingPreview {
                             ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .softBlue))
+                                .progressViewStyle(CircularProgressViewStyle(tint: .trainSoftBlue))
                                 .scaleEffect(0.7)
                         }
                     }
@@ -283,7 +283,7 @@ struct CharacterStyleCard: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(
-                        isSelected ? Color.softBlue : Color.clear,
+                        isSelected ? Color.trainSoftBlue : Color.clear,
                         lineWidth: 2
                     )
             )
@@ -344,7 +344,7 @@ struct CharacterStyleCard: View {
 struct CharacterSelectView_Previews: PreviewProvider {
     static var previews: some View {
         let setupData = AlertSetupData()
-        setupData.selectedStation = Station(
+        setupData.selectedStation = StationModel(
             id: "test",
             name: "渋谷駅",
             latitude: 35.6580,

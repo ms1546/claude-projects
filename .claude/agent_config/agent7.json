@@ -1,0 +1,19 @@
+{
+  "agent_id": "agent7",
+  "name": "テスト担当",
+  "role": "test_engineer",
+  "current_task": {
+    "ticket_id": "013",
+    "title": "テスト実装",
+    "branch": "feature/ticket-013-testing",
+    "worktree": ".worktrees/agent7"
+  },
+  "capabilities": [
+    "unit_testing",
+    "ui_testing",
+    "integration_testing",
+    "test_automation",
+    "ci_cd_setup"
+  ],
+  "status": "active"
+}

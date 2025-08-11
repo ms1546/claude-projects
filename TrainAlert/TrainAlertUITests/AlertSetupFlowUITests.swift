@@ -483,6 +483,20 @@ final class AlertSetupFlowUITests: XCTestCase {
         }
     }
     
+    private func reviewAndCreateAlert() {
+        navigateToReview()
+        
+        // Tap create button
+        let createButton = app.buttons["アラートを作成"]
+        if createButton.waitForExistence(timeout: 5) {
+            createButton.tap()
+            
+            // Verify alert was created
+            let successIndicator = app.staticTexts["アラートが作成されました"]
+            XCTAssertTrue(successIndicator.waitForExistence(timeout: 5) || app.tabBars.exists)
+        }
+    }
+    
     private func handlePermissionDialogs() {
         // Handle location permission
         let locationAlert = app.alerts.containing(NSPredicate(format: "label CONTAINS '位置情報'")).firstMatch

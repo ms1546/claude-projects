@@ -8,6 +8,7 @@
 import Foundation
 import CoreData
 import Combine
+import CoreLocation
 
 @MainActor
 class AlertSetupViewModel: ObservableObject {
@@ -197,7 +198,7 @@ class AlertSetupViewModel: ObservableObject {
         }
     }
     
-    private func findOrCreateStation(_ station: Station, in context: NSManagedObjectContext) -> Station {
+    private func findOrCreateStation(_ station: StationModel, in context: NSManagedObjectContext) -> Station {
         // Try to find existing station
         let fetchRequest: NSFetchRequest<Station> = Station.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "stationId == %@", station.id)
@@ -213,20 +214,38 @@ class AlertSetupViewModel: ObservableObject {
         newStation.name = station.name
         newStation.latitude = station.latitude
         newStation.longitude = station.longitude
-        newStation.lines = station.lines
+        // Convert array to JSON string for Core Data storage
+        if let linesData = try? JSONEncoder().encode(station.lines),
+           let linesString = String(data: linesData, encoding: .utf8) {
+            newStation.lines = linesString
+        } else {
+            newStation.lines = "[]"
+        }
         
         return newStation
     }
     
     private func scheduleNotifications(for alert: Alert) async throws {
         // Request notification permission first
-        let granted = try await notificationManager.requestPermission()
-        if !granted {
+        try await notificationManager.requestAuthorization()
+        
+        // Check if permission is granted
+        if !notificationManager.isPermissionGranted {
             throw AlertSetupError.notificationPermissionDenied
         }
         
         // Schedule notifications based on alert settings
-        try await notificationManager.scheduleLocationBasedNotification(for: alert)
+        guard let station = alert.station,
+              let stationName = station.name else {
+            throw AlertSetupError.invalidStationData
+        }
+        
+        let targetLocation = CLLocation(latitude: station.latitude, longitude: station.longitude)
+        try await notificationManager.scheduleLocationBasedAlert(
+            for: stationName,
+            targetLocation: targetLocation,
+            radius: alert.notificationDistance
+        )
     }
     
     // MARK: - Form Management
@@ -251,7 +270,7 @@ class AlertSetupViewModel: ObservableObject {
     
     // MARK: - Station Selection
     
-    func selectStation(_ station: Station) {
+    func selectStation(_ station: StationModel) {
         setupData.selectedStation = station
         
         // Automatically proceed to next step
@@ -290,6 +309,7 @@ enum AlertSetupError: LocalizedError {
     case notificationPermissionDenied
     case coreDataError(Error)
     case networkError(Error)
+    case invalidStationData
     
     var errorDescription: String? {
         switch self {
@@ -305,6 +325,8 @@ enum AlertSetupError: LocalizedError {
             return "データの保存に失敗しました: \(error.localizedDescription)"
         case .networkError(let error):
             return "ネットワークエラーが発生しました: \(error.localizedDescription)"
+        case .invalidStationData:
+            return "駅データが無効です。駅を再選択してください。"
         }
     }
 }
@@ -315,7 +337,7 @@ extension AlertSetupViewModel {
     
     /// テスト用のプレビューデータを設定
     func setupPreviewData() {
-        let previewStation = Station(
+        let previewStation = StationModel(
             id: "preview_station",
             name: "渋谷駅",
             latitude: 35.6580,

@@ -8,7 +8,7 @@
 import Foundation
 import CoreLocation
 
-struct Station: Identifiable, Codable, Equatable {
+struct StationModel: Identifiable, Codable, Equatable {
     let id: String
     let name: String
     let latitude: Double

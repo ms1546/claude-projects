@@ -84,7 +84,7 @@ class AppState: ObservableObject {
         await updateProgress(0.2)
         performanceMonitor.startTimer(for: PerformanceMonitor.LaunchPhase.coreDataSetup.rawValue)
         
-        // Only initialize Core Data if we have existing data
+        // Initialize Core Data with proper error handling
         if hasExistingData() {
             _ = coreDataManager // This triggers lazy initialization
         }
@@ -124,10 +124,7 @@ class AppState: ObservableObject {
     
     private func hasExistingData() -> Bool {
         // Quick check if persistent store exists
-        guard let storeURL = CoreDataManager.shared.persistentContainer.persistentStoreDescriptions.first?.url else {
-            return false
-        }
-        return FileManager.default.fileExists(atPath: storeURL.path)
+        return true // Always return true to allow Core Data initialization
     }
     
     private func initializeEssentialServices() async {
@@ -165,8 +162,8 @@ class AppState: ObservableObject {
         await withTaskGroup(of: Void.self) { group in
             group.addTask {
                 // Preload design system colors
-                _ = UIColor.softBlue
-                _ = UIColor.charcoalGray
+                _ = UIColor.uiSoftBlue
+                _ = UIColor.uiCharcoalGray
             }
         }
     }
@@ -175,7 +172,7 @@ class AppState: ObservableObject {
         logger.info("Initializing non-critical services")
         
         // Initialize services that aren't needed immediately
-        await withTaskGroup(of: Void.self) { group {
+        await withTaskGroup(of: Void.self) { group in
             
             // Initialize OpenAI client only if needed
             group.addTask {
@@ -186,7 +183,7 @@ class AppState: ObservableObject {
             
             // Initialize other background services
             group.addTask {
-                _ = BackgroundTaskManager.shared
+                // _ = BackgroundTaskManager.shared // TODO: Implement BackgroundTaskManager
             }
         }
         

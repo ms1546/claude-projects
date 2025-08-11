@@ -28,7 +28,17 @@ final class CoreDataManager: ObservableObject {
         container.loadPersistentStores { [weak self] _, error in
             if let error = error {
                 self?.logger.error("Core Data failed to load: \(error.localizedDescription)")
-                fatalError("Core Data failed to load: \(error)")
+                // Create an in-memory store as fallback
+                let description = NSPersistentStoreDescription()
+                description.type = NSInMemoryStoreType
+                container.persistentStoreDescriptions = [description]
+                container.loadPersistentStores { _, fallbackError in
+                    if let fallbackError = fallbackError {
+                        self?.logger.critical("Failed to create in-memory store: \(fallbackError)")
+                    } else {
+                        self?.logger.warning("Using in-memory store as fallback")
+                    }
+                }
             }
         }
         
@@ -255,20 +265,6 @@ final class CoreDataManager: ObservableObject {
         return alert
     }
     
-    /// アクティブなアラートを取得
-    /// - Returns: アクティブなアラートの配列
-    func fetchActiveAlerts() -> [Alert] {
-        let request: NSFetchRequest<Alert> = Alert.fetchRequest()
-        request.predicate = NSPredicate(format: "isActive == YES")
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Alert.createdAt, ascending: false)]
-        
-        do {
-            return try viewContext.fetch(request)
-        } catch {
-            logger.error("Failed to fetch active alerts: \(error.localizedDescription)")
-            return []
-        }
-    }
     
     // MARK: - CRUD Operations for History
     

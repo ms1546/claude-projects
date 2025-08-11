@@ -47,7 +47,7 @@ struct ContentView: View {
                 }
                 .tag(Tab.settings)
         }
-        .tint(.softBlue)
+        .tint(Color.trainSoftBlue)
         .onAppear {
             configureTabBarAppearance()
         }
@@ -58,19 +58,19 @@ struct ContentView: View {
     private func configureTabBarAppearance() {
         let appearance = UITabBarAppearance()
         appearance.configureWithOpaqueBackground()
-        appearance.backgroundColor = UIColor.charcoalGray
+        appearance.backgroundColor = UIColor.uiCharcoalGray
         
         // Normal state
         appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
-            .foregroundColor: UIColor.lightGray
+            .foregroundColor: UIColor.uiLightGray
         ]
-        appearance.stackedLayoutAppearance.normal.iconColor = UIColor.lightGray
+        appearance.stackedLayoutAppearance.normal.iconColor = UIColor.uiLightGray
         
         // Selected state
         appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
-            .foregroundColor: UIColor.softBlue
+            .foregroundColor: UIColor.uiSoftBlue
         ]
-        appearance.stackedLayoutAppearance.selected.iconColor = UIColor.softBlue
+        appearance.stackedLayoutAppearance.selected.iconColor = UIColor.uiSoftBlue
         
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance

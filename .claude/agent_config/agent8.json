@@ -1,0 +1,19 @@
+{
+  "agent_id": "agent8",
+  "name": "パフォーマンス最適化担当",
+  "role": "performance_engineer",
+  "current_task": {
+    "ticket_id": "014",
+    "title": "パフォーマンス最適化",
+    "branch": "feature/ticket-014-performance_optimization",
+    "worktree": ".worktrees/agent8"
+  },
+  "capabilities": [
+    "performance_profiling",
+    "memory_optimization",
+    "startup_optimization",
+    "ui_responsiveness",
+    "network_optimization"
+  ],
+  "status": "active"
+}

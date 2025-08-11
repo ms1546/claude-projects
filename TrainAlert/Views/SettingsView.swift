@@ -64,7 +64,7 @@ struct SettingsView: View {
                     Button("完了") {
                         dismiss()
                     }
-                    .foregroundColor(.softBlue)
+                    .foregroundColor(.trainSoftBlue)
                 }
             }
             .alert("エラー", isPresented: .constant(viewModel.errorMessage != nil)) {
@@ -126,11 +126,11 @@ struct SettingsView: View {
                             }
                         }
                     }
-                    .foregroundColor(.softBlue)
+                    .foregroundColor(.trainSoftBlue)
                 }
                 
                 Divider()
-                    .foregroundColor(.lightGray.opacity(0.3))
+                    .foregroundColor(.trainLightGray.opacity(0.3))
                 
                 // Default notification distance
                 SettingRow(
@@ -145,11 +145,11 @@ struct SettingsView: View {
                             }
                         }
                     }
-                    .foregroundColor(.softBlue)
+                    .foregroundColor(.trainSoftBlue)
                 }
                 
                 Divider()
-                    .foregroundColor(.lightGray.opacity(0.3))
+                    .foregroundColor(.trainLightGray.opacity(0.3))
                 
                 // Snooze interval
                 SettingRow(
@@ -164,11 +164,11 @@ struct SettingsView: View {
                             }
                         }
                     }
-                    .foregroundColor(.softBlue)
+                    .foregroundColor(.trainSoftBlue)
                 }
                 
                 Divider()
-                    .foregroundColor(.lightGray.opacity(0.3))
+                    .foregroundColor(.trainLightGray.opacity(0.3))
                 
                 // Notification sound
                 SettingRow(
@@ -183,11 +183,11 @@ struct SettingsView: View {
                             }
                         }
                     }
-                    .foregroundColor(.softBlue)
+                    .foregroundColor(.trainSoftBlue)
                 }
                 
                 Divider()
-                    .foregroundColor(.lightGray.opacity(0.3))
+                    .foregroundColor(.trainLightGray.opacity(0.3))
                 
                 // Vibration intensity
                 VStack(alignment: .leading, spacing: 8) {
@@ -210,14 +210,14 @@ struct SettingsView: View {
                     ) {
                         Text("強度")
                     }
-                    .tint(.softBlue)
+                    .tint(.trainSoftBlue)
                 }
             }
         }
     }
     
     private var permissionRequestCard: some View {
-        Card.outlined {
+        Card(style: .outlined) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "bell.slash")
@@ -255,7 +255,7 @@ struct SettingsView: View {
         SettingsSection(
             title: "AI設定",
             icon: "brain.head.profile",
-            iconColor: .softBlue
+            iconColor: .trainSoftBlue
         ) {
             VStack(spacing: 16) {
                 // OpenAI API Key
@@ -268,11 +268,11 @@ struct SettingsView: View {
                     Button("設定") {
                         showingAPIKeySheet = true
                     }
-                    .foregroundColor(.softBlue)
+                    .foregroundColor(.trainSoftBlue)
                 }
                 
                 Divider()
-                    .foregroundColor(.lightGray.opacity(0.3))
+                    .foregroundColor(.trainLightGray.opacity(0.3))
                 
                 // Use AI generated messages toggle
                 SettingRow(
@@ -280,11 +280,11 @@ struct SettingsView: View {
                     subtitle: "キャラクターによるメッセージ生成"
                 ) {
                     Toggle("", isOn: $viewModel.useAIGeneratedMessages)
-                        .tint(.softBlue)
+                        .tint(.trainSoftBlue)
                 }
                 
                 Divider()
-                    .foregroundColor(.lightGray.opacity(0.3))
+                    .foregroundColor(.trainLightGray.opacity(0.3))
                 
                 // Character style
                 SettingRow(
@@ -295,7 +295,7 @@ struct SettingsView: View {
                     Button("変更") {
                         showingCharacterPicker = true
                     }
-                    .foregroundColor(.softBlue)
+                    .foregroundColor(.trainSoftBlue)
                 }
             }
         }
@@ -307,7 +307,7 @@ struct SettingsView: View {
         SettingsSection(
             title: "アプリ設定",
             icon: "gearshape.fill",
-            iconColor: .lightGray
+            iconColor: .trainLightGray
         ) {
             VStack(spacing: 16) {
                 // Language setting
@@ -324,11 +324,11 @@ struct SettingsView: View {
                             viewModel.selectedLanguage = "en"
                         }
                     }
-                    .foregroundColor(.softBlue)
+                    .foregroundColor(.trainSoftBlue)
                 }
                 
                 Divider()
-                    .foregroundColor(.lightGray.opacity(0.3))
+                    .foregroundColor(.trainLightGray.opacity(0.3))
                 
                 // Distance unit
                 SettingRow(
@@ -344,11 +344,11 @@ struct SettingsView: View {
                             viewModel.distanceUnit = "imperial"
                         }
                     }
-                    .foregroundColor(.softBlue)
+                    .foregroundColor(.trainSoftBlue)
                 }
                 
                 Divider()
-                    .foregroundColor(.lightGray.opacity(0.3))
+                    .foregroundColor(.trainLightGray.opacity(0.3))
                 
                 // 24-hour format
                 SettingRow(
@@ -356,7 +356,7 @@ struct SettingsView: View {
                     subtitle: "時刻の表示形式"
                 ) {
                     Toggle("", isOn: $viewModel.use24HourFormat)
-                        .tint(.softBlue)
+                        .tint(.trainSoftBlue)
                 }
             }
         }
@@ -377,11 +377,11 @@ struct SettingsView: View {
                     subtitle: "アプリ改善のためのデータ収集"
                 ) {
                     Toggle("", isOn: $viewModel.dataCollectionEnabled)
-                        .tint(.softBlue)
+                        .tint(.trainSoftBlue)
                 }
                 
                 Divider()
-                    .foregroundColor(.lightGray.opacity(0.3))
+                    .foregroundColor(.trainLightGray.opacity(0.3))
                 
                 // Crash reports
                 SettingRow(
@@ -389,7 +389,7 @@ struct SettingsView: View {
                     subtitle: "エラー情報の自動送信"
                 ) {
                     Toggle("", isOn: $viewModel.crashReportsEnabled)
-                        .tint(.softBlue)
+                        .tint(.trainSoftBlue)
                 }
             }
         }
@@ -414,7 +414,7 @@ struct SettingsView: View {
                 }
                 
                 Divider()
-                    .foregroundColor(.lightGray.opacity(0.3))
+                    .foregroundColor(.trainLightGray.opacity(0.3))
                 
                 // Terms of service
                 SettingRow(
@@ -423,11 +423,11 @@ struct SettingsView: View {
                 ) {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 14))
-                        .foregroundColor(.lightGray)
+                        .foregroundColor(.trainLightGray)
                 }
                 
                 Divider()
-                    .foregroundColor(.lightGray.opacity(0.3))
+                    .foregroundColor(.trainLightGray.opacity(0.3))
                 
                 // Privacy policy
                 SettingRow(
@@ -436,11 +436,11 @@ struct SettingsView: View {
                 ) {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 14))
-                        .foregroundColor(.lightGray)
+                        .foregroundColor(.trainLightGray)
                 }
                 
                 Divider()
-                    .foregroundColor(.lightGray.opacity(0.3))
+                    .foregroundColor(.trainLightGray.opacity(0.3))
                 
                 // Contact
                 SettingRow(
@@ -449,7 +449,7 @@ struct SettingsView: View {
                 ) {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 14))
-                        .foregroundColor(.lightGray)
+                        .foregroundColor(.trainLightGray)
                 }
             }
         }
@@ -473,11 +473,11 @@ struct SettingsView: View {
                         let settings = viewModel.exportSettings()
                         viewModel.showingExportShare = true
                     }
-                    .foregroundColor(.softBlue)
+                    .foregroundColor(.trainSoftBlue)
                 }
                 
                 Divider()
-                    .foregroundColor(.lightGray.opacity(0.3))
+                    .foregroundColor(.trainLightGray.opacity(0.3))
                 
                 // Import settings
                 SettingRow(
@@ -487,11 +487,11 @@ struct SettingsView: View {
                     Button("インポート") {
                         showingImportSheet = true
                     }
-                    .foregroundColor(.softBlue)
+                    .foregroundColor(.trainSoftBlue)
                 }
                 
                 Divider()
-                    .foregroundColor(.lightGray.opacity(0.3))
+                    .foregroundColor(.trainLightGray.opacity(0.3))
                 
                 // Reset all settings
                 SettingRow(
@@ -532,7 +532,7 @@ struct SettingsSection<Content: View>: View {
             }
             
             // Section content
-            Card.elevated {
+            Card(style: .elevated) {
                 content()
             }
         }
@@ -571,7 +571,7 @@ struct SettingRow<Content: View>: View {
             if let systemIcon = systemIcon {
                 Image(systemName: systemIcon)
                     .font(.system(size: 16))
-                    .foregroundColor(iconColor ?? .lightGray)
+                    .foregroundColor(iconColor ?? .trainLightGray)
                     .frame(width: 20, height: 20)
             }
             
@@ -623,7 +623,7 @@ struct APIKeySettingsView: View {
                         VStack(spacing: 12) {
                             Image(systemName: "key.fill")
                                 .font(.system(size: 48))
-                                .foregroundColor(.softBlue)
+                                .foregroundColor(.trainSoftBlue)
                             
                             Text("OpenAI APIキー")
                                 .font(.displayMedium)
@@ -639,7 +639,7 @@ struct APIKeySettingsView: View {
                         .padding(.top, 20)
                         
                         // API Key input
-                        Card.elevated {
+                        Card(style: .elevated) {
                             VStack(alignment: .leading, spacing: 16) {
                                 Text("APIキー")
                                     .font(.labelMedium)
@@ -684,7 +684,7 @@ struct APIKeySettingsView: View {
                         }
                         
                         // Instructions
-                        Card.outlined {
+                        Card(style: .outlined) {
                             VStack(alignment: .leading, spacing: 12) {
                                 Text("APIキーの取得方法")
                                     .font(.labelMedium)
@@ -713,14 +713,14 @@ struct APIKeySettingsView: View {
                     Button("キャンセル") {
                         dismiss()
                     }
-                    .foregroundColor(.softBlue)
+                    .foregroundColor(.trainSoftBlue)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("完了") {
                         dismiss()
                     }
-                    .foregroundColor(.softBlue)
+                    .foregroundColor(.trainSoftBlue)
                     .disabled(!viewModel.isAPIKeyValid)
                 }
             }
@@ -746,7 +746,7 @@ struct CharacterStylePickerView: View {
                 ScrollView {
                     LazyVStack(spacing: 16) {
                         ForEach(CharacterStyle.allCases, id: \.rawValue) { style in
-                            CharacterStyleCard(
+                            SettingsCharacterStyleCard(
                                 style: style,
                                 isSelected: viewModel.selectedCharacterStyleEnum == style
                             ) {
@@ -765,14 +765,14 @@ struct CharacterStylePickerView: View {
                     Button("完了") {
                         dismiss()
                     }
-                    .foregroundColor(.softBlue)
+                    .foregroundColor(.trainSoftBlue)
                 }
             }
         }
     }
 }
 
-struct CharacterStyleCard: View {
+struct SettingsCharacterStyleCard: View {
     let style: CharacterStyle
     let isSelected: Bool
     let action: () -> Void
@@ -807,7 +807,7 @@ struct CharacterStyleCard: View {
                     // Sample message
                     Text("\"もうすぐ新宿駅だよ〜！起きなって〜！\"")
                         .font(.bodySmall)
-                        .foregroundColor(.softBlue)
+                        .foregroundColor(.trainSoftBlue)
                         .padding(.top, 8)
                         .italic()
                 }

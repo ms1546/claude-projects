@@ -1,4 +1,17 @@
 {
+  "permissions": {
+    "allow": [
+      "mcp__serena__list_dir",
+      "mcp__serena__read_memory"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "filesystem",
+    "github",
+    "fetch",
+    "serena",
+    "cipher"
+  ],
   "hooks": {
     "SessionStart": [
       {
@@ -9,14 +22,26 @@
             "command": "afplay /System/Library/Sounds/Ping.aiff"
           }
         ]
+      },
+      {
+        "matcher": "resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay /System/Library/Sounds/Ping.aiff"
+          }
+        ]
+      }
+    ],
+    "AssistantResponseComplete": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay /System/Library/Sounds/Glass.aiff"
+          }
+        ]
       }
     ]
-  },
-  "enabledMcpjsonServers": [
-    "filesystem",
-    "github",
-    "fetch",
-    "serena",
-    "cipher"
-  ]
+  }
 }

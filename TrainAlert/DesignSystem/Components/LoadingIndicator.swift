@@ -8,7 +8,7 @@ struct LoadingIndicator: View {
     
     var style: LoadingStyle = .default
     var size: LoadingSize = .medium
-    var color: Color = .softBlue
+    var color: Color = .trainSoftBlue
     var text: String? = nil
     
     // MARK: - Loading Styles
@@ -201,7 +201,7 @@ struct LoadingIndicator: View {
     init(
         style: LoadingStyle = .default,
         size: LoadingSize = .medium,
-        color: Color = .softBlue,
+        color: Color = .trainSoftBlue,
         text: String? = nil
     ) {
         self.style = style
@@ -218,7 +218,7 @@ extension LoadingIndicator {
     /// 小さなローディングインジケーター
     static func small(
         style: LoadingStyle = .default,
-        color: Color = .softBlue,
+        color: Color = .trainSoftBlue,
         text: String? = nil
     ) -> LoadingIndicator {
         LoadingIndicator(style: style, size: .small, color: color, text: text)
@@ -227,7 +227,7 @@ extension LoadingIndicator {
     /// 大きなローディングインジケーター
     static func large(
         style: LoadingStyle = .default,
-        color: Color = .softBlue,
+        color: Color = .trainSoftBlue,
         text: String? = nil
     ) -> LoadingIndicator {
         LoadingIndicator(style: style, size: .large, color: color, text: text)
@@ -236,7 +236,7 @@ extension LoadingIndicator {
     /// パルシングローディング
     static func pulsing(
         size: LoadingSize = .medium,
-        color: Color = .softBlue,
+        color: Color = .trainSoftBlue,
         text: String? = nil
     ) -> LoadingIndicator {
         LoadingIndicator(style: .pulsing, size: size, color: color, text: text)
@@ -245,7 +245,7 @@ extension LoadingIndicator {
     /// 回転ローディング
     static func rotating(
         size: LoadingSize = .medium,
-        color: Color = .softBlue,
+        color: Color = .trainSoftBlue,
         text: String? = nil
     ) -> LoadingIndicator {
         LoadingIndicator(style: .rotating, size: size, color: color, text: text)
@@ -254,7 +254,7 @@ extension LoadingIndicator {
     /// バウンシングローディング
     static func bouncing(
         size: LoadingSize = .medium,
-        color: Color = .softBlue,
+        color: Color = .trainSoftBlue,
         text: String? = nil
     ) -> LoadingIndicator {
         LoadingIndicator(style: .bouncing, size: size, color: color, text: text)
@@ -263,7 +263,7 @@ extension LoadingIndicator {
     /// ウェーブローディング
     static func wave(
         size: LoadingSize = .medium,
-        color: Color = .softBlue,
+        color: Color = .trainSoftBlue,
         text: String? = nil
     ) -> LoadingIndicator {
         LoadingIndicator(style: .wave, size: size, color: color, text: text)
@@ -283,7 +283,7 @@ struct FullScreenLoading: View {
             backgroundColor
                 .ignoresSafeArea()
             
-            Card.elevated {
+            Card(style: .elevated) {
                 LoadingIndicator.large(style: style, text: message)
                     .frame(minWidth: 200, minHeight: 120)
             }
@@ -361,7 +361,7 @@ struct LoadingIndicator_Previews: PreviewProvider {
                 }
                 
                 Divider()
-                    .background(Color.lightGray)
+                    .background(Color.trainLightGray)
                 
                 // Different sizes
                 HStack(spacing: 20) {
@@ -371,7 +371,7 @@ struct LoadingIndicator_Previews: PreviewProvider {
                 }
                 
                 Divider()
-                    .background(Color.lightGray)
+                    .background(Color.trainLightGray)
                 
                 // Specialized loading views
                 InlineLoading(message: "データを読み込み中...")

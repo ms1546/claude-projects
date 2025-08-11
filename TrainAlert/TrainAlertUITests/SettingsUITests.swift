@@ -512,7 +512,7 @@ final class SettingsUITests: XCTestCase {
             
             // Should show permission status or navigate to system settings
             let permissionStatus = app.staticTexts.containing(NSPredicate(format: "label CONTAINS '許可'")).firstMatch
-            XCTAssertTrue(permissionStatus.exists || !app.alerts.isEmpty)
+            XCTAssertTrue(permissionStatus.exists || app.alerts.count > 0)
             
             let backButton = app.navigationBars.buttons.element(boundBy: 0)
             if backButton.exists {
