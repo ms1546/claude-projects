@@ -275,7 +275,8 @@ struct StationSearchView: View {
         // キャンセル処理
         searchTask?.cancel()
         
-        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else {
+        let trimmedQuery = query.trimmingCharacters(in: .whitespaces)
+        guard !trimmedQuery.isEmpty else {
             searchResults = []
             isLoading = false
             return
@@ -284,10 +285,10 @@ struct StationSearchView: View {
         isLoading = true
         errorMessage = nil
         
-        // デバウンス処理（0.3秒待機）
+        // デバウンス処理（0.5秒待機）
         searchTask = Task {
             do {
-                try await Task.sleep(nanoseconds: 300_000_000) // 0.3秒
+                try await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
                 
                 // タスクがキャンセルされていないかチェック
                 guard !Task.isCancelled else { return }
@@ -295,7 +296,7 @@ struct StationSearchView: View {
                 // Use current location if available, otherwise search without location
                 let location = locationManager.location?.coordinate
                 let stations = try await stationAPI.searchStations(
-                    query: query,
+                    query: trimmedQuery,
                     near: location
                 )
                 
