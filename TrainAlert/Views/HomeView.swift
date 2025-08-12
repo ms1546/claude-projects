@@ -304,10 +304,10 @@ struct HomeAlertCard: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(alert.stationName ?? "未設定")
+                Text(alert.station?.name ?? "未設定")
                     .font(.headline)
                 
-                Text(alert.lineName ?? "")
+                Text(alert.station?.lines ?? "")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
