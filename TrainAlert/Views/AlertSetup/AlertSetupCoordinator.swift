@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct AlertSetupCoordinator: View {
-    
     // MARK: - Properties
     
     @StateObject private var viewModel = AlertSetupViewModel()
@@ -35,11 +34,10 @@ struct AlertSetupCoordinator: View {
                 switch viewModel.currentStep {
                 case .stationSearch:
                     StationSearchView(
-                        setupData: viewModel.setupData,
-                        onStationSelected: { station in
+                        setupData: viewModel.setupData
+                    )                        { station in
                             viewModel.selectStation(station)
                         }
-                    )
                     
                 case .alertSettings:
                     AlertSettingView(
@@ -119,7 +117,7 @@ struct AlertSetupCoordinator: View {
                     .progressViewStyle(CircularProgressViewStyle(tint: .trainSoftBlue))
                     .scaleEffect(1.5)
                 
-                Text("アラートを作成中...")
+                Text("目覚ましを作成中...")
                     .font(.body)
                     .foregroundColor(.textPrimary)
             }
@@ -146,8 +144,8 @@ struct AlertSetupCoordinator: View {
     }
     
     private func handleAlertCreationSuccess() {
-        alertTitle = "アラート作成完了"
-        alertMessage = "アラートが正常に作成されました。ホーム画面でアラートの状態を確認できます。"
+        alertTitle = "目覚まし作成完了"
+        alertMessage = "目覚ましが正常に作成されました。ホーム画面で目覚ましの状態を確認できます。"
         showAlert = true
         
         // Haptic feedback for success

@@ -97,11 +97,17 @@ struct StationSearchView: View {
             .padding(.horizontal)
             
             if isLoading {
-                Text("検索中...")
-                    .font(.caption)
-                    .foregroundColor(Color(UIColor.systemGray))
-                    .padding(.horizontal)
-                    .padding(.top, 4)
+                HStack {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .trainSoftBlue))
+                        .scaleEffect(0.8)
+                    
+                    Text("検索中...")
+                        .font(.caption)
+                        .foregroundColor(Color(UIColor.systemGray))
+                }
+                .padding(.horizontal)
+                .padding(.top, 4)
             }
         }
     }

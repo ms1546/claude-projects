@@ -5,11 +5,10 @@
 //  Created by Claude on 2024/01/08.
 //
 
-import SwiftUI
 import MapKit
+import SwiftUI
 
 struct HomeView: View {
-
     // MARK: - Dependencies
     @StateObject private var viewModel = HomeViewModel()
     @EnvironmentObject var locationManager: LocationManager
@@ -32,58 +31,42 @@ struct HomeView: View {
                 Color(.systemBackground)
                     .ignoresSafeArea()
 
-                List {
-                    // Header Section
-                    headerSection
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-
-                    // Quick Actions
-                    quickActionsSection
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-
-                    // All Alerts (Active and Inactive)
-                    if !viewModel.allAlerts.isEmpty {
-                        allAlertsSection
-                            .listRowInsets(EdgeInsets())
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                    }
-
-                    // Map View
-                    if locationManager.authorizationStatus == .authorizedWhenInUse ||
-                       locationManager.authorizationStatus == .authorizedAlways {
-                        mapSection
-                            .listRowInsets(EdgeInsets())
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                    }
-
-                    // Empty State
-                    if viewModel.allAlerts.isEmpty {
+                if viewModel.allAlerts.isEmpty {
+                    // 目覚ましがない場合はScrollView
+                    ScrollView {
                         emptyStateSection
-                            .listRowInsets(EdgeInsets())
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
+                    }
+                } else {
+                    // 目覚ましがある場合はList（スワイプ対応）
+                    VStack(spacing: 0) {
+                        quickActionsSection
+                        
+                        List {
+                            ForEach(viewModel.allAlerts) { alert in
+                                HomeAlertCard(alert: alert) {
+                                    viewModel.toggleAlert(alert)
+                                } onDelete: {
+                                    viewModel.deleteAlert(alert)
+                                }
+                                .opacity(alert.isActive ? 1.0 : 0.6)
+                                .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        viewModel.deleteAlert(alert)
+                                    } label: {
+                                        Label("削除", systemImage: "trash")
+                                    }
+                                }
+                            }
+                        }
+                        .listStyle(PlainListStyle())
+                        .scrollContentBackground(.hidden)
                     }
                 }
-                .listStyle(PlainListStyle())
-                .background(Color(.systemBackground))
             }
-            .navigationTitle("TrainAlert")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingAlertSetup = true }) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.blue)
-                    }
-                }
-            }
+            .navigationBarHidden(true)
             .sheet(isPresented: $showingAlertSetup) {
                 AlertSetupCoordinator()
                     .environmentObject(locationManager)
@@ -118,141 +101,119 @@ struct HomeView: View {
     // MARK: - View Components
 
     private var headerSection: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "tram.fill")
-                .font(.system(size: 60))
-                .foregroundColor(.blue)
-                .padding(.top)
-
-            Text("電車寝過ごし防止アプリ")
-                .font(.headline)
-                .foregroundColor(.secondary)
-        }
-         .frame(maxWidth: .infinity)
-         .padding(.horizontal)
+        EmptyView()
     }
 
     private var quickActionsSection: some View {
-        HStack(spacing: 16) {
-            QuickActionButton(
-                title: "新規アラート",
-                icon: "plus.circle",
-                color: .blue
-            ) {
-                showingAlertSetup = true
-            }
-
-            QuickActionButton(
-                title: "位置情報",
-                icon: "location.circle",
-                color: .green
-            ) {
-                checkLocationPermission()
-            }
-
-            QuickActionButton(
-                title: "通知設定",
-                icon: "bell.circle",
-                color: .orange
-            ) {
-                Task {
-                    _ = try? await notificationManager.requestAuthorization()
+        VStack(spacing: 0) {
+            if !viewModel.allAlerts.isEmpty {
+                // 既存の目覚ましがある場合は上部に作成ボタン
+                HStack {
+                    Text("目覚まし")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                        .foregroundColor(.textPrimary)
+                    
+                    Spacer()
+                    
+                    Button(action: { showingAlertSetup = true }) {
+                        Image(systemName: "plus")
+                            .font(.title2)
+                            .fontWeight(.medium)
+                            .foregroundColor(.trainSoftBlue)
+                            .frame(width: 44, height: 44)
+                            .background(Color.trainSoftBlue.opacity(0.1))
+                            .clipShape(Circle())
+                    }
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 16)
             }
         }
-        .padding(.horizontal)
     }
 
     private var allAlertsSection: some View {
-        Group {
-            // Active Alerts
-            if !viewModel.activeAlerts.isEmpty {
-                Section {
-                    ForEach(viewModel.activeAlerts) { alert in
-                        HomeAlertCard(alert: alert) {
-                            viewModel.toggleAlert(alert)
-                        } onDelete: {
-                            viewModel.deleteAlert(alert)
-                        }
-                    }
-                } header: {
-                    Text("アクティブなアラート")
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                        .textCase(nil)
-                        .padding(.horizontal, 4)
-                }
-            }
-
-            // Inactive Alerts
-            let inactiveAlerts = viewModel.allAlerts.filter { !$0.isActive }
-            if !inactiveAlerts.isEmpty {
-                Section {
-                    ForEach(inactiveAlerts) { alert in
-                        HomeAlertCard(alert: alert) {
-                            viewModel.toggleAlert(alert)
-                        } onDelete: {
-                            viewModel.deleteAlert(alert)
-                        }
-                        .opacity(0.6)  // 非アクティブは薄く表示
-                    }
-                } header: {
-                    Text("非アクティブなアラート")
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                        .textCase(nil)
-                        .padding(.horizontal, 4)
-                }
-            }
-        }
-        .padding(.horizontal)
+        EmptyView()
     }
 
     private var mapSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("現在地")
-                .font(.headline)
-                .padding(.horizontal, 4)
-
-            Map(coordinateRegion: $mapRegion, showsUserLocation: true)
-                .frame(height: 200)
-                .cornerRadius(12)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                )
-        }
-        .padding(.horizontal)
+        EmptyView()
     }
 
     private var emptyStateSection: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "moon.zzz.fill")
-                .font(.system(size: 80))
-                .foregroundColor(.gray.opacity(0.5))
-
-            Text("アラートがありません")
-                .font(.title2)
-                .fontWeight(.semibold)
-
-            Text("降車駅のアラートを設定して、\n寝過ごしを防ぎましょう")
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-
-            Button(action: { showingAlertSetup = true }) {
-                Label("アラートを作成", systemImage: "plus.circle.fill")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(Color.blue)
-                    .cornerRadius(25)
+        VStack(alignment: .leading, spacing: 0) {
+            // シンプルなテキストベースのUI
+            VStack(alignment: .leading, spacing: 12) {
+                Text("目覚まし")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                    .foregroundColor(.textPrimary)
+                
+                Text("降車駅で通知を受け取ろう")
+                    .font(.body)
+                    .foregroundColor(.textSecondary)
             }
-            .padding(.top)
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 32)
+            
+            // 大きな作成ボタン
+            Button(action: { showingAlertSetup = true }) {
+                VStack(spacing: 16) {
+                    Image(systemName: "plus.circle")
+                        .font(.system(size: 48))
+                        .fontWeight(.light)
+                        .foregroundColor(.trainSoftBlue)
+                    
+                    Text("目覚ましを作成")
+                        .font(.headline)
+                        .foregroundColor(.textPrimary)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 160)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color.gray.opacity(0.05))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(Color.gray.opacity(0.1), lineWidth: 1)
+                        )
+                )
+            }
+            .padding(.horizontal, 20)
+            
+            // 補助機能へのリンク
+            HStack(spacing: 24) {
+                Button(action: checkLocationPermission) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "location")
+                            .font(.footnote)
+                        Text("位置情報")
+                            .font(.footnote)
+                    }
+                    .foregroundColor(.textSecondary)
+                }
+                
+                Button(action: {
+                    Task {
+                        _ = try? await notificationManager.requestAuthorization()
+                    }
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "bell")
+                            .font(.footnote)
+                        Text("通知")
+                            .font(.footnote)
+                    }
+                    .foregroundColor(.textSecondary)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 24)
+            
+            Spacer()
         }
-        .padding(.vertical, 40)
-        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Helper Methods
@@ -271,25 +232,26 @@ struct HomeView: View {
 
 // MARK: - Supporting Views
 
-struct QuickActionButton: View {
+struct SubActionButton: View {
     let title: String
     let icon: String
     let color: Color
     let action: () -> Void
-
+    
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 8) {
+            HStack(spacing: 8) {
                 Image(systemName: icon)
-                    .font(.system(size: 30))
+                    .font(.system(size: 20))
                     .foregroundColor(color)
-
+                
                 Text(title)
-                    .font(.caption)
-                    .foregroundColor(.primary)
+                    .font(.footnote)
+                    .fontWeight(.medium)
+                    .foregroundColor(.textPrimary)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
+            .padding(.vertical, 12)
             .background(Color.gray.opacity(0.1))
             .cornerRadius(12)
         }
@@ -303,36 +265,68 @@ struct HomeAlertCard: View {
     let onDelete: () -> Void
 
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
+        HStack(spacing: 16) {
+            // 左側のインジケーター
+            RoundedRectangle(cornerRadius: 2)
+                .fill(alert.isActive ? Color.trainSoftBlue : Color.gray.opacity(0.3))
+                .frame(width: 4)
+            
+            VStack(alignment: .leading, spacing: 8) {
+                // 駅名
                 Text(alert.station?.name ?? alert.stationName ?? "未設定")
-                    .font(.headline)
-
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.textPrimary)
+                
+                // 路線情報
                 if let lines = alert.station?.lines {
                     Text(lines)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(.footnote)
+                        .foregroundColor(.textSecondary)
                         .lineLimit(1)
                 } else if let lineName = alert.lineName {
                     Text(lineName)
+                        .font(.footnote)
+                        .foregroundColor(.textSecondary)
+                }
+                
+                // 設定情報
+                HStack(spacing: 16) {
+                    Label("\(alert.notificationTime)分前", systemImage: "clock")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.textSecondary)
+                    
+                    Label(String(format: "%.1fkm", alert.notificationDistance / 1_000), systemImage: "location")
+                        .font(.caption)
+                        .foregroundColor(.textSecondary)
                 }
             }
-
+            
             Spacer()
-
+            
+            // トグルスイッチ
             Toggle("", isOn: Binding(
                 get: { alert.isActive },
                 set: { _ in onToggle() }
             ))
             .labelsHidden()
+            .tint(.trainSoftBlue)
         }
-        .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(12)
-        .swipeActions {
-            Button(role: .destructive, action: onDelete) {
+        .padding(.vertical, 20)
+        .padding(.horizontal, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.gray.opacity(0.1), lineWidth: 1)
+        )
+        .contextMenu {
+            Button(role: .destructive) {
+                onDelete()
+            } label: {
                 Label("削除", systemImage: "trash")
             }
         }
@@ -351,3 +345,4 @@ struct HomeView_Previews: PreviewProvider {
     }
 }
 #endif
+

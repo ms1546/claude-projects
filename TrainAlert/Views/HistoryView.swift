@@ -20,7 +20,7 @@ struct HistoryView: View {
                     .font(.largeTitle)
                     .fontWeight(.bold)
                 
-                Text("アラート履歴がここに表示されます")
+                Text("目覚まし履歴がここに表示されます")
                     .font(.headline)
                     .foregroundColor(.secondary)
                     .padding()
@@ -39,3 +39,4 @@ struct HistoryView_Previews: PreviewProvider {
     }
 }
 #endif
+
