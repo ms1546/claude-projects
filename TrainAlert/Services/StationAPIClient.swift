@@ -486,6 +486,10 @@ class StationAPIClient: ObservableObject {
     
     /// 駅名で検索（部分一致）
     func searchStations(query: String, near location: CLLocationCoordinate2D? = nil) async throws -> [StationModel] {
+        #if DEBUG
+        print("searchStations called with query: '\(query)'")
+        #endif
+        
         // If query is empty, return empty array
         guard !query.isEmpty else {
             return []
@@ -501,15 +505,32 @@ class StationAPIClient: ObservableObject {
         do {
             let stations = try await searchStationsByAPI(query: query)
             
+            #if DEBUG
+            print("searchStationsByAPI returned \(stations.count) stations")
+            #endif
+            
             if !stations.isEmpty {
                 // Cache the result
                 await cache.set(cacheKey, stations: stations)
-                return sortStationsByLocation(stations, location: location)
+                let sorted = sortStationsByLocation(stations, location: location)
+                
+                #if DEBUG
+                print("Returning \(sorted.count) sorted stations")
+                #endif
+                
+                return sorted
             }
+            
+            #if DEBUG
+            print("No stations found, returning empty array")
+            #endif
             
             return []
         } catch {
             // API search failed
+            #if DEBUG
+            print("searchStations failed with error: \(error)")
+            #endif
             throw error
         }
     }
@@ -548,6 +569,10 @@ class StationAPIClient: ObservableObject {
             
             // Parse OSM response
             let osmResponse = try JSONDecoder().decode(OSMResponse.self, from: data)
+            
+            #if DEBUG
+            print("OSM API response: \(osmResponse.elements.count) elements found")
+            #endif
             
             // Convert OSM elements to StationModel
             let stations = osmResponse.elements.compactMap { element -> StationModel? in
@@ -595,7 +620,13 @@ class StationAPIClient: ObservableObject {
                 }
             }
             
-            return Array(uniqueStations.values)
+            let result = Array(uniqueStations.values)
+            
+            #if DEBUG
+            print("OSM API found \(result.count) unique stations")
+            #endif
+            
+            return result
         } catch {
             // Log OSM API error for debugging
             #if DEBUG
@@ -661,7 +692,13 @@ class StationAPIClient: ObservableObject {
             }
         }
         
-        return Array(uniqueStations.values)
+        let result = Array(uniqueStations.values)
+        
+        #if DEBUG
+        print("HeartRails fallback found \(result.count) stations matching '\(query)'")
+        #endif
+        
+        return result
     }
     
     /// Fetch stations by line name
