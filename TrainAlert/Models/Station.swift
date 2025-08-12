@@ -8,7 +8,7 @@
 import Foundation
 import CoreLocation
 
-struct StationModel: Identifiable, Codable, Equatable {
+struct StationModel: Identifiable, Codable, Equatable, Hashable {
     let id: String
     let name: String
     let latitude: Double
@@ -21,5 +21,9 @@ struct StationModel: Identifiable, Codable, Equatable {
     
     var location: CLLocation {
         CLLocation(latitude: latitude, longitude: longitude)
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 }
