@@ -304,7 +304,7 @@ final class CoreDataManager: ObservableObject {
         station.name = name
         station.latitude = latitude
         station.longitude = longitude
-        station.lines = lines
+        station.lineNames = lines ?? []
         station.isFavorite = false
         station.lastUsedAt = Date()
         

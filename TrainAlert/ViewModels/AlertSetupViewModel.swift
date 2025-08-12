@@ -214,8 +214,8 @@ class AlertSetupViewModel: ObservableObject {
         newStation.name = station.name
         newStation.latitude = station.latitude
         newStation.longitude = station.longitude
-        // Set lines array directly (Core Data handles Transformable type)
-        newStation.lines = station.lines
+        // Set lines using the computed property
+        newStation.lineNames = station.lines
         
         return newStation
     }
