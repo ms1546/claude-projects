@@ -478,7 +478,7 @@ final class CoreDataManager: ObservableObject {
         performanceMonitor.startTimer(for: "Batch Delete: \(entityName)")
         
         try await performBackgroundTask { context in
-            let request = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
+            let request: NSFetchRequest<NSFetchRequestResult> = NSFetchRequest(entityName: entityName)
             request.predicate = predicate
             
             let deleteRequest = NSBatchDeleteRequest(fetchRequest: request)
@@ -636,8 +636,8 @@ extension CoreDataManager {
             request.resultType = .dictionaryResultType
             
             // Execute VACUUM command (SQLite optimization)
-            let description = NSEntityDescription.entity(forEntityName: "History", in: context)!
-            let sqliteVacuum = "PRAGMA vacuum;"
+            _ = NSEntityDescription.entity(forEntityName: "History", in: context)!
+            _ = "PRAGMA vacuum;"
             
             // Note: Direct SQL execution would require lower-level Core Data access
             // For now, we'll rely on Core Data's built-in optimizations

@@ -493,7 +493,7 @@ struct Card_Previews: PreviewProvider {
                     subtitle: "到着予定: 18:45",
                     status: .active,
                     action: {
-                        print("アラートカードがタップされました")
+                        // アラートカードがタップされました
                     }
                 )
                 
@@ -502,7 +502,7 @@ struct Card_Previews: PreviewProvider {
                     distance: "2.3km",
                     isSelected: true,
                     action: {
-                        print("駅カードがタップされました")
+                        // 駅カードがタップされました
                     }
                 )
                 
@@ -514,10 +514,10 @@ struct Card_Previews: PreviewProvider {
                     message: "もうすぐ東京駅だよ〜！起きて起きて〜♪",
                     isSelected: false,
                     onTap: {
-                        print("履歴カードがタップされました")
+                        // 履歴カードがタップされました
                     },
                     onDelete: {
-                        print("履歴が削除されました")
+                        // 履歴が削除されました
                     }
                 )
             }

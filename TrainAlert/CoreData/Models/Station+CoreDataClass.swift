@@ -138,6 +138,11 @@ public class Station: NSManagedObject {
 
 extension Station {
     
+    /// 基本的なフェッチリクエスト
+    @nonobjc public class func fetchRequest() -> NSFetchRequest<Station> {
+        return NSFetchRequest<Station>(entityName: "Station")
+    }
+    
     /// お気に入り駅のフェッチリクエスト
     @nonobjc public class func favoriteFetchRequest() -> NSFetchRequest<Station> {
         let request = NSFetchRequest<Station>(entityName: "Station")

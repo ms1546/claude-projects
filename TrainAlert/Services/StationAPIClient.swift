@@ -26,7 +26,7 @@ struct OSMTags: Codable {
     let name: String?
     let nameJa: String?
     let railway: String?
-    let operator_: String?
+    let operatorName: String?
     let network: String?
     let line: String?
     
@@ -34,7 +34,7 @@ struct OSMTags: Codable {
         case name
         case nameJa = "name:ja"
         case railway
-        case operator_ = "operator"
+        case operatorName = "operator"
         case network
         case line
     }
@@ -487,7 +487,7 @@ class StationAPIClient: ObservableObject {
     /// 駅名で検索（部分一致）
     func searchStations(query: String, near location: CLLocationCoordinate2D? = nil) async throws -> [StationModel] {
         #if DEBUG
-        print("searchStations called with query: '\(query)'")
+        // searchStations called with query
         #endif
         
         // If query is empty, return empty array
@@ -506,7 +506,7 @@ class StationAPIClient: ObservableObject {
             let stations = try await searchStationsByAPI(query: query)
             
             #if DEBUG
-            print("searchStationsByAPI returned \(stations.count) stations")
+            // searchStationsByAPI returned stations
             #endif
             
             if !stations.isEmpty {
@@ -515,21 +515,21 @@ class StationAPIClient: ObservableObject {
                 let sorted = sortStationsByLocation(stations, location: location)
                 
                 #if DEBUG
-                print("Returning \(sorted.count) sorted stations")
+                // Returning sorted stations
                 #endif
                 
                 return sorted
             }
             
             #if DEBUG
-            print("No stations found, returning empty array")
+            // No stations found
             #endif
             
             return []
         } catch {
             // API search failed
             #if DEBUG
-            print("searchStations failed with error: \(error)")
+            // searchStations failed
             #endif
             throw error
         }
@@ -571,7 +571,7 @@ class StationAPIClient: ObservableObject {
             let osmResponse = try JSONDecoder().decode(OSMResponse.self, from: data)
             
             #if DEBUG
-            print("OSM API response: \(osmResponse.elements.count) elements found")
+            // OSM API response received
             #endif
             
             // Convert OSM elements to StationModel
@@ -583,8 +583,8 @@ class StationAPIClient: ObservableObject {
                 
                 // Extract line information from tags
                 var lines: [String] = []
-                if let operator_ = element.tags?.operator_ {
-                    lines.append(operator_)
+                if let operatorName = element.tags?.operatorName {
+                    lines.append(operatorName)
                 }
                 if let network = element.tags?.network {
                     lines.append(network)
@@ -623,14 +623,14 @@ class StationAPIClient: ObservableObject {
             let result = Array(uniqueStations.values)
             
             #if DEBUG
-            print("OSM API found \(result.count) unique stations")
+            // OSM API found unique stations
             #endif
             
             return result
         } catch {
             // Log OSM API error for debugging
             #if DEBUG
-            print("OSM API error: \(error)")
+            // OSM API error
             #endif
             
             // If OSM fails, fall back to HeartRails line search
@@ -695,7 +695,7 @@ class StationAPIClient: ObservableObject {
         let result = Array(uniqueStations.values)
         
         #if DEBUG
-        print("HeartRails fallback found \(result.count) stations matching '\(query)'")
+        // HeartRails fallback found stations
         #endif
         
         return result
