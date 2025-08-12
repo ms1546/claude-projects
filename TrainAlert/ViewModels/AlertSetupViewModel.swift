@@ -175,30 +175,14 @@ class AlertSetupViewModel: ObservableObject {
                     }()
                     alert.characterStyle = mappedStyle
                     
-                    print("🟢 Creating alert with values:")
-                    print("  - notificationTime: \(alert.notificationTime)")
-                    print("  - notificationDistance: \(alert.notificationDistance)")
-                    print("  - snoozeInterval: \(alert.snoozeInterval)")
-                    print("  - characterStyle: \(alert.characterStyle ?? "nil")")
-                    
                     // Create or find station
                     if let selectedStation = self.setupData.selectedStation {
-                        print("🟡 Finding or creating station: \(selectedStation.name)")
                         let stationEntity = self.findOrCreateStation(selectedStation, in: context)
-                        print("🟡 Station entity created/found: \(stationEntity)")
-                        print("🟡 Station class: \(type(of: stationEntity))")
-                        print("🟡 Alert class: \(type(of: alert))")
-                        
-                        // Set the station relationship
-                        print("🟡 Setting station relationship...")
                         alert.station = stationEntity
-                        print("✅ Alert.station set successfully")
                     }
                     
                     // Save context
-                    print("💾 Saving context...")
                     try context.save()
-                    print("✅ Context saved successfully")
                     
                     // Return alert ID to main context
                     let alertId = alert.objectID
@@ -214,10 +198,6 @@ class AlertSetupViewModel: ObservableObject {
                                 continuation.resume(throwing: AlertSetupError.coreDataError(error))
                                 return
                             }
-                            print("✅ Alert created successfully with ID: \(mainAlert.alertId ?? UUID())")
-                            print("   Station: \(mainAlert.station?.name ?? "nil")")
-                            print("   Active: \(mainAlert.isActive)")
-                            
                             // Notify that alerts have been updated
                             NotificationCenter.default.post(name: Notification.Name("AlertsUpdated"), object: nil)
                             
@@ -252,8 +232,6 @@ class AlertSetupViewModel: ObservableObject {
         newStation.longitude = station.longitude
         // Convert array to comma-separated string for Core Data storage
         newStation.lines = station.lines.joined(separator: ",")
-        
-        print("🔵 Created new station: \(newStation.name ?? ""), lines: \(newStation.lines ?? "")")
         
         return newStation
     }
