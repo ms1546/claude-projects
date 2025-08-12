@@ -343,7 +343,7 @@ class HomeViewModel: ObservableObject {
                         name: station.name ?? "",
                         latitude: station.latitude,
                         longitude: station.longitude,
-                        lines: station.lineArray
+                        lines: station.lineNames
                     )
                 }
                 .values
