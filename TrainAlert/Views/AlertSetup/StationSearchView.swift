@@ -62,10 +62,10 @@ struct StationSearchView: View {
         .sheet(isPresented: $showMap) {
             StationMapView(
                 stations: currentStations
-            )                { station in
+            ) { station in
                     selectStation(station)
                     showMap = false
-                }
+            }
         }
     }
     
@@ -209,8 +209,25 @@ struct StationSearchView: View {
     
     private func loadNearbyStations() {
         guard let location = locationManager.location else {
-            // Request location permission instead of using default
-            requestLocationPermission()
+            // 権限を確認して位置情報の更新を開始
+            if locationManager.authorizationStatus == .authorizedWhenInUse || 
+               locationManager.authorizationStatus == .authorizedAlways {
+                locationManager.startUpdatingLocation()
+                
+                // 少し待ってから再試行
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                    if let location = self.locationManager.location {
+                        self.loadStationsForLocation(
+                            latitude: location.coordinate.latitude,
+                            longitude: location.coordinate.longitude
+                        )
+                    } else {
+                        self.errorMessage = "位置情報を取得できません"
+                    }
+                }
+            } else {
+                requestLocationPermission()
+            }
             return
         }
         
@@ -495,7 +512,7 @@ struct StationSearchView_Previews: PreviewProvider {
     static var previews: some View {
         StationSearchView(
             setupData: AlertSetupData()
-        )            { _ in }
+        ) { _ in }
         .environmentObject(LocationManager())
         .preferredColorScheme(.dark)
     }

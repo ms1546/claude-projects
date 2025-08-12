@@ -5,12 +5,22 @@
 //  Created by Claude on 2024/01/08.
 //
 
-import SwiftUI
+import CoreLocation
 import Foundation
+import SwiftUI
 import UserNotifications
 
 @MainActor
 class SettingsViewModel: ObservableObject {
+    // MARK: - Properties
+    
+    private let locationManager = CLLocationManager()
+    
+    // MARK: - Location Settings
+    
+    @AppStorage("locationAccuracy") var locationAccuracy: String = "balanced"
+    @AppStorage("backgroundUpdateInterval") var backgroundUpdateInterval: Int = 5
+    @AppStorage("backgroundUpdateEnabled") var backgroundUpdateEnabled: Bool = true
     
     // MARK: - Notification Settings
     
@@ -19,6 +29,8 @@ class SettingsViewModel: ObservableObject {
     @AppStorage("defaultSnoozeInterval") var defaultSnoozeInterval: Int = 2
     @AppStorage("selectedNotificationSound") var selectedNotificationSound: String = "default"
     @AppStorage("vibrationIntensity") var vibrationIntensity: Double = 0.8
+    @AppStorage("vibrationEnabled") var vibrationEnabled: Bool = true
+    @AppStorage("notificationPreviewEnabled") var notificationPreviewEnabled: Bool = true
     
     // MARK: - AI Settings
     
@@ -46,6 +58,7 @@ class SettingsViewModel: ObservableObject {
     @Published var showingResetConfirmation: Bool = false
     @Published var showingExportShare: Bool = false
     @Published var notificationPermissionStatus: UNAuthorizationStatus = .notDetermined
+    @Published var locationPermissionStatus: CLAuthorizationStatus = .notDetermined
     
     // MARK: - Computed Properties
     
@@ -58,7 +71,7 @@ class SettingsViewModel: ObservableObject {
     }
     
     var availableNotificationDistances: [Int] {
-        [100, 200, 300, 500, 800, 1000, 1500, 2000]
+        [100, 200, 300, 500, 800, 1_000, 1_500, 2_000]
     }
     
     var availableSnoozeIntervals: [Int] {
@@ -69,15 +82,31 @@ class SettingsViewModel: ObservableObject {
         ["default", "chime", "bell", "gentle", "urgent"]
     }
     
+    var availableBackgroundUpdateIntervals: [Int] {
+        [1, 3, 5, 10]
+    }
+    
+    var locationAccuracyOptions: [(String, String)] {
+        [("high", "高精度"), ("balanced", "バランス"), ("battery", "省電力")]
+    }
+    
+    var locationAccuracyDisplayName: String {
+        locationAccuracyOptions.first { $0.0 == locationAccuracy }?.1 ?? "バランス"
+    }
+    
+    var backgroundUpdateIntervalDisplayString: String {
+        "\(backgroundUpdateInterval)分間隔"
+    }
+    
     var notificationTimeDisplayString: String {
         "\(defaultNotificationTime)分前"
     }
     
     var notificationDistanceDisplayString: String {
-        if defaultNotificationDistance < 1000 {
+        if defaultNotificationDistance < 1_000 {
             return "\(defaultNotificationDistance)m"
         } else {
-            return String(format: "%.1fkm", Double(defaultNotificationDistance) / 1000)
+            return String(format: "%.1fkm", Double(defaultNotificationDistance) / 1_000)
         }
     }
     
@@ -105,6 +134,7 @@ class SettingsViewModel: ObservableObject {
         loadAPIKeyFromKeychain()
         checkAPIKeyValidity()
         checkNotificationPermissions()
+        checkLocationPermissions()
     }
     
     // MARK: - API Key Management
@@ -176,6 +206,21 @@ class SettingsViewModel: ObservableObject {
         try? KeychainManager.shared.deleteOpenAIAPIKey()
     }
     
+    // MARK: - Location Permissions
+    
+    func checkLocationPermissions() {
+        locationPermissionStatus = CLLocationManager.authorizationStatus()
+    }
+    
+    func requestLocationPermissions() {
+        locationManager.requestWhenInUseAuthorization()
+        
+        // Update status after request
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.checkLocationPermissions()
+        }
+    }
+    
     // MARK: - Notification Permissions
     
     func checkNotificationPermissions() {
@@ -205,12 +250,19 @@ class SettingsViewModel: ObservableObject {
     // MARK: - Settings Management
     
     func resetAllSettings() {
+        // Reset location settings
+        locationAccuracy = "balanced"
+        backgroundUpdateInterval = 5
+        backgroundUpdateEnabled = true
+        
         // Reset notification settings
         defaultNotificationTime = 5
         defaultNotificationDistance = 500
         defaultSnoozeInterval = 2
         selectedNotificationSound = "default"
         vibrationIntensity = 0.8
+        vibrationEnabled = true
+        notificationPreviewEnabled = true
         
         // Reset AI settings
         selectedCharacterStyle = CharacterStyle.healing.rawValue
@@ -231,12 +283,17 @@ class SettingsViewModel: ObservableObject {
     }
     
     func exportSettings() -> [String: Any] {
-        return [
+        [
+            "locationAccuracy": locationAccuracy,
+            "backgroundUpdateInterval": backgroundUpdateInterval,
+            "backgroundUpdateEnabled": backgroundUpdateEnabled,
             "defaultNotificationTime": defaultNotificationTime,
             "defaultNotificationDistance": defaultNotificationDistance,
             "defaultSnoozeInterval": defaultSnoozeInterval,
             "selectedNotificationSound": selectedNotificationSound,
             "vibrationIntensity": vibrationIntensity,
+            "vibrationEnabled": vibrationEnabled,
+            "notificationPreviewEnabled": notificationPreviewEnabled,
             "selectedCharacterStyle": selectedCharacterStyle,
             "useAIGeneratedMessages": useAIGeneratedMessages,
             "selectedLanguage": selectedLanguage,
@@ -257,6 +314,20 @@ class SettingsViewModel: ObservableObject {
         }
         
         // Import settings with validation
+        if let accuracy = data["locationAccuracy"] as? String,
+           locationAccuracyOptions.contains(where: { $0.0 == accuracy }) {
+            locationAccuracy = accuracy
+        }
+        
+        if let interval = data["backgroundUpdateInterval"] as? Int,
+           availableBackgroundUpdateIntervals.contains(interval) {
+            backgroundUpdateInterval = interval
+        }
+        
+        if let enabled = data["backgroundUpdateEnabled"] as? Bool {
+            backgroundUpdateEnabled = enabled
+        }
+        
         if let time = data["defaultNotificationTime"] as? Int,
            availableNotificationTimes.contains(time) {
             defaultNotificationTime = time
@@ -280,6 +351,14 @@ class SettingsViewModel: ObservableObject {
         if let intensity = data["vibrationIntensity"] as? Double,
            (0.0...1.0).contains(intensity) {
             vibrationIntensity = intensity
+        }
+        
+        if let enabled = data["vibrationEnabled"] as? Bool {
+            vibrationEnabled = enabled
+        }
+        
+        if let preview = data["notificationPreviewEnabled"] as? Bool {
+            notificationPreviewEnabled = preview
         }
         
         if let character = data["selectedCharacterStyle"] as? String,
