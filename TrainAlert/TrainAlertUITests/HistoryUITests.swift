@@ -8,7 +8,6 @@
 import XCTest
 
 final class HistoryUITests: XCTestCase {
-    
     var app: XCUIApplication!
     
     override func setUpWithError() throws {
@@ -91,7 +90,7 @@ final class HistoryUITests: XCTestCase {
         navigateToHistory()
         
         let historyTable = app.tables["履歴リスト"]
-        if historyTable.waitForExistence(timeout: 5) && historyTable.cells.count > 0 {
+        if historyTable.waitForExistence(timeout: 5) && !historyTable.cells.isEmpty {
             let firstCell = historyTable.cells.element(boundBy: 0)
             firstCell.tap()
             
@@ -296,7 +295,7 @@ final class HistoryUITests: XCTestCase {
             
             // Test selecting items
             let historyTable = app.tables["履歴リスト"]
-            if historyTable.exists && historyTable.cells.count > 0 {
+            if historyTable.exists && !historyTable.cells.isEmpty {
                 let firstCell = historyTable.cells.element(boundBy: 0)
                 firstCell.tap()
                 
@@ -320,7 +319,7 @@ final class HistoryUITests: XCTestCase {
         enterSelectionMode()
         
         let historyTable = app.tables["履歴リスト"]
-        if historyTable.exists && historyTable.cells.count > 0 {
+        if historyTable.exists && !historyTable.cells.isEmpty {
             // Select first item
             let firstCell = historyTable.cells.element(boundBy: 0)
             firstCell.tap()
@@ -347,7 +346,7 @@ final class HistoryUITests: XCTestCase {
         navigateToHistory()
         
         let historyTable = app.tables["履歴リスト"]
-        if historyTable.waitForExistence(timeout: 5) && historyTable.cells.count > 0 {
+        if historyTable.waitForExistence(timeout: 5) && !historyTable.cells.isEmpty {
             let firstCell = historyTable.cells.element(boundBy: 0)
             
             // Swipe to reveal delete action
@@ -490,7 +489,7 @@ final class HistoryUITests: XCTestCase {
         navigateToHistory()
         
         let historyTable = app.tables["履歴リスト"]
-        if historyTable.waitForExistence(timeout: 5) && historyTable.cells.count > 0 {
+        if historyTable.waitForExistence(timeout: 5) && !historyTable.cells.isEmpty {
             let firstCell = historyTable.cells.element(boundBy: 0)
             
             XCTAssertTrue(firstCell.isAccessibilityElement)
@@ -620,3 +619,4 @@ extension XCUIElement {
         }
     }
 }
+

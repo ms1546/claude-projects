@@ -8,7 +8,6 @@
 import XCTest
 
 final class AlertSetupFlowUITests: XCTestCase {
-    
     var app: XCUIApplication!
     
     override func setUpWithError() throws {
@@ -105,7 +104,7 @@ final class AlertSetupFlowUITests: XCTestCase {
             searchField.clearAndEnterText(query)
             
             // Should handle gracefully without crashing
-            XCTAssertTrue(app.exists)
+            XCTAssertTrue(app.state == .runningForeground)
         }
     }
     
@@ -493,7 +492,7 @@ final class AlertSetupFlowUITests: XCTestCase {
             
             // Verify alert was created
             let successIndicator = app.staticTexts["アラートが作成されました"]
-            XCTAssertTrue(successIndicator.waitForExistence(timeout: 5) || app.tabBars.exists)
+            XCTAssertTrue(successIndicator.waitForExistence(timeout: 5) || app.tabBars.firstMatch.exists)
         }
     }
     
@@ -542,3 +541,4 @@ extension XCUIElement {
         self.typeText(text)
     }
 }
+
