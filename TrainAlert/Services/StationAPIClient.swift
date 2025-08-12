@@ -464,18 +464,32 @@ class StationAPIClient: ObservableObject {
             return sortStationsByLocation(cachedStations, location: location)
         }
         
-        // Search stations using API
+        // For now, prioritize offline data for reliability
+        // TODO: Fix API integration after confirming HeartRails API specification
+        let offlineResults = searchOfflineStations(query: query, near: location)
+        
+        if !offlineResults.isEmpty {
+            // Cache the result
+            await cache.set(cacheKey, stations: offlineResults)
+            return offlineResults
+        }
+        
+        // If no offline results, try API
         do {
             let stations = try await searchStationsByAPI(query: query)
             
-            // Cache the result
-            await cache.set(cacheKey, stations: stations)
             
-            return sortStationsByLocation(stations, location: location)
+            if !stations.isEmpty {
+                // Cache the result
+                await cache.set(cacheKey, stations: stations)
+                return sortStationsByLocation(stations, location: location)
+            }
         } catch {
-            // API search failed, fall back to offline data
-            return searchOfflineStations(query: query, near: location)
+            // API search failed
         }
+        
+        // Return empty if both offline and API fail
+        return []
     }
     
     /// Search stations using HeartRails API
@@ -494,7 +508,11 @@ class StationAPIClient: ObservableObject {
         await withTaskGroup(of: [StationModel]?.self) { group in
             for line in majorLines {
                 group.addTask {
-                    try? await self.fetchStationsByLine(line)
+                    do {
+                        return try await self.fetchStationsByLine(line)
+                    } catch {
+                        return nil
+                    }
                 }
             }
             
