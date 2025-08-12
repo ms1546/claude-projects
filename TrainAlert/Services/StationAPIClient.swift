@@ -14,9 +14,9 @@ import os.log
 struct OverpassElement: Codable {
     let type: String
     let id: Int
-    let lat: Double
-    let lon: Double
-    let tags: [String: String]
+    let lat: Double?
+    let lon: Double?
+    let tags: [String: String]?
 }
 
 struct OverpassResponse: Codable {
@@ -90,10 +90,14 @@ class StationAPIClient: ObservableObject {
         
         // Build Overpass Query with detailed tags
         let query = """
-        [out:json];
-        node[railway=station]
-        (around:\(radius),\(latitude),\(longitude));
-        out tags;
+        [out:json][timeout:25];
+        (
+          node[railway=station]
+          (around:\(radius),\(latitude),\(longitude));
+          way[railway=station]
+          (around:\(radius),\(latitude),\(longitude));
+        );
+        out center;
         """
         
         // Make API request
@@ -130,18 +134,26 @@ class StationAPIClient: ObservableObject {
         if let location = location {
             // Search near a specific location
             overpassQuery = """
-            [out:json];
-            node[railway=station][name~"\(escapedQuery)",i]
-            (around:50000,\(location.latitude),\(location.longitude));
-            out tags;
+            [out:json][timeout:25];
+            (
+              node[railway=station][name~"\(escapedQuery)",i]
+              (around:50000,\(location.latitude),\(location.longitude));
+              way[railway=station][name~"\(escapedQuery)",i]
+              (around:50000,\(location.latitude),\(location.longitude));
+            );
+            out center;
             """
         } else {
             // Search in Tokyo area (wider search)
             overpassQuery = """
-            [out:json];
-            node[railway=station][name~"\(escapedQuery)",i]
-            (35.5,139.5,35.9,140.0);
-            out tags;
+            [out:json][timeout:25];
+            (
+              node[railway=station][name~"\(escapedQuery)",i]
+              (35.5,139.5,35.9,140.0);
+              way[railway=station][name~"\(escapedQuery)",i]
+              (35.5,139.5,35.9,140.0);
+            );
+            out center;
             """
         }
         
@@ -184,18 +196,25 @@ class StationAPIClient: ObservableObject {
             
             // Convert to StationModel
             let stations = overpassResponse.elements.compactMap { element -> StationModel? in
-                guard let name = element.tags["name"] ?? element.tags["name:ja"] ?? element.tags["name:en"] else {
+                // Skip elements without coordinates
+                guard let lat = element.lat,
+                      let lon = element.lon,
+                      let tags = element.tags else {
+                    return nil
+                }
+                
+                guard let name = tags["name"] ?? tags["name:ja"] ?? tags["name:en"] else {
                     return nil
                 }
                 
                 // Extract railway lines from tags
-                let lines = extractRailwayLines(from: element.tags)
+                let lines = extractRailwayLines(from: tags)
                 
                 return StationModel(
                     id: "\(element.id)",
                     name: name,
-                    latitude: element.lat,
-                    longitude: element.lon,
+                    latitude: lat,
+                    longitude: lon,
                     lines: lines
                 )
             }
