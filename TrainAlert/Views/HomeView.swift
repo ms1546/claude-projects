@@ -32,32 +32,46 @@ struct HomeView: View {
                 Color(.systemBackground)
                     .ignoresSafeArea()
                 
-                ScrollView {
-                    VStack(spacing: 20) {
-                        // Header Section
-                        headerSection
-                        
-                        // Quick Actions
-                        quickActionsSection
-                        
-                        // Active Alerts
-                        if !viewModel.activeAlerts.isEmpty {
-                            activeAlertsSection
-                        }
-                        
-                        // Map View
-                        if locationManager.authorizationStatus == .authorizedWhenInUse ||
-                           locationManager.authorizationStatus == .authorizedAlways {
-                            mapSection
-                        }
-                        
-                        // Empty State
-                        if viewModel.activeAlerts.isEmpty {
-                            emptyStateSection
-                        }
+                List {
+                    // Header Section
+                    headerSection
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                    
+                    // Quick Actions
+                    quickActionsSection
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                    
+                    // All Alerts (Active and Inactive)
+                    if !viewModel.allAlerts.isEmpty {
+                        allAlertsSection
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
                     }
-                    .padding()
+                    
+                    // Map View
+                    if locationManager.authorizationStatus == .authorizedWhenInUse ||
+                       locationManager.authorizationStatus == .authorizedAlways {
+                        mapSection
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                    }
+                    
+                    // Empty State
+                    if viewModel.allAlerts.isEmpty {
+                        emptyStateSection
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                    }
                 }
+                .listStyle(PlainListStyle())
+                .background(Color(.systemBackground))
             }
             .navigationTitle("TrainAlert")
             .navigationBarTitleDisplayMode(.large)
@@ -92,6 +106,11 @@ struct HomeView: View {
                     coreDataManager: appState.coreDataManager
                 )
                 checkLocationPermission()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RefreshHomeView"))) { _ in
+                Task {
+                    await viewModel.refresh()
+                }
             }
         }
     }
@@ -141,17 +160,43 @@ struct HomeView: View {
         }
     }
     
-    private var activeAlertsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("アクティブなアラート")
-                .font(.headline)
-                .padding(.horizontal, 4)
+    private var allAlertsSection: some View {
+        Group {
+            // Active Alerts
+            if !viewModel.activeAlerts.isEmpty {
+                Section {
+                    ForEach(viewModel.activeAlerts) { alert in
+                        HomeAlertCard(alert: alert) {
+                            viewModel.toggleAlert(alert)
+                        } onDelete: {
+                            viewModel.deleteAlert(alert)
+                        }
+                    }
+                } header: {
+                    Text("アクティブなアラート")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                        .textCase(nil)
+                }
+            }
             
-            ForEach(viewModel.activeAlerts) { alert in
-                HomeAlertCard(alert: alert) {
-                    viewModel.toggleAlert(alert)
-                } onDelete: {
-                    viewModel.deleteAlert(alert)
+            // Inactive Alerts
+            let inactiveAlerts = viewModel.allAlerts.filter { !$0.isActive }
+            if !inactiveAlerts.isEmpty {
+                Section {
+                    ForEach(inactiveAlerts) { alert in
+                        HomeAlertCard(alert: alert) {
+                            viewModel.toggleAlert(alert)
+                        } onDelete: {
+                            viewModel.deleteAlert(alert)
+                        }
+                        .opacity(0.6)  // 非アクティブは薄く表示
+                    }
+                } header: {
+                    Text("非アクティブなアラート")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                        .textCase(nil)
                 }
             }
         }

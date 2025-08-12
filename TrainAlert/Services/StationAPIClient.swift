@@ -214,6 +214,15 @@ class StationAPICache {
             }
         }
     }
+    
+    func clearAllCache() {
+        queue.async {
+            let keys = self.userDefaults.dictionaryRepresentation().keys
+            for key in keys where key.hasPrefix(CacheKeys.stationData) || key.hasPrefix(CacheKeys.lineData) {
+                self.userDefaults.removeObject(forKey: key)
+            }
+        }
+    }
 }
 
 // MARK: - StationAPIClient
@@ -285,14 +294,49 @@ class StationAPIClient: ObservableObject {
                 throw StationAPIError.noStationsFound
             }
             
-            // Convert to Station models
-            let stations = stationInfos.compactMap { $0.toStation() }
+            // Convert to StationModel and aggregate lines for same station
+            var stationDict: [String: (lat: Double, lon: Double, lines: Set<String>)] = [:]
+            
+            for info in stationInfos {
+                
+                guard let lat = Double(info.y),
+                      let lon = Double(info.x) else {
+                    continue
+                }
+                
+                // Aggregate lines for the same station name
+                if var existingStation = stationDict[info.name] {
+                    existingStation.lines.insert(info.line)
+                    stationDict[info.name] = existingStation
+                } else {
+                    stationDict[info.name] = (lat: lat, lon: lon, lines: [info.line])
+                }
+            }
+            
+            // Convert to StationModel array
+            let stations = stationDict.map { (name, data) in
+                StationModel(
+                    id: "\(name)_\(data.lat)_\(data.lon)",
+                    name: name,
+                    latitude: data.lat,
+                    longitude: data.lon,
+                    lines: Array(data.lines).sorted()
+                )
+            }
+            
+            // Sort by distance
+            let currentLocation = CLLocation(latitude: latitude, longitude: longitude)
+            let sortedStations = stations.sorted { station1, station2 in
+                let location1 = CLLocation(latitude: station1.latitude, longitude: station1.longitude)
+                let location2 = CLLocation(latitude: station2.latitude, longitude: station2.longitude)
+                return currentLocation.distance(from: location1) < currentLocation.distance(from: location2)
+            }
             
             // Cache the results
-            let cachedData = CachedStationData(stations: stations, location: location)
+            let cachedData = CachedStationData(stations: sortedStations, location: location)
             cache.cacheStationData(cachedData, for: location)
             
-            return stations
+            return sortedStations
             
         } catch let error as DecodingError {
             throw StationAPIError.decodingError(error)
@@ -363,20 +407,166 @@ class StationAPIClient: ObservableObject {
     
     /// 駅名で検索（部分一致）
     func searchStations(query: String, near location: CLLocationCoordinate2D? = nil) async throws -> [StationModel] {
-        // まず近くの駅を取得
-        let nearbyStations: [StationModel]
+        // If query is empty, return empty array
+        guard !query.isEmpty else {
+            return []
+        }
+        
+        // 主要駅のリスト（オフライン検索用）
+        let majorStations: [StationModel] = [
+            // 山手線主要駅
+            StationModel(
+                id: "tokyo", name: "東京", latitude: 35.6812, longitude: 139.7671,
+                lines: ["JR山手線", "JR中央線", "JR京浜東北線", "JR東海道線", "JR横須賀線", "JR総武線快速", "JR京葉線", "東京メトロ丸ノ内線"]
+            ),
+            StationModel(
+                id: "shinjuku", name: "新宿", latitude: 35.6896, longitude: 139.7006,
+                lines: ["JR山手線", "JR中央線", "JR埼京線", "JR湘南新宿ライン", "JR総武線",
+                        "小田急線", "京王線", "東京メトロ丸ノ内線", "東京メトロ副都心線", "都営新宿線", "都営大江戸線"]
+            ),
+            StationModel(
+                id: "shibuya", name: "渋谷", latitude: 35.6580, longitude: 139.7016,
+                lines: ["JR山手線", "JR埼京線", "JR湘南新宿ライン", "東急東横線", "東急田園都市線",
+                        "京王井の頭線", "東京メトロ銀座線", "東京メトロ半蔵門線", "東京メトロ副都心線"]
+            ),
+            StationModel(
+                id: "ikebukuro", name: "池袋", latitude: 35.7295, longitude: 139.7109,
+                lines: ["JR山手線", "JR埼京線", "JR湘南新宿ライン", "東武東上線", "西武池袋線",
+                        "東京メトロ丸ノ内線", "東京メトロ有楽町線", "東京メトロ副都心線"]
+            ),
+            StationModel(
+                id: "shinagawa", name: "品川", latitude: 35.6284, longitude: 139.7387,
+                lines: ["JR山手線", "JR京浜東北線", "JR東海道線", "JR横須賀線", "JR東海道新幹線", "京急本線"]
+            ),
+            StationModel(
+                id: "ueno", name: "上野", latitude: 35.7141, longitude: 139.7774,
+                lines: ["JR山手線", "JR京浜東北線", "JR高崎線", "JR宇都宮線", "JR常磐線",
+                        "東京メトロ銀座線", "東京メトロ日比谷線"]
+            ),
+            StationModel(
+                id: "akihabara", name: "秋葉原", latitude: 35.6984, longitude: 139.7731,
+                lines: ["JR山手線", "JR京浜東北線", "JR総武線", "つくばエクスプレス", "東京メトロ日比谷線"]
+            ),
+            StationModel(
+                id: "harajuku", name: "原宿", latitude: 35.6702, longitude: 139.7026,
+                lines: ["JR山手線", "東京メトロ千代田線（明治神宮前）", "東京メトロ副都心線（明治神宮前）"]
+            ),
+            StationModel(
+                id: "ebisu", name: "恵比寿", latitude: 35.6467, longitude: 139.7100,
+                lines: ["JR山手線", "JR埼京線", "JR湘南新宿ライン", "東京メトロ日比谷線"]
+            ),
+            StationModel(
+                id: "meguro", name: "目黒", latitude: 35.6339, longitude: 139.7158,
+                lines: ["JR山手線", "東急目黒線", "東京メトロ南北線", "都営三田線"]
+            ),
+            
+            // その他主要駅
+            StationModel(
+                id: "yokohama", name: "横浜", latitude: 35.4657, longitude: 139.6223,
+                lines: ["JR東海道線", "JR横須賀線", "JR京浜東北線", "JR根岸線",
+                        "京急本線", "東急東横線", "相鉄線", "横浜市営地下鉄ブルーライン"]
+            ),
+            StationModel(
+                id: "kawasaki", name: "川崎", latitude: 35.5308, longitude: 139.6973,
+                lines: ["JR東海道線", "JR京浜東北線", "JR南武線"]
+            ),
+            StationModel(
+                id: "omiya", name: "大宮", latitude: 35.9064, longitude: 139.6238,
+                lines: ["JR京浜東北線", "JR高崎線", "JR東北線", "JR埼京線", "JR川越線",
+                        "東武野田線", "埼玉新都市交通"]
+            ),
+            StationModel(
+                id: "chiba", name: "千葉", latitude: 35.6131, longitude: 140.1139,
+                lines: ["JR総武線", "JR成田線", "JR外房線", "JR内房線", "千葉都市モノレール"]
+            ),
+            StationModel(
+                id: "tachikawa", name: "立川", latitude: 35.6978, longitude: 139.4138,
+                lines: ["JR中央線", "JR青梅線", "JR南武線", "多摩都市モノレール"]
+            ),
+            StationModel(
+                id: "funabashi", name: "船橋", latitude: 35.7020, longitude: 139.9854,
+                lines: ["JR総武線", "東武野田線", "京成本線"]
+            ),
+            StationModel(
+                id: "kichijoji", name: "吉祥寺", latitude: 35.7032, longitude: 139.5800,
+                lines: ["JR中央線", "JR総武線", "京王井の頭線"]
+            ),
+            StationModel(
+                id: "machida", name: "町田", latitude: 35.5461, longitude: 139.4386,
+                lines: ["JR横浜線", "小田急線"]
+            ),
+            StationModel(
+                id: "nakano", name: "中野", latitude: 35.7056, longitude: 139.6658,
+                lines: ["JR中央線", "JR総武線", "東京メトロ東西線"]
+            ),
+            StationModel(
+                id: "musashikosugi", name: "武蔵小杉", latitude: 35.5765, longitude: 139.6594,
+                lines: ["JR横須賀線", "JR湘南新宿ライン", "JR南武線", "東急東横線", "東急目黒線"]
+            )
+        ]
+        
+        // クエリで絞り込み（駅名のみで検索）
+        let filteredStations = majorStations.filter { station in
+            // ひらがな、カタカナ、漢字すべてに対応
+            let stationNameVariations: [String: String] = [
+                "よこはま": "横浜",
+                "しぶや": "渋谷",
+                "しんじゅく": "新宿",
+                "とうきょう": "東京",
+                "いけぶくろ": "池袋",
+                "うえの": "上野",
+                "しながわ": "品川",
+                "あきはばら": "秋葉原",
+                "はらじゅく": "原宿",
+                "えびす": "恵比寿",
+                "めぐろ": "目黒",
+                "かわさき": "川崎",
+                "おおみや": "大宮",
+                "ちば": "千葉",
+                "たちかわ": "立川",
+                "ふなばし": "船橋",
+                "きちじょうじ": "吉祥寺",
+                "まちだ": "町田",
+                "なかの": "中野",
+                "むさしこすぎ": "武蔵小杉"
+            ]
+            
+            // 駅名で検索（漢字、ひらがな、カタカナ）
+            if station.name.localizedCaseInsensitiveContains(query) {
+                return true
+            }
+            
+            // ひらがなの読みで検索
+            for (reading, kanji) in stationNameVariations {
+                if kanji == station.name && reading.localizedCaseInsensitiveContains(query) {
+                    return true
+                }
+            }
+            
+            return false
+        }
+        
+        // 位置情報がある場合は距離順にソート
         if let location = location {
-            nearbyStations = try await getNearbyStations(latitude: location.latitude, longitude: location.longitude)
+            let currentLocation = CLLocation(latitude: location.latitude, longitude: location.longitude)
+            return filteredStations.sorted { station1, station2 in
+                let location1 = CLLocation(latitude: station1.latitude, longitude: station1.longitude)
+                let location2 = CLLocation(latitude: station2.latitude, longitude: station2.longitude)
+                return currentLocation.distance(from: location1) < currentLocation.distance(from: location2)
+            }
         } else {
-            nearbyStations = []
+            // 位置情報がない場合は、駅名の一致度でソート
+            return filteredStations.sorted { station1, station2 in
+                // 完全一致を優先
+                if station1.name == query { return true }
+                if station2.name == query { return false }
+                // 前方一致を次に優先
+                if station1.name.hasPrefix(query) && !station2.name.hasPrefix(query) { return true }
+                if !station1.name.hasPrefix(query) && station2.name.hasPrefix(query) { return false }
+                // それ以外は名前順
+                return station1.name < station2.name
+            }
         }
-        
-        // クエリで絞り込み
-        let filteredStations = nearbyStations.filter { station in
-            station.name.localizedCaseInsensitiveContains(query)
-        }
-        
-        return filteredStations
     }
     
     // MARK: - Utility Methods
