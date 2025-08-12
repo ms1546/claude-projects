@@ -13,7 +13,7 @@ struct StationModel: Identifiable, Codable, Equatable {
     let name: String
     let latitude: Double
     let longitude: Double
-    let lines: [String]
+    var lines: [String]
     
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)

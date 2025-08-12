@@ -140,6 +140,7 @@ class StationAPICache {
     private enum CacheKeys {
         static let stationData = "cached_station_data"
         static let lineData = "cached_line_data"
+        static let searchResult = "cached_search_result"
     }
     
     func cacheStationData(_ data: CachedStationData, for location: CLLocationCoordinate2D) {
@@ -218,8 +219,49 @@ class StationAPICache {
     func clearAllCache() {
         queue.async {
             let keys = self.userDefaults.dictionaryRepresentation().keys
-            for key in keys where key.hasPrefix(CacheKeys.stationData) || key.hasPrefix(CacheKeys.lineData) {
+            for key in keys where key.hasPrefix(CacheKeys.stationData) || key.hasPrefix(CacheKeys.lineData) || key.hasPrefix(CacheKeys.searchResult) {
                 self.userDefaults.removeObject(forKey: key)
+            }
+        }
+    }
+    
+    // Search result cache methods
+    func set(_ key: String, stations: [StationModel]) async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            queue.async {
+                do {
+                    // Create a simple cache structure for search results
+                    let data = try JSONEncoder().encode(stations)
+                    let cacheKey = "\(CacheKeys.searchResult)_\(key)"
+                    self.userDefaults.set(data, forKey: cacheKey)
+                    // Also store timestamp
+                    self.userDefaults.set(Date(), forKey: "\(cacheKey)_timestamp")
+                } catch {
+                    // Failed to cache search result
+                }
+                continuation.resume()
+            }
+        }
+    }
+    
+    func get(_ key: String) async -> [StationModel]? {
+        await withCheckedContinuation { continuation in
+            queue.async {
+                let cacheKey = "\(CacheKeys.searchResult)_\(key)"
+                guard let data = self.userDefaults.data(forKey: cacheKey),
+                      let stations = try? JSONDecoder().decode([StationModel].self, from: data),
+                      let timestamp = self.userDefaults.object(forKey: "\(cacheKey)_timestamp") as? Date else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                
+                // Check if cache is expired (24 hours)
+                if Date().timeIntervalSince(timestamp) > 86400 {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                
+                continuation.resume(returning: stations)
             }
         }
     }
@@ -259,7 +301,9 @@ class StationAPIClient: ObservableObject {
         }
         
         // Build URL
-        var components = URLComponents(string: baseURL)!
+        guard var components = URLComponents(string: baseURL) else {
+            throw StationAPIError.invalidURL
+        }
         components.queryItems = [
             URLQueryItem(name: "method", value: "getStations"),
             URLQueryItem(name: "x", value: String(longitude)),
@@ -356,7 +400,9 @@ class StationAPIClient: ObservableObject {
         }
         
         // Build URL
-        var components = URLComponents(string: baseURL)!
+        guard var components = URLComponents(string: baseURL) else {
+            throw StationAPIError.invalidURL
+        }
         components.queryItems = [
             URLQueryItem(name: "method", value: "getLines"),
             URLQueryItem(name: "name", value: stationName)
@@ -412,6 +458,166 @@ class StationAPIClient: ObservableObject {
             return []
         }
         
+        // Check cache first
+        let cacheKey = "search_\(query)"
+        if let cachedStations = await cache.get(cacheKey) {
+            return sortStationsByLocation(cachedStations, location: location)
+        }
+        
+        // Search stations using API
+        do {
+            let stations = try await searchStationsByAPI(query: query)
+            
+            // Cache the result
+            await cache.set(cacheKey, stations: stations)
+            
+            return sortStationsByLocation(stations, location: location)
+        } catch {
+            // API search failed, fall back to offline data
+            return searchOfflineStations(query: query, near: location)
+        }
+    }
+    
+    /// Search stations using HeartRails API
+    private func searchStationsByAPI(query: String) async throws -> [StationModel] {
+        var allStations: [StationModel] = []
+        
+        // Search major lines for stations matching the query
+        let majorLines = [
+            "JR山手線", "JR中央線", "JR総武線", "JR京浜東北線",
+            "JR東海道線", "JR横須賀線", "JR埼京線", "JR南武線",
+            "東京メトロ銀座線", "東京メトロ丸ノ内線", "東京メトロ日比谷線",
+            "東急東横線", "東急田園都市線", "小田急線", "京王線"
+        ]
+        
+        // Fetch stations from each line
+        await withTaskGroup(of: [StationModel]?.self) { group in
+            for line in majorLines {
+                group.addTask {
+                    try? await self.fetchStationsByLine(line)
+                }
+            }
+            
+            for await stations in group {
+                if let stations = stations {
+                    allStations.append(contentsOf: stations)
+                }
+            }
+        }
+        
+        // Filter and deduplicate stations
+        var uniqueStations: [String: StationModel] = [:]
+        
+        for station in allStations {
+            // Check if station name matches query
+            if station.name.localizedCaseInsensitiveContains(query) ||
+               matchesHiraganaReading(station.name, query: query) {
+                
+                if let existing = uniqueStations[station.name] {
+                    // Merge lines
+                    var merged = existing
+                    merged.lines = Array(Set(existing.lines + station.lines)).sorted()
+                    uniqueStations[station.name] = merged
+                } else {
+                    uniqueStations[station.name] = station
+                }
+            }
+        }
+        
+        return Array(uniqueStations.values)
+    }
+    
+    /// Fetch stations by line name
+    private func fetchStationsByLine(_ line: String) async throws -> [StationModel] {
+        guard var components = URLComponents(string: baseURL) else {
+            throw StationAPIError.invalidURL
+        }
+        components.queryItems = [
+            URLQueryItem(name: "method", value: "getStations"),
+            URLQueryItem(name: "line", value: line)
+        ]
+        
+        guard let url = components.url else {
+            throw StationAPIError.invalidURL
+        }
+        
+        let (data, response) = try await session.data(from: url)
+        
+        // Check response status
+        if let httpResponse = response as? HTTPURLResponse,
+           httpResponse.statusCode != 200 {
+            throw StationAPIError.serverError(httpResponse.statusCode)
+        }
+        
+        let apiResponse = try JSONDecoder().decode(StationResponse.self, from: data)
+        let stations = apiResponse.response.station?.compactMap { info -> StationModel? in
+            guard let lat = Double(info.y),
+                  let lon = Double(info.x) else {
+                return nil
+            }
+            
+            return StationModel(
+                id: "\(info.name)_\(info.line)",
+                name: info.name,
+                latitude: lat,
+                longitude: lon,
+                lines: [info.line]
+            )
+        } ?? []
+        
+        return stations
+    }
+    
+    /// Check if station name matches hiragana reading
+    private func matchesHiraganaReading(_ stationName: String, query: String) -> Bool {
+        let stationNameVariations: [String: String] = [
+            "よこはま": "横浜",
+            "しぶや": "渋谷",
+            "しんじゅく": "新宿",
+            "とうきょう": "東京",
+            "いけぶくろ": "池袋",
+            "うえの": "上野",
+            "しながわ": "品川",
+            "あきはばら": "秋葉原",
+            "はらじゅく": "原宿",
+            "えびす": "恵比寿",
+            "めぐろ": "目黒",
+            "かわさき": "川崎",
+            "おおみや": "大宮",
+            "ちば": "千葉",
+            "たちかわ": "立川",
+            "ふなばし": "船橋",
+            "きちじょうじ": "吉祥寺",
+            "まちだ": "町田",
+            "なかの": "中野",
+            "むさしこすぎ": "武蔵小杉"
+        ]
+        
+        for (reading, kanji) in stationNameVariations {
+            if kanji == stationName && reading.localizedCaseInsensitiveContains(query) {
+                return true
+            }
+        }
+        
+        return false
+    }
+    
+    /// Sort stations by distance from location
+    private func sortStationsByLocation(_ stations: [StationModel], location: CLLocationCoordinate2D?) -> [StationModel] {
+        guard let location = location else {
+            return stations
+        }
+        
+        let currentLocation = CLLocation(latitude: location.latitude, longitude: location.longitude)
+        return stations.sorted { station1, station2 in
+            let location1 = CLLocation(latitude: station1.latitude, longitude: station1.longitude)
+            let location2 = CLLocation(latitude: station2.latitude, longitude: station2.longitude)
+            return currentLocation.distance(from: location1) < currentLocation.distance(from: location2)
+        }
+    }
+    
+    /// Search offline stations (fallback)
+    private func searchOfflineStations(query: String, near location: CLLocationCoordinate2D?) -> [StationModel] {
         // 主要駅のリスト（オフライン検索用）
         let majorStations: [StationModel] = [
             // 山手線主要駅
@@ -507,66 +713,12 @@ class StationAPIClient: ObservableObject {
         
         // クエリで絞り込み（駅名のみで検索）
         let filteredStations = majorStations.filter { station in
-            // ひらがな、カタカナ、漢字すべてに対応
-            let stationNameVariations: [String: String] = [
-                "よこはま": "横浜",
-                "しぶや": "渋谷",
-                "しんじゅく": "新宿",
-                "とうきょう": "東京",
-                "いけぶくろ": "池袋",
-                "うえの": "上野",
-                "しながわ": "品川",
-                "あきはばら": "秋葉原",
-                "はらじゅく": "原宿",
-                "えびす": "恵比寿",
-                "めぐろ": "目黒",
-                "かわさき": "川崎",
-                "おおみや": "大宮",
-                "ちば": "千葉",
-                "たちかわ": "立川",
-                "ふなばし": "船橋",
-                "きちじょうじ": "吉祥寺",
-                "まちだ": "町田",
-                "なかの": "中野",
-                "むさしこすぎ": "武蔵小杉"
-            ]
-            
             // 駅名で検索（漢字、ひらがな、カタカナ）
-            if station.name.localizedCaseInsensitiveContains(query) {
-                return true
-            }
-            
-            // ひらがなの読みで検索
-            for (reading, kanji) in stationNameVariations {
-                if kanji == station.name && reading.localizedCaseInsensitiveContains(query) {
-                    return true
-                }
-            }
-            
-            return false
+            station.name.localizedCaseInsensitiveContains(query) ||
+            matchesHiraganaReading(station.name, query: query)
         }
         
-        // 位置情報がある場合は距離順にソート
-        if let location = location {
-            let currentLocation = CLLocation(latitude: location.latitude, longitude: location.longitude)
-            return filteredStations.sorted { station1, station2 in
-                let location1 = CLLocation(latitude: station1.latitude, longitude: station1.longitude)
-                let location2 = CLLocation(latitude: station2.latitude, longitude: station2.longitude)
-                return currentLocation.distance(from: location1) < currentLocation.distance(from: location2)
-            }
-        } else {
-            // 位置情報がない場合は、駅名の一致度でソート
-            return filteredStations.sorted { station1, station2 in
-                // 完全一致を優先
-                if station1.name == query { return true }
-                if station2.name == query { return false }
-                // 前方一致を次に優先
-                if station1.name.hasPrefix(query) && !station2.name.hasPrefix(query) { return true }
-                if !station1.name.hasPrefix(query) && station2.name.hasPrefix(query) { return false }
-                // それ以外は名前順
-                return station1.name < station2.name
-            }
-        }
+        return sortStationsByLocation(filteredStations, location: location)
     }
     
     // MARK: - Utility Methods
