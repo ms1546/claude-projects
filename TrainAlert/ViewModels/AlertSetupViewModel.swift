@@ -160,7 +160,20 @@ class AlertSetupViewModel: ObservableObject {
                     alert.notificationTime = Int16(self.setupData.notificationTime)
                     alert.notificationDistance = self.setupData.notificationDistance
                     alert.snoozeInterval = Int16(self.setupData.snoozeInterval)
-                    alert.characterStyle = self.setupData.characterStyle.rawValue
+                    // Map from global CharacterStyle to Alert's internal CharacterStyle
+                    let mappedStyle: String = {
+                        switch self.setupData.characterStyle {
+                        case .gyaru, .healing:
+                            return "friendly"
+                        case .butler:
+                            return "polite"
+                        case .kansai, .sporty:
+                            return "motivational"
+                        case .tsundere:
+                            return "funny"
+                        }
+                    }()
+                    alert.characterStyle = mappedStyle
                     
                     // Create or find station
                     if let selectedStation = self.setupData.selectedStation {
@@ -185,6 +198,9 @@ class AlertSetupViewModel: ObservableObject {
                                 continuation.resume(throwing: AlertSetupError.coreDataError(error))
                                 return
                             }
+                            // Notify that alerts have been updated
+                            NotificationCenter.default.post(name: Notification.Name("AlertsUpdated"), object: nil)
+                            
                             continuation.resume(returning: mainAlert)
                         } catch {
                             continuation.resume(throwing: error)
@@ -214,13 +230,8 @@ class AlertSetupViewModel: ObservableObject {
         newStation.name = station.name
         newStation.latitude = station.latitude
         newStation.longitude = station.longitude
-        // Convert array to JSON string for Core Data storage
-        if let linesData = try? JSONEncoder().encode(station.lines),
-           let linesString = String(data: linesData, encoding: .utf8) {
-            newStation.lines = linesString
-        } else {
-            newStation.lines = "[]"
-        }
+        // Convert array to comma-separated string for Core Data storage
+        newStation.lines = station.lines.joined(separator: ",")
         
         return newStation
     }

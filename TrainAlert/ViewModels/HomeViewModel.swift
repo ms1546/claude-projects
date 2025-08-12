@@ -283,6 +283,15 @@ class HomeViewModel: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+        
+        // Monitor alert updates
+        NotificationCenter.default.publisher(for: Notification.Name("AlertsUpdated"))
+            .sink { [weak self] _ in
+                Task { @MainActor in
+                    await self?.loadActiveAlerts()
+                }
+            }
+            .store(in: &cancellables)
     }
     
     private func loadInitialDataIfNeeded() {

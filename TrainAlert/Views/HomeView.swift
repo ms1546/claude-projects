@@ -9,13 +9,13 @@ import SwiftUI
 import MapKit
 
 struct HomeView: View {
-    
+
     // MARK: - Dependencies
     @StateObject private var viewModel = HomeViewModel()
     @EnvironmentObject var locationManager: LocationManager
     @EnvironmentObject var notificationManager: NotificationManager
     @EnvironmentObject var appState: AppState
-    
+
     // MARK: - State
     @State private var showingAlertSetup = false
     @State private var selectedAlert: Alert?
@@ -24,27 +24,27 @@ struct HomeView: View {
         center: CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503),
         span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
     )
-    
+
     var body: some View {
         NavigationView {
             ZStack {
                 // Background
                 Color(.systemBackground)
                     .ignoresSafeArea()
-                
+
                 List {
                     // Header Section
                     headerSection
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
-                    
+
                     // Quick Actions
                     quickActionsSection
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
-                    
+
                     // All Alerts (Active and Inactive)
                     if !viewModel.allAlerts.isEmpty {
                         allAlertsSection
@@ -52,7 +52,7 @@ struct HomeView: View {
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
                     }
-                    
+
                     // Map View
                     if locationManager.authorizationStatus == .authorizedWhenInUse ||
                        locationManager.authorizationStatus == .authorizedAlways {
@@ -61,7 +61,7 @@ struct HomeView: View {
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
                     }
-                    
+
                     // Empty State
                     if viewModel.allAlerts.isEmpty {
                         emptyStateSection
@@ -114,22 +114,24 @@ struct HomeView: View {
             }
         }
     }
-    
+
     // MARK: - View Components
-    
+
     private var headerSection: some View {
         VStack(spacing: 8) {
             Image(systemName: "tram.fill")
                 .font(.system(size: 60))
                 .foregroundColor(.blue)
                 .padding(.top)
-            
+
             Text("電車寝過ごし防止アプリ")
                 .font(.headline)
                 .foregroundColor(.secondary)
         }
+         .frame(maxWidth: .infinity)
+         .padding(.horizontal)
     }
-    
+
     private var quickActionsSection: some View {
         HStack(spacing: 16) {
             QuickActionButton(
@@ -139,7 +141,7 @@ struct HomeView: View {
             ) {
                 showingAlertSetup = true
             }
-            
+
             QuickActionButton(
                 title: "位置情報",
                 icon: "location.circle",
@@ -147,7 +149,7 @@ struct HomeView: View {
             ) {
                 checkLocationPermission()
             }
-            
+
             QuickActionButton(
                 title: "通知設定",
                 icon: "bell.circle",
@@ -158,8 +160,9 @@ struct HomeView: View {
                 }
             }
         }
+        .padding(.horizontal)
     }
-    
+
     private var allAlertsSection: some View {
         Group {
             // Active Alerts
@@ -177,9 +180,10 @@ struct HomeView: View {
                         .font(.headline)
                         .foregroundColor(.primary)
                         .textCase(nil)
+                        .padding(.horizontal, 4)
                 }
             }
-            
+
             // Inactive Alerts
             let inactiveAlerts = viewModel.allAlerts.filter { !$0.isActive }
             if !inactiveAlerts.isEmpty {
@@ -197,17 +201,19 @@ struct HomeView: View {
                         .font(.headline)
                         .foregroundColor(.primary)
                         .textCase(nil)
+                        .padding(.horizontal, 4)
                 }
             }
         }
+        .padding(.horizontal)
     }
-    
+
     private var mapSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("現在地")
                 .font(.headline)
                 .padding(.horizontal, 4)
-            
+
             Map(coordinateRegion: $mapRegion, showsUserLocation: true)
                 .frame(height: 200)
                 .cornerRadius(12)
@@ -216,23 +222,24 @@ struct HomeView: View {
                         .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                 )
         }
+        .padding(.horizontal)
     }
-    
+
     private var emptyStateSection: some View {
         VStack(spacing: 20) {
             Image(systemName: "moon.zzz.fill")
                 .font(.system(size: 80))
                 .foregroundColor(.gray.opacity(0.5))
-            
+
             Text("アラートがありません")
                 .font(.title2)
                 .fontWeight(.semibold)
-            
+
             Text("降車駅のアラートを設定して、\n寝過ごしを防ぎましょう")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-            
+
             Button(action: { showingAlertSetup = true }) {
                 Label("アラートを作成", systemImage: "plus.circle.fill")
                     .font(.headline)
@@ -245,10 +252,11 @@ struct HomeView: View {
             .padding(.top)
         }
         .padding(.vertical, 40)
+        .frame(maxWidth: .infinity)
     }
-    
+
     // MARK: - Helper Methods
-    
+
     private func checkLocationPermission() {
         switch locationManager.authorizationStatus {
         case .notDetermined:
@@ -268,14 +276,14 @@ struct QuickActionButton: View {
     let icon: String
     let color: Color
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             VStack(spacing: 8) {
                 Image(systemName: icon)
                     .font(.system(size: 30))
                     .foregroundColor(color)
-                
+
                 Text(title)
                     .font(.caption)
                     .foregroundColor(.primary)
@@ -293,20 +301,27 @@ struct HomeAlertCard: View {
     let alert: Alert
     let onToggle: () -> Void
     let onDelete: () -> Void
-    
+
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(alert.stationName ?? "未設定")
+                Text(alert.station?.name ?? alert.stationName ?? "未設定")
                     .font(.headline)
-                
-                Text(alert.lineName ?? "")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+
+                if let lines = alert.station?.lines {
+                    Text(lines)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                } else if let lineName = alert.lineName {
+                    Text(lineName)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
-            
+
             Spacer()
-            
+
             Toggle("", isOn: Binding(
                 get: { alert.isActive },
                 set: { _ in onToggle() }
