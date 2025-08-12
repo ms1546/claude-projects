@@ -5,10 +5,10 @@
 //  Created by Claude on 2024/01/08.
 //
 
-import Foundation
-import UserNotifications
-import UIKit
 import CoreLocation
+import Foundation
+import UIKit
+import UserNotifications
 
 enum NotificationError: Error {
     case permissionDenied
@@ -32,7 +32,7 @@ enum NotificationCategory: String, CaseIterable {
     case snoozeAlert = "SNOOZE_ALERT"
     
     var identifier: String {
-        return self.rawValue
+        self.rawValue
     }
 }
 
@@ -42,7 +42,7 @@ enum NotificationAction: String {
     case openApp = "OPEN_APP_ACTION"
     
     var identifier: String {
-        return self.rawValue
+        self.rawValue
     }
 }
 
@@ -57,20 +57,32 @@ struct NotificationContent {
 
 struct NotificationSettings {
     let defaultAdvanceTime: TimeInterval
+    let defaultAdvanceDistance: Double
     let snoozeInterval: TimeInterval
     let maxSnoozeCount: Int
     let characterStyle: CharacterStyle
+    let soundName: String
+    let vibrationEnabled: Bool
+    let previewEnabled: Bool
     
     init(
         defaultAdvanceTime: TimeInterval = 5 * 60,
+        defaultAdvanceDistance: Double = 500,
         snoozeInterval: TimeInterval = 1 * 60,
         maxSnoozeCount: Int = 5,
-        characterStyle: CharacterStyle = .gyaru
+        characterStyle: CharacterStyle = .healing,
+        soundName: String = "default",
+        vibrationEnabled: Bool = true,
+        previewEnabled: Bool = true
     ) {
         self.defaultAdvanceTime = defaultAdvanceTime
+        self.defaultAdvanceDistance = defaultAdvanceDistance
         self.snoozeInterval = snoozeInterval
         self.maxSnoozeCount = maxSnoozeCount
         self.characterStyle = characterStyle
+        self.soundName = soundName
+        self.vibrationEnabled = vibrationEnabled
+        self.previewEnabled = previewEnabled
     }
 }
 
@@ -88,6 +100,7 @@ class NotificationManager: NSObject, ObservableObject {
     private let center = UNUserNotificationCenter.current()
     private var pendingNotifications: Set<String> = []
     private var snoozeCounters: [String: Int] = [:]
+    private var settingsObserver: NSObjectProtocol?
     
     // MARK: - Initialization
     
@@ -95,8 +108,46 @@ class NotificationManager: NSObject, ObservableObject {
         super.init()
         center.delegate = self
         setupNotificationCategories()
+        loadSettings()
+        observeSettingsChanges()
         Task {
             await checkAuthorizationStatus()
+        }
+    }
+    
+    deinit {
+        if let observer = settingsObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+    
+    // MARK: - Settings Management
+    
+    private func loadSettings() {
+        let defaults = UserDefaults.standard
+        
+        let characterStyleRaw = defaults.string(forKey: "selectedCharacterStyle") ?? CharacterStyle.healing.rawValue
+        let characterStyle = CharacterStyle(rawValue: characterStyleRaw) ?? .healing
+        
+        settings = NotificationSettings(
+            defaultAdvanceTime: TimeInterval(defaults.integer(forKey: "defaultNotificationTime")) * 60,
+            defaultAdvanceDistance: Double(defaults.integer(forKey: "defaultNotificationDistance")),
+            snoozeInterval: TimeInterval(defaults.integer(forKey: "defaultSnoozeInterval")) * 60,
+            maxSnoozeCount: 5,
+            characterStyle: characterStyle,
+            soundName: defaults.string(forKey: "selectedNotificationSound") ?? "default",
+            vibrationEnabled: defaults.bool(forKey: "vibrationEnabled"),
+            previewEnabled: defaults.bool(forKey: "notificationPreviewEnabled")
+        )
+    }
+    
+    private func observeSettingsChanges() {
+        settingsObserver = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.loadSettings()
         }
     }
     
@@ -142,7 +193,6 @@ class NotificationManager: NSObject, ObservableObject {
         targetLocation: CLLocation,
         characterStyle: CharacterStyle = .healing
     ) async throws {
-        
         guard isPermissionGranted else {
             throw NotificationError.permissionDenied
         }
@@ -184,7 +234,6 @@ class NotificationManager: NSObject, ObservableObject {
         targetLocation: CLLocation,
         radius: CLLocationDistance = 500
     ) async throws {
-        
         guard isPermissionGranted else {
             throw NotificationError.permissionDenied
         }
@@ -269,10 +318,9 @@ class NotificationManager: NSObject, ObservableObject {
         targetLocation: CLLocation,
         characterStyle: CharacterStyle
     ) async -> UNMutableNotificationContent {
-        
         let content = UNMutableNotificationContent()
         content.categoryIdentifier = NotificationCategory.trainAlert.identifier
-        content.sound = .defaultCritical
+        content.sound = getNotificationSound()
         
         let formatter = DateFormatter()
         formatter.timeStyle = .short
@@ -310,8 +358,8 @@ class NotificationManager: NSObject, ObservableObject {
         // Add distance info if available
         if let currentLocation = currentLocation {
             let distance = currentLocation.distance(from: targetLocation)
-            let distanceText = distance > 1000 ? 
-                String(format: "%.1fkm", distance / 1000) : 
+            let distanceText = distance > 1_000 ? 
+                String(format: "%.1fkm", distance / 1_000) : 
                 String(format: "%.0fm", distance)
             content.body += "\n距離: \(distanceText)"
         }
@@ -330,7 +378,7 @@ class NotificationManager: NSObject, ObservableObject {
     private func createLocationAlertContent(stationName: String, characterStyle: CharacterStyle) async -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         content.categoryIdentifier = NotificationCategory.trainAlert.identifier
-        content.sound = .defaultCritical
+        content.sound = getNotificationSound()
         
         // Try to generate message using OpenAI API
         var generatedMessage: String?
@@ -370,7 +418,7 @@ class NotificationManager: NSObject, ObservableObject {
     ) async -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         content.categoryIdentifier = NotificationCategory.snoozeAlert.identifier
-        content.sound = .defaultCritical
+        content.sound = getNotificationSound()
         
         // Try to generate message using OpenAI API for snooze
         var generatedMessage: String?
@@ -404,6 +452,25 @@ class NotificationManager: NSObject, ObservableObject {
         content.badge = NSNumber(value: 1)
         
         return content
+    }
+    
+    // MARK: - Sound Configuration
+    
+    private func getNotificationSound() -> UNNotificationSound {
+        switch settings.soundName {
+        case "default":
+            return .defaultCritical
+        case "chime":
+            return UNNotificationSound(named: UNNotificationSoundName("chime.caf"))
+        case "bell":
+            return UNNotificationSound(named: UNNotificationSoundName("bell.caf"))
+        case "gentle":
+            return UNNotificationSound(named: UNNotificationSoundName("gentle.caf"))
+        case "urgent":
+            return UNNotificationSound(named: UNNotificationSoundName("urgent.caf"))
+        default:
+            return .defaultCritical
+        }
     }
     
     // MARK: - Character Messages
@@ -456,7 +523,7 @@ class NotificationManager: NSObject, ObservableObject {
     
     /// Get pending notifications
     func getPendingNotifications() async -> [UNNotificationRequest] {
-        return await center.pendingNotificationRequests()
+        await center.pendingNotificationRequests()
     }
     
     // MARK: - Settings
@@ -495,12 +562,16 @@ class NotificationManager: NSObject, ObservableObject {
     
     /// Generate haptic feedback
     func generateHapticFeedback(style: UIImpactFeedbackGenerator.FeedbackStyle = .heavy) {
+        guard settings.vibrationEnabled else { return }
+        
         let impactFeedback = UIImpactFeedbackGenerator(style: style)
         impactFeedback.impactOccurred()
     }
     
     /// Generate notification haptic pattern
     func generateNotificationHapticPattern() {
+        guard settings.vibrationEnabled else { return }
+        
         // Custom haptic pattern for train alerts
         let impactFeedback = UIImpactFeedbackGenerator(style: .heavy)
         
@@ -553,7 +624,6 @@ class NotificationManager: NSObject, ObservableObject {
 // MARK: - UNUserNotificationCenterDelegate
 
 extension NotificationManager: UNUserNotificationCenterDelegate {
-    
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
@@ -571,7 +641,6 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        
         let userInfo = response.notification.request.content.userInfo
         let identifier = response.notification.request.identifier
         

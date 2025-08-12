@@ -5,10 +5,10 @@
 //  Created by Claude on 2024/01/08.
 //
 
-import Foundation
-import CoreLocation
-import Combine
 import BackgroundTasks
+import Combine
+import CoreLocation
+import Foundation
 
 enum LocationError: Error {
     case authorizationDenied
@@ -33,6 +33,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     private var targetStation: CLLocation?
     private var updateTimer: Timer?
+    private var settingsObserver: NSObjectProtocol?
     
     @Published var location: CLLocation?
     @Published var authorizationStatus: CLAuthorizationStatus
@@ -42,6 +43,13 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     // Location update frequency based on distance to target station
     private var currentUpdateInterval: TimeInterval = 60.0
     
+    // Settings
+    var desiredAccuracy: CLLocationAccuracy = kCLLocationAccuracyNearestTenMeters {
+        didSet {
+            locationManager.desiredAccuracy = desiredAccuracy
+        }
+    }
+    
     // MARK: - Initialization
     
     override init() {
@@ -49,14 +57,50 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         super.init()
         
         setupLocationManager()
+        loadSettings()
+        observeSettingsChanges()
+    }
+    
+    deinit {
+        if let observer = settingsObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
     
     private func setupLocationManager() {
         locationManager.delegate = self
-        locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        locationManager.desiredAccuracy = desiredAccuracy
         locationManager.distanceFilter = 100
         
         // Background location updates configuration will be set after authorization
+    }
+    
+    private func loadSettings() {
+        let accuracy = UserDefaults.standard.string(forKey: "locationAccuracy") ?? "balanced"
+        updateAccuracyFromSettings(accuracy)
+    }
+    
+    private func observeSettingsChanges() {
+        settingsObserver = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.loadSettings()
+        }
+    }
+    
+    private func updateAccuracyFromSettings(_ accuracy: String) {
+        switch accuracy {
+        case "high":
+            desiredAccuracy = kCLLocationAccuracyBest
+        case "balanced":
+            desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+        case "battery":
+            desiredAccuracy = kCLLocationAccuracyHundredMeters
+        default:
+            desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+        }
     }
     
     // MARK: - Public Methods
@@ -117,19 +161,35 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         updateTimer = nil
     }
     
+    /// Start monitoring significant location changes for background updates
+    func startMonitoringSignificantLocationChanges() {
+        guard authorizationStatus == .authorizedAlways else {
+            return
+        }
+        
+        if CLLocationManager.significantLocationChangeMonitoringAvailable() {
+            locationManager.startMonitoringSignificantLocationChanges()
+        }
+    }
+    
+    /// Stop monitoring significant location changes
+    func stopMonitoringSignificantLocationChanges() {
+        locationManager.stopMonitoringSignificantLocationChanges()
+    }
+    
     /// Alias for stopSignificantLocationChanges - for compatibility
     func stopSignificantLocationUpdates() {
-        locationManager.stopMonitoringSignificantLocationChanges()
+        stopMonitoringSignificantLocationChanges()
     }
     
     /// Alias for startMonitoringSignificantLocationChanges - for compatibility  
     func startSignificantLocationUpdates() {
-        locationManager.startMonitoringSignificantLocationChanges()
+        startMonitoringSignificantLocationChanges()
     }
     
     /// Calculate distance between two locations
     func distance(from location1: CLLocation, to location2: CLLocation) -> CLLocationDistance {
-        return location1.distance(from: location2)
+        location1.distance(from: location2)
     }
     
     /// Get distance to target station if set
@@ -164,28 +224,38 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private func adjustAccuracyForCurrentLocation() {
         guard let targetStation = targetStation,
               let currentLocation = location else {
-            // Default settings for normal operation
-            setLocationAccuracy(accuracy: kCLLocationAccuracyHundredMeters, 
-                              distanceFilter: 100,
-                              updateInterval: 60.0)
+            // Use settings-based accuracy for normal operation
+            locationManager.desiredAccuracy = desiredAccuracy
+            locationManager.distanceFilter = 100
+            currentUpdateInterval = 60.0
             return
         }
         
         let distanceToStation = distance(from: currentLocation, to: targetStation)
         
-        // Adjust based on technical specification table
-        if distanceToStation <= 2000 { // Within 2km
-            setLocationAccuracy(accuracy: kCLLocationAccuracyBest,
-                              distanceFilter: 10,
-                              updateInterval: 15.0)
-        } else if distanceToStation <= 5000 { // Within 5km
-            setLocationAccuracy(accuracy: kCLLocationAccuracyNearestTenMeters,
-                              distanceFilter: 30,
-                              updateInterval: 30.0)
-        } else { // Normal operation
-            setLocationAccuracy(accuracy: kCLLocationAccuracyHundredMeters,
-                              distanceFilter: 100,
-                              updateInterval: 60.0)
+        // Only adjust accuracy dynamically if high accuracy mode is enabled
+        let accuracySetting = UserDefaults.standard.string(forKey: "locationAccuracy") ?? "balanced"
+        
+        if accuracySetting == "high" {
+            // Adjust based on technical specification table
+            if distanceToStation <= 2_000 { // Within 2km
+                setLocationAccuracy(accuracy: kCLLocationAccuracyBest,
+                                  distanceFilter: 10,
+                                  updateInterval: 15.0)
+            } else if distanceToStation <= 5_000 { // Within 5km
+                setLocationAccuracy(accuracy: kCLLocationAccuracyNearestTenMeters,
+                                  distanceFilter: 30,
+                                  updateInterval: 30.0)
+            } else { // Normal operation
+                setLocationAccuracy(accuracy: desiredAccuracy,
+                                  distanceFilter: 100,
+                                  updateInterval: 60.0)
+            }
+        } else {
+            // Use fixed accuracy based on settings
+            locationManager.desiredAccuracy = desiredAccuracy
+            locationManager.distanceFilter = accuracySetting == "battery" ? 200 : 100
+            currentUpdateInterval = accuracySetting == "battery" ? 120.0 : 60.0
         }
     }
     
