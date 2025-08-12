@@ -26,6 +26,7 @@ class HomeViewModel: ObservableObject {
     // MARK: - Published Properties
     
     @Published var activeAlerts: [Alert] = []
+    @Published var allAlerts: [Alert] = []
     @Published var recentStations: [StationData] = []
     @Published var currentLocation: CLLocation?
     @Published var isLoading = false
@@ -300,18 +301,23 @@ class HomeViewModel: ObservableObject {
         do {
             performanceMonitor.startTimer(for: "Load Active Alerts")
             
-            let request = Alert.activeAlertsFetchRequest()
-            request.fetchBatchSize = 20
-            request.returnsObjectsAsFaults = false
+            // Load all alerts
+            let allRequest = Alert.fetchRequest()
+            allRequest.fetchBatchSize = 20
+            allRequest.returnsObjectsAsFaults = false
+            allRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Alert.createdAt, ascending: false)]
             
-            self.activeAlerts = try await coreDataManager.optimizedFetch(request)
+            self.allAlerts = try await coreDataManager.optimizedFetch(allRequest)
+            
+            // Filter active alerts
+            self.activeAlerts = self.allAlerts.filter { $0.isActive }
             
             performanceMonitor.endTimer(for: "Load Active Alerts")
-            logger.debug("Loaded \(self.activeAlerts.count) active alerts")
+            logger.debug("Loaded \(self.allAlerts.count) total alerts, \(self.activeAlerts.count) active")
             
         } catch {
-            errorMessage = "アクティブなアラートを読み込めませんでした"
-            logger.error("Failed to load active alerts: \(error.localizedDescription)")
+            errorMessage = "アラートを読み込めませんでした"
+            logger.error("Failed to load alerts: \(error.localizedDescription)")
         }
     }
     
