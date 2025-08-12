@@ -154,9 +154,12 @@ struct StationSearchView: View {
     
     private func errorView(message: String) -> some View {
         VStack(spacing: 16) {
-            Image(systemName: message.contains("位置情報") ? "location.slash" : "exclamationmark.triangle")
+            let isOffline = message.contains("オフライン")
+            let isLocation = message.contains("位置情報")
+            
+            Image(systemName: isOffline ? "wifi.slash" : (isLocation ? "location.slash" : "exclamationmark.triangle"))
                 .font(.system(size: 50))
-                .foregroundColor(message.contains("位置情報") ? .textSecondary : .error)
+                .foregroundColor(isLocation ? .textSecondary : .error)
             
             Text(message)
                 .font(.body)
@@ -164,7 +167,15 @@ struct StationSearchView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 20)
             
-            if !message.contains("位置情報") {
+            if isOffline {
+                Text("インターネット接続を確認してください")
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
+            }
+            
+            if !isLocation {
                 PrimaryButton("再試行") {
                     loadInitialData()
                 }
@@ -224,9 +235,9 @@ struct StationSearchView: View {
                 }
             } catch {
                 await MainActor.run {
-                    self.errorMessage = "駅情報の取得に失敗しました: \(error.localizedDescription)"
+                    self.errorMessage = error.localizedDescription
                     self.isLoading = false
-                    // Error loading stations
+                    self.nearbyStations = []
                 }
             }
         }
@@ -303,7 +314,7 @@ struct StationSearchView: View {
                     self.searchResults = []
                     self.isLoading = false
                     if !(error is CancellationError) {
-                        // Search error occurred
+                        self.errorMessage = error.localizedDescription
                     }
                 }
             }
@@ -334,6 +345,28 @@ struct StationRowView: View {
     let isSelected: Bool
     let onTap: () -> Void
     
+    // Line color mapping
+    private func lineColor(for line: String) -> Color {
+        // JR Lines
+        if line.contains("JR") || line.contains("山手") {
+            return Color(red: 0.0, green: 0.7, blue: 0.3)
+        }
+        // Tokyo Metro
+        if line.contains("メトロ") || line.contains("丸ノ内") || line.contains("銀座") || line.contains("日比谷") {
+            return Color(red: 0.0, green: 0.4, blue: 0.8)
+        }
+        // Toei
+        if line.contains("都営") || line.contains("大江戸") || line.contains("新宿線") {
+            return Color(red: 0.8, green: 0.0, blue: 0.4)
+        }
+        // Private railways
+        if line.contains("京王") || line.contains("小田急") || line.contains("東急") || line.contains("京急") {
+            return Color(red: 0.5, green: 0.0, blue: 0.5)
+        }
+        // Default
+        return Color.gray
+    }
+    
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
@@ -352,10 +385,22 @@ struct StationRowView: View {
                     
                     // Lines (Below Station Name)
                     if !station.lines.isEmpty {
-                        Text(station.lines.joined(separator: " • "))
-                            .font(.caption)
-                            .foregroundColor(.textSecondary)
-                            .lineLimit(1)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 6) {
+                                ForEach(station.lines, id: \.self) { line in
+                                    Text(line)
+                                        .font(.caption2)
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 2)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 4)
+                                                .fill(lineColor(for: line))
+                                        )
+                                }
+                            }
+                        }
+                        .frame(height: 20)
                     }
                 }
                 

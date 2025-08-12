@@ -8,7 +8,7 @@
 import Foundation
 import QuartzCore
 import OSLog
-import os.signpost
+// import os.signpost // Disabled due to crash
 
 /// Performance monitoring utility for tracking app performance metrics
 final class PerformanceMonitor {
@@ -51,9 +51,10 @@ final class PerformanceMonitor {
         let startTime = CACurrentMediaTime()
         startTimes[operation] = startTime
         
-        if #available(iOS 15.0, *) {
-            os_signpost(.begin, log: signpostLog, name: "Operation", "%{public}s", operation)
-        }
+        // Disabled due to crash in iOS 17/18
+        // if #available(iOS 15.0, *) {
+        //     os_signpost(.begin, log: signpostLog, name: "Operation", "%{public}s", operation)
+        // }
         
         logger.debug("Started timer for: \(operation)")
     }
@@ -68,9 +69,10 @@ final class PerformanceMonitor {
         
         let duration = CACurrentMediaTime() - startTime
         
-        if #available(iOS 15.0, *) {
-            os_signpost(.end, log: signpostLog, name: "Operation", "%{public}s took %.3f ms", operation, duration * 1000)
-        }
+        // Disabled due to crash in iOS 17/18
+        // if #available(iOS 15.0, *) {
+        //     os_signpost(.end, log: signpostLog, name: "Operation", "%{public}s took %.3f ms", operation, duration * 1000)
+        // }
         
         logger.info("Operation '\(operation)' completed in \(duration * 1000, format: .fixed(precision: 3)) ms")
         
