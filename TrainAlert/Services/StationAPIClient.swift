@@ -537,19 +537,16 @@ class StationAPIClient: ObservableObject {
     
     /// Search stations using OpenStreetMap Overpass API
     private func searchStationsByAPI(query: String) async throws -> [StationModel] {
-        #if DEBUG
-        let startTime = Date()
-        #endif
-        
         // Create Overpass QL query for station search in Japan
-        // Limit to 50 results for faster response
+        // Bounding box covers entire Japan: 24-46°N, 122-146°E
         let overpassQuery = """
         [out:json][timeout:25];
         (
-          node["railway"="station"]["name"~"\(query)",i](area:3600382313);
-          node["railway"="station"]["name:ja"~"\(query)",i](area:3600382313);
+          node["railway"="station"]["name"~"\(query)",i](24.0,122.0,46.0,146.0);
+          node["railway"="station"]["name:ja"~"\(query)",i](24.0,122.0,46.0,146.0);
+          node["railway"="station"]["name:en"~"\(query)",i](24.0,122.0,46.0,146.0);
         );
-        out body 50;
+        out body;
         """
         
         guard let encodedQuery = overpassQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
@@ -626,8 +623,7 @@ class StationAPIClient: ObservableObject {
             let result = Array(uniqueStations.values)
             
             #if DEBUG
-            let elapsedTime = Date().timeIntervalSince(startTime)
-            print("OSM API found \(result.count) unique stations in \(String(format: "%.2f", elapsedTime))s")
+            print("OSM API found \(result.count) unique stations")
             #endif
             
             return result
@@ -644,28 +640,23 @@ class StationAPIClient: ObservableObject {
     
     /// Fallback search using HeartRails API (searches through major lines)
     private func searchStationsByHeartRails(query: String) async throws -> [StationModel] {
-        #if DEBUG
-        let startTime = Date()
-        #endif
-        
         var allStations: [StationModel] = []
         
         // Search major lines for stations matching the query
-        // Prioritize commonly used lines first
-        let priorityLines = [
-            "JR山手線", "JR中央線", "JR総武線", "JR京浜東北線"
-        ]
-        
-        let additionalLines = [
+        let majorLines = [
+            "JR山手線", "JR中央線", "JR総武線", "JR京浜東北線",
             "JR埼京線", "JR常磐線", "JR横浜線", "JR南武線",
             "東京メトロ銀座線", "東京メトロ丸ノ内線", "東京メトロ日比谷線",
-            "東京メトロ東西線", "東京メトロ千代田線", "東京メトロ有楽町線"
+            "東京メトロ東西線", "東京メトロ千代田線", "東京メトロ有楽町線",
+            "東京メトロ半蔵門線", "東京メトロ南北線", "東京メトロ副都心線",
+            "都営大江戸線", "都営浅草線", "都営三田線", "都営新宿線",
+            "東急東横線", "東急田園都市線", "小田急線", "京王線",
+            "西武新宿線", "西武池袋線", "東武東上線", "東武スカイツリーライン"
         ]
         
-        // First, search priority lines with limited concurrency
+        // Fetch stations from each line
         await withTaskGroup(of: [StationModel]?.self) { group in
-            // Limit concurrent requests to 4
-            for line in priorityLines {
+            for line in majorLines {
                 group.addTask {
                     do {
                         return try await self.fetchStationsByLine(line)
@@ -678,36 +669,6 @@ class StationAPIClient: ObservableObject {
             for await stations in group {
                 if let stations = stations {
                     allStations.append(contentsOf: stations)
-                }
-            }
-        }
-        
-        // Check if we found enough results
-        var foundStations = allStations.filter { station in
-            station.name.localizedCaseInsensitiveContains(query) ||
-            matchesHiraganaReading(station.name, query: query)
-        }
-        
-        // If we need more results, search additional lines
-        if foundStations.count < 5 {
-            await withTaskGroup(of: [StationModel]?.self) { group in
-                // Limit to 4 concurrent requests
-                for (index, line) in additionalLines.enumerated() {
-                    if index < 4 {
-                        group.addTask {
-                            do {
-                                return try await self.fetchStationsByLine(line)
-                            } catch {
-                                return nil
-                            }
-                        }
-                    }
-                }
-                
-                for await stations in group {
-                    if let stations = stations {
-                        allStations.append(contentsOf: stations)
-                    }
                 }
             }
         }
@@ -734,8 +695,7 @@ class StationAPIClient: ObservableObject {
         let result = Array(uniqueStations.values)
         
         #if DEBUG
-        let elapsedTime = Date().timeIntervalSince(startTime)
-        print("HeartRails fallback found \(result.count) stations matching '\(query)' in \(String(format: "%.2f", elapsedTime))s")
+        print("HeartRails fallback found \(result.count) stations matching '\(query)'")
         #endif
         
         return result
