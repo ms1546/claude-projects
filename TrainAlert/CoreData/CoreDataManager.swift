@@ -70,7 +70,7 @@ final class CoreDataManager: ObservableObject {
         stationEntity.managedObjectClassName = "Station"
         
         let stationId = NSAttributeDescription()
-        stationId.name = "id"
+        stationId.name = "stationId"
         stationId.attributeType = .stringAttributeType
         stationId.isOptional = false
         
@@ -89,7 +89,31 @@ final class CoreDataManager: ObservableObject {
         longitude.attributeType = .doubleAttributeType
         longitude.isOptional = false
         
-        stationEntity.properties = [stationId, name, latitude, longitude]
+        // Add lines as Transformable attribute
+        let lines = NSAttributeDescription()
+        lines.name = "lines"
+        lines.attributeType = .transformableAttributeType
+        lines.isOptional = true
+        
+        // Add isFavorite
+        let isFavorite = NSAttributeDescription()
+        isFavorite.name = "isFavorite"
+        isFavorite.attributeType = .booleanAttributeType
+        isFavorite.defaultValue = false
+        
+        // Add lastUsedAt
+        let lastUsedAt = NSAttributeDescription()
+        lastUsedAt.name = "lastUsedAt"
+        lastUsedAt.attributeType = .dateAttributeType
+        lastUsedAt.isOptional = true
+        
+        // Add createdAt
+        let createdAt = NSAttributeDescription()
+        createdAt.name = "createdAt"
+        createdAt.attributeType = .dateAttributeType
+        createdAt.isOptional = true
+        
+        stationEntity.properties = [stationId, name, latitude, longitude, lines, isFavorite, lastUsedAt, createdAt]
         
         // Alert Entity
         let alertEntity = NSEntityDescription()
@@ -97,7 +121,7 @@ final class CoreDataManager: ObservableObject {
         alertEntity.managedObjectClassName = "Alert"
         
         let alertId = NSAttributeDescription()
-        alertId.name = "id"
+        alertId.name = "alertId"
         alertId.attributeType = .UUIDAttributeType
         alertId.isOptional = false
         
@@ -134,7 +158,38 @@ final class CoreDataManager: ObservableObject {
         stationRelation.isOptional = true
         stationRelation.deleteRule = .nullifyDeleteRule
         
-        alertEntity.properties = [alertId, isActive, notificationTime, createdAt, stationName, lineName, stationRelation]
+        // Add missing Alert properties
+        let notificationDistance = NSAttributeDescription()
+        notificationDistance.name = "notificationDistance"
+        notificationDistance.attributeType = .doubleAttributeType
+        notificationDistance.defaultValue = 500.0
+        
+        let snoozeCount = NSAttributeDescription()
+        snoozeCount.name = "snoozeCount"
+        snoozeCount.attributeType = .integer16AttributeType
+        snoozeCount.defaultValue = 0
+        
+        let snoozeInterval = NSAttributeDescription()
+        snoozeInterval.name = "snoozeInterval"
+        snoozeInterval.attributeType = .integer16AttributeType
+        snoozeInterval.defaultValue = 5
+        
+        let lastNotifiedAt = NSAttributeDescription()
+        lastNotifiedAt.name = "lastNotifiedAt"
+        lastNotifiedAt.attributeType = .dateAttributeType
+        lastNotifiedAt.isOptional = true
+        
+        let updatedAt = NSAttributeDescription()
+        updatedAt.name = "updatedAt"
+        updatedAt.attributeType = .dateAttributeType
+        updatedAt.isOptional = true
+        
+        let characterStyle = NSAttributeDescription()
+        characterStyle.name = "characterStyle"
+        characterStyle.attributeType = .stringAttributeType
+        characterStyle.isOptional = true
+        
+        alertEntity.properties = [alertId, isActive, notificationTime, notificationDistance, snoozeCount, snoozeInterval, createdAt, lastNotifiedAt, updatedAt, characterStyle, stationName, lineName, stationRelation]
         
         // History Entity
         let historyEntity = NSEntityDescription()
@@ -142,7 +197,7 @@ final class CoreDataManager: ObservableObject {
         historyEntity.managedObjectClassName = "History"
         
         let historyId = NSAttributeDescription()
-        historyId.name = "id"
+        historyId.name = "historyId"
         historyId.attributeType = .UUIDAttributeType
         historyId.isOptional = false
         
@@ -151,7 +206,20 @@ final class CoreDataManager: ObservableObject {
         notifiedAt.attributeType = .dateAttributeType
         notifiedAt.isOptional = false
         
-        historyEntity.properties = [historyId, notifiedAt]
+        // Add message property
+        let message = NSAttributeDescription()
+        message.name = "message"
+        message.attributeType = .stringAttributeType
+        message.isOptional = true
+        
+        // Add alert relationship
+        let alertRelation = NSRelationshipDescription()
+        alertRelation.name = "alert"
+        alertRelation.destinationEntity = alertEntity
+        alertRelation.isOptional = true
+        alertRelation.deleteRule = .nullifyDeleteRule
+        
+        historyEntity.properties = [historyId, notifiedAt, message, alertRelation]
         
         model.entities = [alertEntity, stationEntity, historyEntity]
         

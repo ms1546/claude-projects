@@ -154,9 +154,7 @@ class AlertSetupViewModel: ObservableObject {
                 do {
                     // Create alert
                     let alert = Alert(context: context)
-                    alert.alertId = UUID()
-                    alert.createdAt = Date()
-                    alert.isActive = true
+                    // alertId, createdAt, isActive are set in awakeFromInsert
                     alert.notificationTime = Int16(self.setupData.notificationTime)
                     alert.notificationDistance = self.setupData.notificationDistance
                     alert.snoozeInterval = Int16(self.setupData.snoozeInterval)
