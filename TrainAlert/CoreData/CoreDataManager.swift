@@ -91,7 +91,25 @@ final class CoreDataManager: ObservableObject {
         longitude.attributeType = .doubleAttributeType
         longitude.isOptional = false
         
-        stationEntity.properties = [stationId, name, latitude, longitude]
+        // Add lines property
+        let lines = NSAttributeDescription()
+        lines.name = "lines"
+        lines.attributeType = .stringAttributeType
+        lines.isOptional = true
+        
+        // Add isFavorite property
+        let isFavorite = NSAttributeDescription()
+        isFavorite.name = "isFavorite"
+        isFavorite.attributeType = .booleanAttributeType
+        isFavorite.defaultValue = false
+        
+        // Add lastUsedAt property
+        let lastUsedAt = NSAttributeDescription()
+        lastUsedAt.name = "lastUsedAt"
+        lastUsedAt.attributeType = .dateAttributeType
+        lastUsedAt.isOptional = true
+        
+        stationEntity.properties = [stationId, name, latitude, longitude, lines, isFavorite, lastUsedAt]
         
         // Alert Entity
         let alertEntity = NSEntityDescription()
@@ -154,7 +172,15 @@ final class CoreDataManager: ObservableObject {
         stationRelation.isOptional = true
         stationRelation.deleteRule = .nullifyDeleteRule
         
-        alertEntity.properties = [alertId, isActive, notificationTime, notificationDistance, snoozeInterval, characterStyle, createdAt, stationName, lineName, stationRelation]
+        // Add histories relationship
+        let historiesRelation = NSRelationshipDescription()
+        historiesRelation.name = "histories"
+        historiesRelation.destinationEntity = historyEntity  // Will be set after historyEntity is created
+        historiesRelation.isOptional = true
+        historiesRelation.deleteRule = .cascadeDeleteRule
+        historiesRelation.isToMany = true
+        
+        alertEntity.properties = [alertId, isActive, notificationTime, notificationDistance, snoozeInterval, characterStyle, createdAt, stationName, lineName, stationRelation, historiesRelation]
         
         // History Entity
         let historyEntity = NSEntityDescription()
@@ -171,7 +197,49 @@ final class CoreDataManager: ObservableObject {
         notifiedAt.attributeType = .dateAttributeType
         notifiedAt.isOptional = false
         
-        historyEntity.properties = [historyId, notifiedAt]
+        // Add message property
+        let message = NSAttributeDescription()
+        message.name = "message"
+        message.attributeType = .stringAttributeType
+        message.isOptional = true
+        
+        // Add alert relationship
+        let alertRelation = NSRelationshipDescription()
+        alertRelation.name = "alert"
+        alertRelation.destinationEntity = alertEntity
+        alertRelation.isOptional = true
+        alertRelation.deleteRule = .nullifyDeleteRule
+        alertRelation.isToMany = false
+        
+        historyEntity.properties = [historyId, notifiedAt, message, alertRelation]
+        
+        // Set up inverse relationships after all entities are created
+        let alertsRelation = NSRelationshipDescription()
+        alertsRelation.name = "alerts"
+        alertsRelation.destinationEntity = alertEntity
+        alertsRelation.isOptional = true
+        alertsRelation.deleteRule = .cascadeDeleteRule
+        alertsRelation.isToMany = true
+        
+        // Add alerts relationship to station entity
+        var stationProperties = stationEntity.properties ?? []
+        stationProperties.append(alertsRelation)
+        stationEntity.properties = stationProperties
+        
+        // Set up histories relationship destination
+        historiesRelation.destinationEntity = historyEntity
+        
+        // Set inverse relationships
+        if let stationRelation = alertEntity.relationshipsByName["station"] {
+            stationRelation.inverseRelationship = alertsRelation
+            alertsRelation.inverseRelationship = stationRelation
+        }
+        
+        if let historiesRelation = alertEntity.relationshipsByName["histories"],
+           let alertRelation = historyEntity.relationshipsByName["alert"] {
+            historiesRelation.inverseRelationship = alertRelation
+            alertRelation.inverseRelationship = historiesRelation
+        }
         
         model.entities = [alertEntity, stationEntity, historyEntity]
         
