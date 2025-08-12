@@ -283,6 +283,16 @@ class HomeViewModel: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+        
+        // Monitor alert updates
+        NotificationCenter.default.publisher(for: Notification.Name("AlertsUpdated"))
+            .sink { [weak self] _ in
+                print("📨 Received AlertsUpdated notification")
+                Task { @MainActor in
+                    await self?.loadActiveAlerts()
+                }
+            }
+            .store(in: &cancellables)
     }
     
     private func loadInitialDataIfNeeded() {
@@ -300,6 +310,7 @@ class HomeViewModel: ObservableObject {
     private func loadActiveAlerts() async {
         do {
             performanceMonitor.startTimer(for: "Load Active Alerts")
+            print("🔄 Loading alerts from Core Data...")
             
             // Load all alerts
             let allRequest = Alert.fetchRequest()
@@ -308,9 +319,16 @@ class HomeViewModel: ObservableObject {
             allRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Alert.createdAt, ascending: false)]
             
             self.allAlerts = try await coreDataManager.optimizedFetch(allRequest)
+            print("📊 Total alerts found: \(self.allAlerts.count)")
             
             // Filter active alerts
             self.activeAlerts = self.allAlerts.filter { $0.isActive }
+            print("✅ Active alerts: \(self.activeAlerts.count)")
+            
+            // Debug: Print alert details
+            for alert in self.allAlerts {
+                print("  - Alert ID: \(alert.alertId ?? UUID()), Active: \(alert.isActive), Station: \(alert.station?.name ?? "nil")")
+            }
             
             performanceMonitor.endTimer(for: "Load Active Alerts")
             logger.debug("Loaded \(self.allAlerts.count) total alerts, \(self.activeAlerts.count) active")
@@ -318,6 +336,7 @@ class HomeViewModel: ObservableObject {
         } catch {
             errorMessage = "アラートを読み込めませんでした"
             logger.error("Failed to load alerts: \(error.localizedDescription)")
+            print("❌ Error loading alerts: \(error)")
         }
     }
     

@@ -165,12 +165,14 @@ final class CoreDataManager: ObservableObject {
         characterStyle.attributeType = .stringAttributeType
         characterStyle.isOptional = true
         
-        // Relationship to Station
+        // Relationship to Station (to-one relationship)
         let stationRelation = NSRelationshipDescription()
         stationRelation.name = "station"
         stationRelation.destinationEntity = stationEntity
         stationRelation.isOptional = true
         stationRelation.deleteRule = .nullifyDeleteRule
+        stationRelation.maxCount = 1  // Explicitly set as to-one relationship
+        stationRelation.minCount = 0
         
         // Add histories relationship (destination will be set later)
         let historiesRelation = NSRelationshipDescription()

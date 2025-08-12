@@ -160,16 +160,45 @@ class AlertSetupViewModel: ObservableObject {
                     alert.notificationTime = Int16(self.setupData.notificationTime)
                     alert.notificationDistance = self.setupData.notificationDistance
                     alert.snoozeInterval = Int16(self.setupData.snoozeInterval)
-                    alert.characterStyle = self.setupData.characterStyle.rawValue
+                    // Map from global CharacterStyle to Alert's internal CharacterStyle
+                    let mappedStyle: String = {
+                        switch self.setupData.characterStyle {
+                        case .gyaru, .healing:
+                            return "friendly"
+                        case .butler:
+                            return "polite"
+                        case .kansai, .sporty:
+                            return "motivational"
+                        case .tsundere:
+                            return "funny"
+                        }
+                    }()
+                    alert.characterStyle = mappedStyle
+                    
+                    print("🟢 Creating alert with values:")
+                    print("  - notificationTime: \(alert.notificationTime)")
+                    print("  - notificationDistance: \(alert.notificationDistance)")
+                    print("  - snoozeInterval: \(alert.snoozeInterval)")
+                    print("  - characterStyle: \(alert.characterStyle ?? "nil")")
                     
                     // Create or find station
                     if let selectedStation = self.setupData.selectedStation {
+                        print("🟡 Finding or creating station: \(selectedStation.name)")
                         let stationEntity = self.findOrCreateStation(selectedStation, in: context)
+                        print("🟡 Station entity created/found: \(stationEntity)")
+                        print("🟡 Station class: \(type(of: stationEntity))")
+                        print("🟡 Alert class: \(type(of: alert))")
+                        
+                        // Set the station relationship
+                        print("🟡 Setting station relationship...")
                         alert.station = stationEntity
+                        print("✅ Alert.station set successfully")
                     }
                     
                     // Save context
+                    print("💾 Saving context...")
                     try context.save()
+                    print("✅ Context saved successfully")
                     
                     // Return alert ID to main context
                     let alertId = alert.objectID
@@ -185,6 +214,13 @@ class AlertSetupViewModel: ObservableObject {
                                 continuation.resume(throwing: AlertSetupError.coreDataError(error))
                                 return
                             }
+                            print("✅ Alert created successfully with ID: \(mainAlert.alertId ?? UUID())")
+                            print("   Station: \(mainAlert.station?.name ?? "nil")")
+                            print("   Active: \(mainAlert.isActive)")
+                            
+                            // Notify that alerts have been updated
+                            NotificationCenter.default.post(name: Notification.Name("AlertsUpdated"), object: nil)
+                            
                             continuation.resume(returning: mainAlert)
                         } catch {
                             continuation.resume(throwing: error)
@@ -214,13 +250,10 @@ class AlertSetupViewModel: ObservableObject {
         newStation.name = station.name
         newStation.latitude = station.latitude
         newStation.longitude = station.longitude
-        // Convert array to JSON string for Core Data storage
-        if let linesData = try? JSONEncoder().encode(station.lines),
-           let linesString = String(data: linesData, encoding: .utf8) {
-            newStation.lines = linesString
-        } else {
-            newStation.lines = "[]"
-        }
+        // Convert array to comma-separated string for Core Data storage
+        newStation.lines = station.lines.joined(separator: ",")
+        
+        print("🔵 Created new station: \(newStation.name ?? ""), lines: \(newStation.lines ?? "")")
         
         return newStation
     }
