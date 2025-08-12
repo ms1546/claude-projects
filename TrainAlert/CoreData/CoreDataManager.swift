@@ -172,13 +172,14 @@ final class CoreDataManager: ObservableObject {
         stationRelation.isOptional = true
         stationRelation.deleteRule = .nullifyDeleteRule
         
-        // Add histories relationship
+        // Add histories relationship (destination will be set later)
         let historiesRelation = NSRelationshipDescription()
         historiesRelation.name = "histories"
-        historiesRelation.destinationEntity = historyEntity  // Will be set after historyEntity is created
         historiesRelation.isOptional = true
         historiesRelation.deleteRule = .cascadeDeleteRule
-        historiesRelation.isToMany = true
+        // isToMany is set via maxCount and minCount
+        historiesRelation.maxCount = 0  // 0 means unlimited (to-many)
+        historiesRelation.minCount = 0
         
         alertEntity.properties = [alertId, isActive, notificationTime, notificationDistance, snoozeInterval, characterStyle, createdAt, stationName, lineName, stationRelation, historiesRelation]
         
@@ -209,7 +210,9 @@ final class CoreDataManager: ObservableObject {
         alertRelation.destinationEntity = alertEntity
         alertRelation.isOptional = true
         alertRelation.deleteRule = .nullifyDeleteRule
-        alertRelation.isToMany = false
+        // isToMany is set via maxCount (1 means to-one)
+        alertRelation.maxCount = 1
+        alertRelation.minCount = 0
         
         historyEntity.properties = [historyId, notifiedAt, message, alertRelation]
         
@@ -219,7 +222,9 @@ final class CoreDataManager: ObservableObject {
         alertsRelation.destinationEntity = alertEntity
         alertsRelation.isOptional = true
         alertsRelation.deleteRule = .cascadeDeleteRule
-        alertsRelation.isToMany = true
+        // isToMany is set via maxCount (0 means unlimited - to-many)
+        alertsRelation.maxCount = 0
+        alertsRelation.minCount = 0
         
         // Add alerts relationship to station entity
         var stationProperties = stationEntity.properties ?? []
