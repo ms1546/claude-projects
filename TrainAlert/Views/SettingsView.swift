@@ -79,7 +79,7 @@ struct SettingsView: View {
                     Text(option.1).tag(option.0)
                 }
             }
-            .onChange(of: viewModel.locationAccuracy) { _, newValue in
+            .onChange(of: viewModel.locationAccuracy) { newValue in
                 updateLocationAccuracy(newValue)
             }
             
@@ -87,7 +87,7 @@ struct SettingsView: View {
             Toggle(isOn: $viewModel.backgroundUpdateEnabled) {
                 Label("バックグラウンド更新", systemImage: "arrow.clockwise")
             }
-            .onChange(of: viewModel.backgroundUpdateEnabled) { _, enabled in
+            .onChange(of: viewModel.backgroundUpdateEnabled) { enabled in
                 updateBackgroundLocationUpdates(enabled)
             }
             
@@ -98,7 +98,7 @@ struct SettingsView: View {
                         Text("\(interval)分間隔").tag(interval)
                     }
                 }
-                .onChange(of: viewModel.backgroundUpdateInterval) { _, newInterval in
+                .onChange(of: viewModel.backgroundUpdateInterval) { newInterval in
                     updateBackgroundInterval(newInterval)
                 }
             }
@@ -444,3 +444,4 @@ struct SettingsView_Previews: PreviewProvider {
     }
 }
 #endif
+
