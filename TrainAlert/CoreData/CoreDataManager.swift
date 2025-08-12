@@ -47,8 +47,10 @@ final class CoreDataManager: ObservableObject {
         container.loadPersistentStores { [weak self] _, error in
             if let error = error {
                 self?.logger.error("Core Data failed to load: \(error.localizedDescription)")
+                print("🔴 Core Data Error: \(error)")
             } else {
                 self?.logger.info("Core Data loaded successfully")
+                print("✅ Core Data loaded with in-memory store")
             }
         }
         
