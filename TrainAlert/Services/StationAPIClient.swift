@@ -517,11 +517,13 @@ class StationAPIClient: ObservableObject {
     /// Search stations using OpenStreetMap Overpass API
     private func searchStationsByAPI(query: String) async throws -> [StationModel] {
         // Create Overpass QL query for station search in Japan
+        // Bounding box covers entire Japan: 24-46°N, 122-146°E
         let overpassQuery = """
         [out:json][timeout:10];
         (
-          node["railway"="station"]["name"~"\(query)",i](35.0,139.0,36.0,140.0);
-          node["railway"="station"]["name:ja"~"\(query)",i](35.0,139.0,36.0,140.0);
+          node["railway"="station"]["name"~"\(query)",i](24.0,122.0,46.0,146.0);
+          node["railway"="station"]["name:ja"~"\(query)",i](24.0,122.0,46.0,146.0);
+          node["railway"="station"]["name:en"~"\(query)",i](24.0,122.0,46.0,146.0);
         );
         out body;
         """
@@ -595,6 +597,11 @@ class StationAPIClient: ObservableObject {
             
             return Array(uniqueStations.values)
         } catch {
+            // Log OSM API error for debugging
+            #if DEBUG
+            print("OSM API error: \(error)")
+            #endif
+            
             // If OSM fails, fall back to HeartRails line search
             return try await searchStationsByHeartRails(query: query)
         }
@@ -606,7 +613,14 @@ class StationAPIClient: ObservableObject {
         
         // Search major lines for stations matching the query
         let majorLines = [
-            "JR山手線", "JR中央線", "JR総武線", "JR京浜東北線"
+            "JR山手線", "JR中央線", "JR総武線", "JR京浜東北線",
+            "JR埼京線", "JR常磐線", "JR横浜線", "JR南武線",
+            "東京メトロ銀座線", "東京メトロ丸ノ内線", "東京メトロ日比谷線",
+            "東京メトロ東西線", "東京メトロ千代田線", "東京メトロ有楽町線",
+            "東京メトロ半蔵門線", "東京メトロ南北線", "東京メトロ副都心線",
+            "都営大江戸線", "都営浅草線", "都営三田線", "都営新宿線",
+            "東急東横線", "東急田園都市線", "小田急線", "京王線",
+            "西武新宿線", "西武池袋線", "東武東上線", "東武スカイツリーライン"
         ]
         
         // Fetch stations from each line
