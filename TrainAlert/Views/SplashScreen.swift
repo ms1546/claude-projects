@@ -10,7 +10,6 @@ import SwiftUI
 /// Optimized splash screen that provides visual feedback during app initialization
 /// Designed to improve perceived startup time while maintaining 60fps performance
 struct SplashScreen: View {
-    
     // MARK: - State
     
     @State private var isAnimating = false
@@ -88,7 +87,7 @@ struct SplashScreen: View {
                 )
             
             // App title
-            Text("TrainAlert")
+            Text("トレ眠")
                 .font(.largeTitle)
                 .fontWeight(.thin)
                 .foregroundColor(.white)
@@ -128,13 +127,9 @@ struct SplashScreen: View {
     
     private var brandingText: some View {
         VStack(spacing: 4) {
-            Text("電車寝過ごし防止アプリ")
+            Text("電車の目覚ましアプリ")
                 .font(.caption)
                 .foregroundColor(.trainLightGray)
-            
-            Text("Train Alert")
-                .font(.caption2)
-                .foregroundColor(Color.trainLightGray.opacity(0.7))
         }
         .opacity(opacity)
         .animation(
@@ -222,3 +217,4 @@ struct SplashScreen_Previews: PreviewProvider {
     }
 }
 #endif
+

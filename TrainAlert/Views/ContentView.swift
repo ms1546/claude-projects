@@ -14,7 +14,7 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             HomeView()
                 .tabItem {
-                    Image(systemName: "house.fill")
+                    Image(systemName: "moon.zzz.fill")
                     Text("ホーム")
                 }
                 .tag(0)
@@ -35,3 +35,4 @@ struct ContentView: View {
         }
     }
 }
+

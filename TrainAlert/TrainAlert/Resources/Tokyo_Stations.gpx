@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<gpx version="1.1" creator="TrainAlert">
+    <!-- 東京駅 -->
+    <wpt lat="35.6812" lon="139.7671">
+        <name>Tokyo Station</name>
+        <time>2024-01-08T10:00:00Z</time>
+    </wpt>
+    
+    <!-- 新宿駅 -->
+    <wpt lat="35.6896" lon="139.7006">
+        <name>Shinjuku Station</name>
+        <time>2024-01-08T10:05:00Z</time>
+    </wpt>
+    
+    <!-- 渋谷駅 -->
+    <wpt lat="35.6580" lon="139.7016">
+        <name>Shibuya Station</name>
+        <time>2024-01-08T10:10:00Z</time>
+    </wpt>
+    
+    <!-- 品川駅 -->
+    <wpt lat="35.6284" lon="139.7387">
+        <name>Shinagawa Station</name>
+        <time>2024-01-08T10:15:00Z</time>
+    </wpt>
+    
+    <!-- 池袋駅 -->
+    <wpt lat="35.7295" lon="139.7109">
+        <name>Ikebukuro Station</name>
+        <time>2024-01-08T10:20:00Z</time>
+    </wpt>
+</gpx>
