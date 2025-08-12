@@ -8,6 +8,11 @@
 import MapKit
 import SwiftUI
 
+// RouteSearchResultを使用するための暫定的な定義
+struct RouteSearchResult: Identifiable {
+    let id: String
+}
+
 struct HomeView: View {
     // MARK: - Dependencies
     @StateObject private var viewModel = HomeViewModel()
@@ -17,6 +22,9 @@ struct HomeView: View {
 
     // MARK: - State
     @State private var showingAlertSetup = false
+    @State private var showingRouteSearch = false
+    @State private var selectedRoute: RouteSearchResult?
+    @State private var showingTimetableSetup = false
     @State private var selectedAlert: Alert?
     @State private var showingLocationPermission = false
     @State private var mapRegion = MKCoordinateRegion(
@@ -72,6 +80,20 @@ struct HomeView: View {
                     .environmentObject(locationManager)
                     .environmentObject(appState)
             }
+            .sheet(isPresented: $showingRouteSearch) {
+                // 時刻表連携機能のプレースホルダー
+                VStack {
+                    Text("時刻表連携機能")
+                        .font(.title)
+                        .padding()
+                    Text("ODPT APIの承認待ちです")
+                        .foregroundColor(.gray)
+                    Button("閉じる") {
+                        showingRouteSearch = false
+                    }
+                    .padding()
+                }
+            }
             .alert("位置情報の許可が必要です", isPresented: $showingLocationPermission) {
                 Button("設定を開く") {
                     if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -116,14 +138,26 @@ struct HomeView: View {
                     
                     Spacer()
                     
-                    Button(action: { showingAlertSetup = true }) {
-                        Image(systemName: "plus")
-                            .font(.title2)
-                            .fontWeight(.medium)
-                            .foregroundColor(.trainSoftBlue)
-                            .frame(width: 44, height: 44)
-                            .background(Color.trainSoftBlue.opacity(0.1))
-                            .clipShape(Circle())
+                    HStack(spacing: 12) {
+                        Button(action: { showingRouteSearch = true }) {
+                            Image(systemName: "clock")
+                                .font(.title3)
+                                .fontWeight(.medium)
+                                .foregroundColor(.orange)
+                                .frame(width: 40, height: 40)
+                                .background(Color.orange.opacity(0.1))
+                                .clipShape(Circle())
+                        }
+                        
+                        Button(action: { showingAlertSetup = true }) {
+                            Image(systemName: "plus")
+                                .font(.title2)
+                                .fontWeight(.medium)
+                                .foregroundColor(.trainSoftBlue)
+                                .frame(width: 44, height: 44)
+                                .background(Color.trainSoftBlue.opacity(0.1))
+                                .clipShape(Circle())
+                        }
                     }
                 }
                 .padding(.horizontal, 20)
@@ -158,28 +192,63 @@ struct HomeView: View {
             .padding(.top, 20)
             .padding(.bottom, 32)
             
-            // 大きな作成ボタン
-            Button(action: { showingAlertSetup = true }) {
-                VStack(spacing: 16) {
-                    Image(systemName: "plus.circle")
-                        .font(.system(size: 48))
-                        .fontWeight(.light)
-                        .foregroundColor(.trainSoftBlue)
-                    
-                    Text("目覚ましを作成")
-                        .font(.headline)
-                        .foregroundColor(.textPrimary)
+            // 作成ボタン
+            VStack(spacing: 16) {
+                // 位置情報ベースの作成
+                Button(action: { showingAlertSetup = true }) {
+                    VStack(spacing: 12) {
+                        Image(systemName: "location.circle")
+                            .font(.system(size: 36))
+                            .fontWeight(.light)
+                            .foregroundColor(.trainSoftBlue)
+                        
+                        Text("位置情報で作成")
+                            .font(.headline)
+                            .foregroundColor(.textPrimary)
+                        
+                        Text("駅に近づいたら通知")
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 140)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(Color.gray.opacity(0.05))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(Color.gray.opacity(0.1), lineWidth: 1)
+                            )
+                    )
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: 160)
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(Color.gray.opacity(0.05))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(Color.gray.opacity(0.1), lineWidth: 1)
-                        )
-                )
+                
+                // 時刻表ベースの作成
+                Button(action: { showingRouteSearch = true }) {
+                    VStack(spacing: 12) {
+                        Image(systemName: "clock.circle")
+                            .font(.system(size: 36))
+                            .fontWeight(.light)
+                            .foregroundColor(.orange)
+                        
+                        Text("時刻表で作成")
+                            .font(.headline)
+                            .foregroundColor(.textPrimary)
+                        
+                        Text("到着時刻の前に通知")
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 140)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(Color.orange.opacity(0.05))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(Color.orange.opacity(0.2), lineWidth: 1)
+                            )
+                    )
+                }
             }
             .padding(.horizontal, 20)
             
@@ -292,13 +361,31 @@ struct HomeAlertCard: View {
                 
                 // 設定情報
                 HStack(spacing: 16) {
-                    Label("\(alert.notificationTime)分前", systemImage: "clock")
-                        .font(.caption)
-                        .foregroundColor(.textSecondary)
-                    
-                    Label(String(format: "%.1fkm", alert.notificationDistance / 1_000), systemImage: "location")
-                        .font(.caption)
-                        .foregroundColor(.textSecondary)
+                    if alert.isTimetableBased {
+                        // 時刻表ベースの場合
+                        if let arrivalTime = alert.arrivalTime {
+                            HStack(spacing: 4) {
+                                Image(systemName: "tram.fill")
+                                    .font(.caption)
+                                Text(arrivalTime, style: .time)
+                                    .font(.caption)
+                            }
+                            .foregroundColor(.orange)
+                        }
+                        
+                        Label("\(alert.notificationTime)分前", systemImage: "bell")
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
+                    } else {
+                        // 位置情報ベースの場合
+                        Label("\(alert.notificationTime)分前", systemImage: "clock")
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
+                        
+                        Label(String(format: "%.1fkm", alert.notificationDistance / 1_000), systemImage: "location")
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
+                    }
                 }
             }
             
@@ -345,4 +432,3 @@ struct HomeView_Previews: PreviewProvider {
     }
 }
 #endif
-

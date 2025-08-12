@@ -1,9 +1,8 @@
-import Foundation
 import CoreData
+import Foundation
 
 @objc(Alert)
 public class Alert: NSManagedObject {
-    
     // MARK: - Enums
     
     /// キャラクタースタイルの定義
@@ -71,21 +70,21 @@ public class Alert: NSManagedObject {
     
     /// 通知距離の表示用文字列
     var notificationDistanceDisplayString: String {
-        if notificationDistance < 1000 {
+        if notificationDistance < 1_000 {
             return String(format: "%.0fm", notificationDistance)
         } else {
-            return String(format: "%.1fkm", notificationDistance / 1000)
+            return String(format: "%.1fkm", notificationDistance / 1_000)
         }
     }
     
     /// スヌーズ間隔の表示用文字列
     var snoozeIntervalDisplayString: String {
-        return "\(snoozeInterval)分"
+        "\(snoozeInterval)分"
     }
     
     /// アラートの状態表示用文字列
     var statusDisplayString: String {
-        return isActive ? "有効" : "無効"
+        isActive ? "有効" : "無効"
     }
     
     /// 作成日時の表示用文字列
@@ -103,7 +102,7 @@ public class Alert: NSManagedObject {
     
     /// 履歴の件数
     var historyCount: Int {
-        return (histories as? Set<History>)?.count ?? 0
+        (histories as? Set<History>)?.count ?? 0
     }
     
     /// 最新の履歴
@@ -111,12 +110,12 @@ public class Alert: NSManagedObject {
         guard let histories = histories as? Set<History> else {
             return nil
         }
-        return histories.max(by: { ($0.notifiedAt ?? Date.distantPast) < ($1.notifiedAt ?? Date.distantPast) })
+        return histories.max { ($0.notifiedAt ?? Date.distantPast) < ($1.notifiedAt ?? Date.distantPast) }
     }
     
     // MARK: - Core Data Methods
     
-    public override func awakeFromInsert() {
+    override public func awakeFromInsert() {
         super.awakeFromInsert()
         
         // デフォルト値の設定
@@ -138,12 +137,12 @@ public class Alert: NSManagedObject {
     
     // MARK: - Validation
     
-    public override func validateForInsert() throws {
+    override public func validateForInsert() throws {
         try super.validateForInsert()
         try validateAlert()
     }
     
-    public override func validateForUpdate() throws {
+    override public func validateForUpdate() throws {
         try super.validateForUpdate()
         try validateAlert()
     }
@@ -160,7 +159,7 @@ public class Alert: NSManagedObject {
         }
         
         // 通知距離の検証（50m-10km）
-        guard notificationDistance >= 50 && notificationDistance <= 10000 else {
+        guard notificationDistance >= 50 && notificationDistance <= 10_000 else {
             throw AlertValidationError.invalidNotificationDistance
         }
         
@@ -258,9 +257,8 @@ public class Alert: NSManagedObject {
 // MARK: - Fetch Requests
 
 extension Alert {
-    
     @nonobjc public class func fetchRequest() -> NSFetchRequest<Alert> {
-        return NSFetchRequest<Alert>(entityName: "Alert")
+        NSFetchRequest<Alert>(entityName: "Alert")
     }
     
     /// アクティブなアラートを取得するFetch Request
@@ -306,7 +304,6 @@ extension Alert {
 // MARK: - Core Data Properties
 
 extension Alert {
-    
     @NSManaged public var alertId: UUID?
     @NSManaged public var notificationTime: Int16
     @NSManaged public var notificationDistance: Double
@@ -318,12 +315,24 @@ extension Alert {
     @NSManaged public var lineName: String?
     @NSManaged public var station: Station?
     @NSManaged public var histories: NSSet?
+    
+    // 時刻表連携機能用プロパティ
+    @NSManaged public var isTimetableBased: Bool
+    @NSManaged public var departureTime: Date?
+    @NSManaged public var arrivalTime: Date?
+    @NSManaged public var routeDetails: String?
+    @NSManaged public var isRepeating: Bool
+    @NSManaged public var repeatDays: [Int16]?
+    @NSManaged public var nextNotificationTime: Date?
+    @NSManaged public var latitude: Double
+    @NSManaged public var longitude: Double
+    @NSManaged public var useAIMessage: Bool
+    @NSManaged public var customMessage: String?
 }
 
 // MARK: - Generated accessors for histories
 
 extension Alert {
-    
     @objc(addHistoriesObject:)
     @NSManaged public func addToHistories(_ value: History)
     
@@ -341,7 +350,7 @@ extension Alert {
 
 extension Alert: Identifiable {
     public var id: UUID {
-        return alertId ?? UUID()
+        alertId ?? UUID()
     }
 }
 

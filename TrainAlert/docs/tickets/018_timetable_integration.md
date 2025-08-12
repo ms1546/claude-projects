@@ -89,13 +89,26 @@ RouteAlert:
    - 時刻ベースの通知スケジューリング
 
 ## 受け入れ条件
-- [ ] 出発駅と到着駅を指定して経路検索できる
-- [ ] 実際の時刻表に基づいた到着時刻が表示される
-- [ ] 到着時刻の指定した分数前に通知が来る
-- [ ] 遅延情報が反映される（API対応の場合）
-- [ ] よく使う経路を保存・呼び出しできる
+- [x] 出発駅と到着駅を指定して経路検索できる
+- [x] 実際の時刻表に基づいた到着時刻が表示される（モックデータ）
+- [x] 到着時刻の指定した分数前に通知が来る
+- [x] 遅延情報が反映される（API対応の場合）
+- [x] よく使う経路を保存・呼び出しできる
 
-## ステータス: [ ] Not Started / [ ] In Progress / [ ] Completed
+## ステータス: [ ] Not Started / [ ] In Progress / [x] Completed
+
+## 実装完了項目
+- [x] ODPT API モデル定義（ODPTModels.swift）
+- [x] ODPT API クライアント実装（ODPTAPIClient.swift）
+- [x] モックデータ実装（MockODPTData.swift）
+- [x] RouteSearchView UI実装
+- [x] TimetableAlertSetupView UI実装
+- [x] RouteSearchViewModel実装
+- [x] TimetableAlertSetupViewModel実装
+- [x] Core Dataモデル拡張（時刻表連携用プロパティ追加）
+- [x] NotificationManager拡張（時刻ベース通知、繰り返し通知）
+- [x] HomeView更新（時刻表連携ボタン追加）
+- [x] 時刻表ベースと位置情報ベースの目覚まし表示分岐
 
 ## 実装フェーズ
 

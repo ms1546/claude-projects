@@ -270,6 +270,86 @@ class NotificationManager: NSObject, ObservableObject {
         // 📍 Scheduled location-based alert for station
     }
     
+    /// Schedule a notification at a specific time
+    func scheduleNotification(for alert: Alert, at date: Date) async throws {
+        guard isPermissionGranted else {
+            throw NotificationError.permissionDenied
+        }
+        
+        let identifier = alert.id.uuidString
+        
+        let content = UNMutableNotificationContent()
+        content.categoryIdentifier = NotificationCategory.trainAlert.identifier
+        content.sound = getNotificationSound()
+        
+        // メッセージ作成
+        if alert.useAIMessage {
+            content.title = "トレ眠 - 目覚まし"
+            do {
+                let message = try await OpenAIClient.shared.generateNotificationMessage(
+                    for: alert.stationName ?? "目的地",
+                    arrivalTime: "\(alert.notificationTime)分後",
+                    characterStyle: CharacterStyle(rawValue: alert.characterStyle ?? "gyaru") ?? .gyaru
+                )
+                content.body = message
+            } catch {
+                content.body = "\(alert.stationName ?? "目的地")まであと\(alert.notificationTime)分です！"
+            }
+        } else {
+            content.title = "トレ眠 - 目覚まし"
+            content.body = alert.customMessage ?? "\(alert.stationName ?? "目的地")まであと\(alert.notificationTime)分です！"
+        }
+        
+        // トリガー作成
+        let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        
+        let request = UNNotificationRequest(
+            identifier: identifier,
+            content: content,
+            trigger: trigger
+        )
+        
+        try await center.add(request)
+        pendingNotifications.insert(identifier)
+    }
+    
+    /// Schedule a repeating notification
+    func scheduleRepeatingNotification(for alert: Alert, at date: Date, weekday: Int) async throws {
+        guard isPermissionGranted else {
+            throw NotificationError.permissionDenied
+        }
+        
+        let identifier = "\(alert.id.uuidString)_weekday_\(weekday)"
+        
+        let content = UNMutableNotificationContent()
+        content.categoryIdentifier = NotificationCategory.trainAlert.identifier
+        content.sound = getNotificationSound()
+        
+        // メッセージ作成
+        if alert.useAIMessage {
+            content.title = "トレ眠 - 目覚まし"
+            content.body = "毎週の目覚まし: \(alert.stationName ?? "目的地")まであと\(alert.notificationTime)分です！"
+        } else {
+            content.title = "トレ眠 - 目覚まし"
+            content.body = alert.customMessage ?? "\(alert.stationName ?? "目的地")まであと\(alert.notificationTime)分です！"
+        }
+        
+        // トリガー作成（毎週繰り返し）
+        var components = Calendar.current.dateComponents([.hour, .minute], from: date)
+        components.weekday = weekday
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+        
+        let request = UNNotificationRequest(
+            identifier: identifier,
+            content: content,
+            trigger: trigger
+        )
+        
+        try await center.add(request)
+        pendingNotifications.insert(identifier)
+    }
+    
     /// Schedule a snooze notification
     func scheduleSnoozeNotification(for originalIdentifier: String, stationName: String) async throws {
         guard isPermissionGranted else {
