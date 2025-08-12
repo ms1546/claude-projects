@@ -43,6 +43,14 @@ struct SettingsView: View {
             viewModel.checkLocationPermissions()
             viewModel.checkNotificationPermissions()
         }
+        .confirmationDialog("設定をリセット", isPresented: $viewModel.showingResetConfirmation) {
+            Button("リセット", role: .destructive) {
+                viewModel.resetAllSettings()
+            }
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text("すべての設定をデフォルトに戻します。この操作は取り消せません。")
+        }
     }
     
     // MARK: - Location Settings Section
@@ -71,7 +79,7 @@ struct SettingsView: View {
                     Text(option.1).tag(option.0)
                 }
             }
-            .onChange(of: viewModel.locationAccuracy) { newValue in
+            .onChange(of: viewModel.locationAccuracy) { _, newValue in
                 updateLocationAccuracy(newValue)
             }
             
@@ -79,7 +87,7 @@ struct SettingsView: View {
             Toggle(isOn: $viewModel.backgroundUpdateEnabled) {
                 Label("バックグラウンド更新", systemImage: "arrow.clockwise")
             }
-            .onChange(of: viewModel.backgroundUpdateEnabled) { enabled in
+            .onChange(of: viewModel.backgroundUpdateEnabled) { _, enabled in
                 updateBackgroundLocationUpdates(enabled)
             }
             
@@ -90,7 +98,7 @@ struct SettingsView: View {
                         Text("\(interval)分間隔").tag(interval)
                     }
                 }
-                .onChange(of: viewModel.backgroundUpdateInterval) { newInterval in
+                .onChange(of: viewModel.backgroundUpdateInterval) { _, newInterval in
                     updateBackgroundInterval(newInterval)
                 }
             }
@@ -250,14 +258,6 @@ struct SettingsView: View {
             }) {
                 Label("すべての設定をリセット", systemImage: "arrow.counterclockwise")
                     .foregroundColor(.red)
-            }
-            .confirmationDialog("設定をリセット", isPresented: $viewModel.showingResetConfirmation) {
-                Button("リセット", role: .destructive) {
-                    viewModel.resetAllSettings()
-                }
-                Button("キャンセル", role: .cancel) {}
-            } message: {
-                Text("すべての設定をデフォルトに戻します。この操作は取り消せません。")
             }
         }
     }
