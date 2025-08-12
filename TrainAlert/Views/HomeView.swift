@@ -35,12 +35,14 @@ struct HomeView: View {
                 List {
                     // Header Section
                     headerSection
+                        .padding(.horizontal, 16)
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                     
                     // Quick Actions
                     quickActionsSection
+                        .padding(.horizontal, 16)
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
@@ -48,6 +50,7 @@ struct HomeView: View {
                     // All Alerts (Active and Inactive)
                     if !viewModel.allAlerts.isEmpty {
                         allAlertsSection
+                            .padding(.horizontal, 16)
                             .listRowInsets(EdgeInsets())
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
@@ -57,6 +60,7 @@ struct HomeView: View {
                     if locationManager.authorizationStatus == .authorizedWhenInUse ||
                        locationManager.authorizationStatus == .authorizedAlways {
                         mapSection
+                            .padding(.horizontal, 16)
                             .listRowInsets(EdgeInsets())
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
@@ -65,6 +69,8 @@ struct HomeView: View {
                     // Empty State
                     if viewModel.allAlerts.isEmpty {
                         emptyStateSection
+                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, 16)
                             .listRowInsets(EdgeInsets())
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
@@ -128,6 +134,7 @@ struct HomeView: View {
                 .font(.headline)
                 .foregroundColor(.secondary)
         }
+        .frame(maxWidth: .infinity)
     }
     
     private var quickActionsSection: some View {
