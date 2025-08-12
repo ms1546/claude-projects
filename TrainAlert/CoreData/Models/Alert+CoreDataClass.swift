@@ -17,6 +17,19 @@ public class Alert: NSManagedObject {
     @NSManaged public var station: Station?
     @NSManaged public var histories: NSSet?
     
+    // MARK: - Core Data Lifecycle
+    
+    public override func awakeFromInsert() {
+        super.awakeFromInsert()
+        
+        // Set default values using setPrimitiveValue to avoid KVO issues
+        let uuid = UUID()
+        self.setPrimitiveValue(uuid, forKey: "alertId")
+        self.setPrimitiveValue(Date(), forKey: "createdAt")
+        self.setPrimitiveValue(true, forKey: "isActive")
+        self.setPrimitiveValue(Int16(0), forKey: "snoozeCount")
+    }
+    
     // MARK: - Enums
     
     /// キャラクタースタイルの定義

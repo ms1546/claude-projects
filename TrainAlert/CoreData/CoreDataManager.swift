@@ -360,14 +360,13 @@ final class CoreDataManager: ObservableObject {
                     snoozeInterval: Int16 = 5,
                     characterStyle: String? = nil) -> Alert {
         let alert = Alert(context: viewContext)
-        alert.alertId = UUID()
+        // alertId, createdAt, isActive are set in awakeFromInsert
         alert.station = station
         alert.notificationTime = notificationTime
         alert.notificationDistance = notificationDistance
         alert.snoozeInterval = snoozeInterval
         alert.characterStyle = characterStyle
-        alert.isActive = true
-        alert.createdAt = Date()
+        alert.updatedAt = Date()
         
         save()
         logger.info("Alert created for station: \(station.name ?? "Unknown")")
