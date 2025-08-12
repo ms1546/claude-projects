@@ -307,7 +307,7 @@ struct HomeAlertCard: View {
                 Text(alert.station?.name ?? "未設定")
                     .font(.headline)
                 
-                Text(alert.station?.lines ?? "")
+                Text(alert.station?.lines?.joined(separator: ", ") ?? "")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

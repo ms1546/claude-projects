@@ -296,9 +296,9 @@ final class CoreDataManager: ObservableObject {
     ///   - name: 駅名
     ///   - latitude: 緯度
     ///   - longitude: 経度
-    ///   - lines: 路線情報（カンマ区切り）
+    ///   - lines: 路線情報の配列
     /// - Returns: 作成された駅エンティティ
-    func createStation(stationId: String, name: String, latitude: Double, longitude: Double, lines: String? = nil) -> Station {
+    func createStation(stationId: String, name: String, latitude: Double, longitude: Double, lines: [String]? = nil) -> Station {
         let station = Station(context: viewContext)
         station.stationId = stationId
         station.name = name

@@ -177,7 +177,7 @@ extension Station {
     @NSManaged public var name: String?
     @NSManaged public var latitude: Double
     @NSManaged public var longitude: Double
-    @NSManaged public var lines: String?
+    @NSManaged public var lines: [String]?
     @NSManaged public var isFavorite: Bool
     @NSManaged public var lastUsedAt: Date?
     @NSManaged public var alerts: NSSet?

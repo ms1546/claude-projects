@@ -214,13 +214,8 @@ class AlertSetupViewModel: ObservableObject {
         newStation.name = station.name
         newStation.latitude = station.latitude
         newStation.longitude = station.longitude
-        // Convert array to JSON string for Core Data storage
-        if let linesData = try? JSONEncoder().encode(station.lines),
-           let linesString = String(data: linesData, encoding: .utf8) {
-            newStation.lines = linesString
-        } else {
-            newStation.lines = "[]"
-        }
+        // Set lines array directly (Core Data handles Transformable type)
+        newStation.lines = station.lines
         
         return newStation
     }
