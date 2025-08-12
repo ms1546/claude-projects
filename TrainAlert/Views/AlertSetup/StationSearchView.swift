@@ -5,11 +5,10 @@
 //  Created by Claude on 2024/01/08.
 //
 
-import SwiftUI
 import MapKit
+import SwiftUI
 
 struct StationSearchView: View {
-    
     // MARK: - Properties
     
     @StateObject private var stationAPI = StationAPIClient()
@@ -62,50 +61,49 @@ struct StationSearchView: View {
         }
         .sheet(isPresented: $showMap) {
             StationMapView(
-                stations: currentStations,
-                onStationSelected: { station in
+                stations: currentStations
+            )                { station in
                     selectStation(station)
                     showMap = false
                 }
-            )
         }
     }
     
     // MARK: - Views
     
     private var searchBar: some View {
-        HStack(spacing: 12) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading) {
+            HStack {
                 Image(systemName: "magnifyingglass")
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(Color(UIColor.systemGray))
+                    .frame(width: 20, height: 20)
                 
                 TextField("駅名で検索", text: $searchText)
-                    .textFieldStyle(PlainTextFieldStyle())
-                    .foregroundColor(.textPrimary)
-                    .keyboardType(.default)
                     .autocapitalization(.none)
                     .disableAutocorrection(true)
+                    .submitLabel(.search)
                 
                 if !searchText.isEmpty {
                     Button(action: { searchText = "" }) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.textSecondary)
+                            .foregroundColor(Color(UIColor.systemGray))
+                            .frame(width: 20, height: 20)
                     }
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(Color.backgroundCard)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .padding(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+            .background(Color(UIColor.systemGray6))
+            .cornerRadius(10)
+            .padding(.horizontal)
             
             if isLoading {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .trainSoftBlue))
-                    .scaleEffect(0.8)
+                Text("検索中...")
+                    .font(.caption)
+                    .foregroundColor(Color(UIColor.systemGray))
+                    .padding(.horizontal)
+                    .padding(.top, 4)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
     }
     
     private var segmentControl: some View {
@@ -116,8 +114,7 @@ struct StationSearchView: View {
             }
         }
         .pickerStyle(SegmentedPickerStyle())
-        .padding(.horizontal, 16)
-        .padding(.bottom, 16)
+        .padding()
     }
     
     private var content: some View {
@@ -451,9 +448,8 @@ struct StationMapView: View {
 struct StationSearchView_Previews: PreviewProvider {
     static var previews: some View {
         StationSearchView(
-            setupData: AlertSetupData(),
-            onStationSelected: { _ in }
-        )
+            setupData: AlertSetupData()
+        )            { _ in }
         .environmentObject(LocationManager())
         .preferredColorScheme(.dark)
     }
