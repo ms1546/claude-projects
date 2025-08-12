@@ -499,7 +499,7 @@ final class CoreDataManager: ObservableObject {
     /// 古い履歴を自動削除
     /// - Parameter daysToKeep: 保持する日数
     func cleanupOldHistory(daysToKeep: Int = 30) async throws {
-        let cutoffDate = Calendar.current.dateAttributeType(byAdding: .day, value: -daysToKeep, to: Date()) ?? Date()
+        let cutoffDate = Calendar.current.date(byAdding: .day, value: -daysToKeep, to: Date()) ?? Date()
         let predicate = NSPredicate(format: "notifiedAt < %@", cutoffDate as NSDate)
         
         try await batchDelete(entityName: "History", predicate: predicate)
