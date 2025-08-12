@@ -310,8 +310,8 @@ class StationAPIClient: ObservableObject {
     
     init() {
         let configuration = URLSessionConfiguration.default
-        configuration.timeoutIntervalForRequest = 10.0
-        configuration.timeoutIntervalForResource = 30.0
+        configuration.timeoutIntervalForRequest = 30.0  // Increased from 10.0
+        configuration.timeoutIntervalForResource = 60.0  // Increased from 30.0
         configuration.waitsForConnectivity = true
         configuration.requestCachePolicy = .useProtocolCachePolicy
         
@@ -540,7 +540,7 @@ class StationAPIClient: ObservableObject {
         // Create Overpass QL query for station search in Japan
         // Bounding box covers entire Japan: 24-46°N, 122-146°E
         let overpassQuery = """
-        [out:json][timeout:10];
+        [out:json][timeout:25];
         (
           node["railway"="station"]["name"~"\(query)",i](24.0,122.0,46.0,146.0);
           node["railway"="station"]["name:ja"~"\(query)",i](24.0,122.0,46.0,146.0);
