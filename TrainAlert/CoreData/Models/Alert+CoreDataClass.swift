@@ -28,6 +28,9 @@ public class Alert: NSManagedObject {
         self.setPrimitiveValue(Date(), forKey: "createdAt")
         self.setPrimitiveValue(true, forKey: "isActive")
         self.setPrimitiveValue(Int16(0), forKey: "snoozeCount")
+        self.setPrimitiveValue(Int16(5), forKey: "notificationTime")  // 5分前
+        self.setPrimitiveValue(500.0, forKey: "notificationDistance")  // 500m
+        self.setPrimitiveValue(Int16(5), forKey: "snoozeInterval")  // 5分
     }
     
     // MARK: - Enums
@@ -141,26 +144,6 @@ public class Alert: NSManagedObject {
     }
     
     // MARK: - Core Data Methods
-    
-    public override func awakeFromInsert() {
-        super.awakeFromInsert()
-        
-        // デフォルト値の設定
-        if alertId == nil {
-            alertId = UUID()
-        }
-        
-        if createdAt == nil {
-            createdAt = Date()
-        }
-        
-        // デフォルト値の設定
-        isActive = true
-        notificationTime = 5  // 5分前
-        notificationDistance = 500  // 500m
-        snoozeInterval = 5  // 5分
-        characterStyle = CharacterStyle.friendly.rawValue
-    }
     
     // MARK: - Validation
     
