@@ -40,6 +40,14 @@ struct SettingsView: View {
             .navigationBarTitleDisplayMode(.large)
         }
         .onAppear {
+            // LocationManagerの権限状態を強制更新
+            locationManager.updateAuthorizationStatus()
+            viewModel.checkLocationPermissions()
+            viewModel.checkNotificationPermissions()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            // アプリがアクティブになったときに権限を再チェック
+            locationManager.updateAuthorizationStatus()
             viewModel.checkLocationPermissions()
             viewModel.checkNotificationPermissions()
         }
@@ -64,9 +72,19 @@ struct SettingsView: View {
                 Text(locationPermissionText)
                     .foregroundColor(locationPermissionColor)
             }
+            .contentShape(Rectangle())
             .onTapGesture {
                 if viewModel.locationPermissionStatus == .notDetermined {
-                    viewModel.requestLocationPermissions()
+                    // LocationManagerの共有インスタンスを直接使用
+                    locationManager.requestAuthorization()
+                    
+                    // シミュレータで権限ダイアログが表示されない場合の対策
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        viewModel.checkLocationPermissions()
+                        if viewModel.locationPermissionStatus == .notDetermined {
+                            viewModel.openAppSettings()
+                        }
+                    }
                 } else if viewModel.locationPermissionStatus != .authorizedAlways && 
                          viewModel.locationPermissionStatus != .authorizedWhenInUse {
                     viewModel.openAppSettings()
@@ -116,6 +134,7 @@ struct SettingsView: View {
                 Text(notificationPermissionText)
                     .foregroundColor(notificationPermissionColor)
             }
+            .contentShape(Rectangle())
             .onTapGesture {
                 if viewModel.notificationPermissionStatus == .notDetermined {
                     Task {
@@ -444,4 +463,3 @@ struct SettingsView_Previews: PreviewProvider {
     }
 }
 #endif
-

@@ -53,7 +53,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     // MARK: - Initialization
     
     override init() {
-        self.authorizationStatus = locationManager.authorizationStatus
+        self.authorizationStatus = CLLocationManager.authorizationStatus()
         super.init()
         
         setupLocationManager()
@@ -107,10 +107,16 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     /// Request location authorization with enhanced handling
     func requestAuthorization() {
+        // 最新の権限状態を取得
+        let currentStatus = CLLocationManager.authorizationStatus()
+        authorizationStatus = currentStatus
+        
         switch authorizationStatus {
         case .notDetermined:
             // First request when in use, then ask for always
-            locationManager.requestWhenInUseAuthorization()
+            DispatchQueue.main.async {
+                self.locationManager.requestWhenInUseAuthorization()
+            }
         case .authorizedWhenInUse:
             // Upgrade to always authorization for background updates
             locationManager.requestAlwaysAuthorization()
@@ -124,8 +130,22 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
     
+    /// Force update authorization status
+    func updateAuthorizationStatus() {
+        let newStatus = CLLocationManager.authorizationStatus()
+        if authorizationStatus != newStatus {
+            authorizationStatus = newStatus
+        }
+    }
+    
     /// Start location updates with dynamic accuracy adjustment
     func startUpdatingLocation(targetStation: CLLocation? = nil) {
+        // 最新の権限状態を確認
+        let currentStatus = CLLocationManager.authorizationStatus()
+        if currentStatus != authorizationStatus {
+            authorizationStatus = currentStatus
+        }
+        
         guard authorizationStatus == .authorizedAlways || authorizationStatus == .authorizedWhenInUse else {
             lastError = .authorizationDenied
             return

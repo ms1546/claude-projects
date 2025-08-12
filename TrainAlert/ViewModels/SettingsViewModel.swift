@@ -12,6 +12,10 @@ import UserNotifications
 
 @MainActor
 class SettingsViewModel: ObservableObject {
+    // MARK: - Properties
+    
+    private let locationManager = CLLocationManager()
+    
     // MARK: - Location Settings
     
     @AppStorage("locationAccuracy") var locationAccuracy: String = "balanced"
@@ -205,15 +209,14 @@ class SettingsViewModel: ObservableObject {
     // MARK: - Location Permissions
     
     func checkLocationPermissions() {
-        let locationManager = CLLocationManager()
-        locationPermissionStatus = locationManager.authorizationStatus
+        locationPermissionStatus = CLLocationManager.authorizationStatus()
     }
     
     func requestLocationPermissions() {
-        let locationManager = CLLocationManager()
         locationManager.requestWhenInUseAuthorization()
+        
         // Update status after request
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             self.checkLocationPermissions()
         }
     }

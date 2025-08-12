@@ -6,13 +6,12 @@
 //
 
 import Foundation
-import QuartzCore
 import OSLog
+import QuartzCore
 // import os.signpost // Disabled due to crash
 
 /// Performance monitoring utility for tracking app performance metrics
 final class PerformanceMonitor {
-    
     // MARK: - Singleton
     
     static let shared = PerformanceMonitor()
@@ -22,6 +21,7 @@ final class PerformanceMonitor {
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "TrainAlert", category: "Performance")
     private let signpostLog = OSLog(subsystem: Bundle.main.bundleIdentifier ?? "TrainAlert", category: .pointsOfInterest)
     
+    private let queue = DispatchQueue(label: "com.trainalert.performancemonitor", attributes: .concurrent)
     private var startTimes: [String: CFTimeInterval] = [:]
     private var memoryBaseline: UInt64 = 0
     
@@ -32,16 +32,16 @@ final class PerformanceMonitor {
         let available: UInt64 // bytes
         let total: UInt64     // bytes
         
-        var usedMB: Double { Double(used) / 1024.0 / 1024.0 }
-        var availableMB: Double { Double(available) / 1024.0 / 1024.0 }
-        var totalMB: Double { Double(total) / 1024.0 / 1024.0 }
+        var usedMB: Double { Double(used) / 1_024.0 / 1_024.0 }
+        var availableMB: Double { Double(available) / 1_024.0 / 1_024.0 }
+        var totalMB: Double { Double(total) / 1_024.0 / 1_024.0 }
     }
     
     // MARK: - Initialization
     
     private init() {
         memoryBaseline = getCurrentMemoryUsage()
-        logger.info("Performance monitoring initialized. Memory baseline: \(self.memoryBaseline / 1024 / 1024) MB")
+        logger.info("Performance monitoring initialized. Memory baseline: \(self.memoryBaseline / 1_024 / 1_024) MB")
     }
     
     // MARK: - Time Tracking
@@ -49,7 +49,10 @@ final class PerformanceMonitor {
     /// Start timing an operation
     func startTimer(for operation: String) {
         let startTime = CACurrentMediaTime()
-        startTimes[operation] = startTime
+        
+        queue.async(flags: .barrier) {
+            self.startTimes[operation] = startTime
+        }
         
         // Disabled due to crash in iOS 17/18
         // if #available(iOS 15.0, *) {
@@ -62,23 +65,29 @@ final class PerformanceMonitor {
     /// End timing an operation and log the duration
     @discardableResult
     func endTimer(for operation: String) -> TimeInterval {
-        guard let startTime = startTimes.removeValue(forKey: operation) else {
+        var startTime: CFTimeInterval?
+        
+        queue.sync(flags: .barrier) {
+            startTime = self.startTimes.removeValue(forKey: operation)
+        }
+        
+        guard let start = startTime else {
             logger.warning("No start time found for operation: \(operation)")
             return 0
         }
         
-        let duration = CACurrentMediaTime() - startTime
+        let duration = CACurrentMediaTime() - start
         
         // Disabled due to crash in iOS 17/18
         // if #available(iOS 15.0, *) {
         //     os_signpost(.end, log: signpostLog, name: "Operation", "%{public}s took %.3f ms", operation, duration * 1000)
         // }
         
-        logger.info("Operation '\(operation)' completed in \(duration * 1000, format: .fixed(precision: 3)) ms")
+        logger.info("Operation '\(operation)' completed in \(duration * 1_000, format: .fixed(precision: 3)) ms")
         
         // Alert if operation is taking too long
         if duration > 0.1 { // 100ms threshold
-            logger.warning("Slow operation detected: \(operation) took \(duration * 1000, format: .fixed(precision: 3)) ms")
+            logger.warning("Slow operation detected: \(operation) took \(duration * 1_000, format: .fixed(precision: 3)) ms")
         }
         
         return duration
@@ -139,8 +148,8 @@ final class PerformanceMonitor {
     /// Check if there's a memory leak (usage increased significantly from baseline)
     func checkMemoryLeak(threshold: Double = 20.0) -> Bool {
         let current = getCurrentMemoryUsage()
-        let currentMB = Double(current) / 1024.0 / 1024.0
-        let baselineMB = Double(memoryBaseline) / 1024.0 / 1024.0
+        let currentMB = Double(current) / 1_024.0 / 1_024.0
+        let baselineMB = Double(memoryBaseline) / 1_024.0 / 1_024.0
         let increase = currentMB - baselineMB
         
         if increase > threshold {
@@ -216,7 +225,7 @@ final class PerformanceMonitor {
         let duration = endTimer(for: phase.rawValue)
         
         if duration > phase.targetTime {
-            logger.warning("Launch phase '\(phase.rawValue)' exceeded target time: \(duration * 1000, format: .fixed(precision: 0))ms > \(phase.targetTime * 1000, format: .fixed(precision: 0))ms")
+            logger.warning("Launch phase '\(phase.rawValue)' exceeded target time: \(duration * 1_000, format: .fixed(precision: 0))ms > \(phase.targetTime * 1_000, format: .fixed(precision: 0))ms")
         }
         
         // Start timing next phase if not the last one
@@ -233,9 +242,9 @@ final class PerformanceMonitor {
         let totalDuration = endTimer(for: LaunchPhase.fullLaunch.rawValue)
         
         if totalDuration <= 2.0 {
-            logger.info("App launch completed successfully in \(totalDuration * 1000, format: .fixed(precision: 0))ms")
+            logger.info("App launch completed successfully in \(totalDuration * 1_000, format: .fixed(precision: 0))ms")
         } else {
-            logger.error("App launch took too long: \(totalDuration * 1000, format: .fixed(precision: 0))ms (target: 2000ms)")
+            logger.error("App launch took too long: \(totalDuration * 1_000, format: .fixed(precision: 0))ms (target: 2000ms)")
         }
         
         logMemoryUsage(context: "App Launch Complete")
@@ -247,18 +256,18 @@ final class PerformanceMonitor {
 #if DEBUG
 /// Debug-only performance measurement macro
 func performanceMeasure<T>(operation: String, closure: () throws -> T) rethrows -> T {
-    return try PerformanceMonitor.shared.measure(operation: operation, closure: closure)
+    try PerformanceMonitor.shared.measure(operation: operation, closure: closure)
 }
 
 func performanceMeasureAsync<T>(operation: String, closure: () async throws -> T) async rethrows -> T {
-    return try await PerformanceMonitor.shared.measure(operation: operation, closure: closure)
+    try await PerformanceMonitor.shared.measure(operation: operation, closure: closure)
 }
 #else
 func performanceMeasure<T>(operation: String, closure: () throws -> T) rethrows -> T {
-    return try closure()
+    try closure()
 }
 
 func performanceMeasureAsync<T>(operation: String, closure: () async throws -> T) async rethrows -> T {
-    return try await closure()
+    try await closure()
 }
 #endif
