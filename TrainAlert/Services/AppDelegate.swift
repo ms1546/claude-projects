@@ -41,6 +41,14 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
         
+        // Set up global exception handler for debugging
+        NSSetUncaughtExceptionHandler { exception in
+            print("🔴 Uncaught exception: \(exception)")
+            print("🔴 Stack trace: \(exception.callStackSymbols)")
+            print("🔴 Reason: \(exception.reason ?? "Unknown")")
+            print("🔴 User Info: \(exception.userInfo ?? [:])")
+        }
+        
         performanceMonitor.startAppLaunchTracking()
         performanceMonitor.startTimer(for: PerformanceMonitor.LaunchPhase.initialization.rawValue)
         

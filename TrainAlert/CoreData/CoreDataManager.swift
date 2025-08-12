@@ -47,8 +47,10 @@ final class CoreDataManager: ObservableObject {
         container.loadPersistentStores { [weak self] _, error in
             if let error = error {
                 self?.logger.error("Core Data failed to load: \(error.localizedDescription)")
+                print("🔴 Core Data Error: \(error)")
             } else {
                 self?.logger.info("Core Data loaded successfully")
+                print("✅ Core Data loaded with in-memory store")
             }
         }
         
@@ -70,7 +72,7 @@ final class CoreDataManager: ObservableObject {
         stationEntity.managedObjectClassName = "Station"
         
         let stationId = NSAttributeDescription()
-        stationId.name = "id"
+        stationId.name = "stationId"
         stationId.attributeType = .stringAttributeType
         stationId.isOptional = false
         
@@ -89,7 +91,25 @@ final class CoreDataManager: ObservableObject {
         longitude.attributeType = .doubleAttributeType
         longitude.isOptional = false
         
-        stationEntity.properties = [stationId, name, latitude, longitude]
+        // Add lines property
+        let lines = NSAttributeDescription()
+        lines.name = "lines"
+        lines.attributeType = .stringAttributeType
+        lines.isOptional = true
+        
+        // Add isFavorite property
+        let isFavorite = NSAttributeDescription()
+        isFavorite.name = "isFavorite"
+        isFavorite.attributeType = .booleanAttributeType
+        isFavorite.defaultValue = false
+        
+        // Add lastUsedAt property
+        let lastUsedAt = NSAttributeDescription()
+        lastUsedAt.name = "lastUsedAt"
+        lastUsedAt.attributeType = .dateAttributeType
+        lastUsedAt.isOptional = true
+        
+        stationEntity.properties = [stationId, name, latitude, longitude, lines, isFavorite, lastUsedAt]
         
         // Alert Entity
         let alertEntity = NSEntityDescription()
@@ -97,7 +117,7 @@ final class CoreDataManager: ObservableObject {
         alertEntity.managedObjectClassName = "Alert"
         
         let alertId = NSAttributeDescription()
-        alertId.name = "id"
+        alertId.name = "alertId"
         alertId.attributeType = .UUIDAttributeType
         alertId.isOptional = false
         
@@ -127,6 +147,24 @@ final class CoreDataManager: ObservableObject {
         lineName.attributeType = .stringAttributeType
         lineName.isOptional = true
         
+        // Add notificationDistance
+        let notificationDistance = NSAttributeDescription()
+        notificationDistance.name = "notificationDistance"
+        notificationDistance.attributeType = .doubleAttributeType
+        notificationDistance.defaultValue = 500.0
+        
+        // Add snoozeInterval
+        let snoozeInterval = NSAttributeDescription()
+        snoozeInterval.name = "snoozeInterval"
+        snoozeInterval.attributeType = .integer16AttributeType
+        snoozeInterval.defaultValue = 5
+        
+        // Add characterStyle
+        let characterStyle = NSAttributeDescription()
+        characterStyle.name = "characterStyle"
+        characterStyle.attributeType = .stringAttributeType
+        characterStyle.isOptional = true
+        
         // Relationship to Station
         let stationRelation = NSRelationshipDescription()
         stationRelation.name = "station"
@@ -134,7 +172,16 @@ final class CoreDataManager: ObservableObject {
         stationRelation.isOptional = true
         stationRelation.deleteRule = .nullifyDeleteRule
         
-        alertEntity.properties = [alertId, isActive, notificationTime, createdAt, stationName, lineName, stationRelation]
+        // Add histories relationship (destination will be set later)
+        let historiesRelation = NSRelationshipDescription()
+        historiesRelation.name = "histories"
+        historiesRelation.isOptional = true
+        historiesRelation.deleteRule = .cascadeDeleteRule
+        // isToMany is set via maxCount and minCount
+        historiesRelation.maxCount = 0  // 0 means unlimited (to-many)
+        historiesRelation.minCount = 0
+        
+        alertEntity.properties = [alertId, isActive, notificationTime, notificationDistance, snoozeInterval, characterStyle, createdAt, stationName, lineName, stationRelation, historiesRelation]
         
         // History Entity
         let historyEntity = NSEntityDescription()
@@ -142,7 +189,7 @@ final class CoreDataManager: ObservableObject {
         historyEntity.managedObjectClassName = "History"
         
         let historyId = NSAttributeDescription()
-        historyId.name = "id"
+        historyId.name = "historyId"
         historyId.attributeType = .UUIDAttributeType
         historyId.isOptional = false
         
@@ -151,7 +198,53 @@ final class CoreDataManager: ObservableObject {
         notifiedAt.attributeType = .dateAttributeType
         notifiedAt.isOptional = false
         
-        historyEntity.properties = [historyId, notifiedAt]
+        // Add message property
+        let message = NSAttributeDescription()
+        message.name = "message"
+        message.attributeType = .stringAttributeType
+        message.isOptional = true
+        
+        // Add alert relationship
+        let alertRelation = NSRelationshipDescription()
+        alertRelation.name = "alert"
+        alertRelation.destinationEntity = alertEntity
+        alertRelation.isOptional = true
+        alertRelation.deleteRule = .nullifyDeleteRule
+        // isToMany is set via maxCount (1 means to-one)
+        alertRelation.maxCount = 1
+        alertRelation.minCount = 0
+        
+        historyEntity.properties = [historyId, notifiedAt, message, alertRelation]
+        
+        // Set up inverse relationships after all entities are created
+        let alertsRelation = NSRelationshipDescription()
+        alertsRelation.name = "alerts"
+        alertsRelation.destinationEntity = alertEntity
+        alertsRelation.isOptional = true
+        alertsRelation.deleteRule = .cascadeDeleteRule
+        // isToMany is set via maxCount (0 means unlimited - to-many)
+        alertsRelation.maxCount = 0
+        alertsRelation.minCount = 0
+        
+        // Add alerts relationship to station entity
+        var stationProperties = stationEntity.properties ?? []
+        stationProperties.append(alertsRelation)
+        stationEntity.properties = stationProperties
+        
+        // Set up histories relationship destination
+        historiesRelation.destinationEntity = historyEntity
+        
+        // Set inverse relationships
+        if let stationRelation = alertEntity.relationshipsByName["station"] {
+            stationRelation.inverseRelationship = alertsRelation
+            alertsRelation.inverseRelationship = stationRelation
+        }
+        
+        if let historiesRelation = alertEntity.relationshipsByName["histories"],
+           let alertRelation = historyEntity.relationshipsByName["alert"] {
+            historiesRelation.inverseRelationship = alertRelation
+            alertRelation.inverseRelationship = historiesRelation
+        }
         
         model.entities = [alertEntity, stationEntity, historyEntity]
         
