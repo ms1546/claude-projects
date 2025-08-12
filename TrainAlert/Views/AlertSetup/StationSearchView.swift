@@ -297,10 +297,6 @@ struct StationSearchView: View {
                 await MainActor.run {
                     self.searchResults = stations
                     self.isLoading = false
-                    print("Search completed: \(stations.count) results for '\(query)'")
-                    stations.forEach { station in
-                        print(" - \(station.name)")
-                    }
                 }
             } catch {
                 // タスクがキャンセルされた場合は何もしない

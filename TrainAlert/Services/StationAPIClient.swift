@@ -415,28 +415,94 @@ class StationAPIClient: ObservableObject {
         // 主要駅のリスト（オフライン検索用）
         let majorStations: [StationModel] = [
             // 山手線主要駅
-            StationModel(id: "tokyo", name: "東京", latitude: 35.6812, longitude: 139.7671, lines: ["JR山手線", "JR中央線", "JR京浜東北線", "JR東海道線", "JR横須賀線", "JR総武線快速", "JR京葉線", "東京メトロ丸ノ内線"]),
-            StationModel(id: "shinjuku", name: "新宿", latitude: 35.6896, longitude: 139.7006, lines: ["JR山手線", "JR中央線", "JR埼京線", "JR湘南新宿ライン", "JR総武線", "小田急線", "京王線", "東京メトロ丸ノ内線", "東京メトロ副都心線", "都営新宿線", "都営大江戸線"]),
-            StationModel(id: "shibuya", name: "渋谷", latitude: 35.6580, longitude: 139.7016, lines: ["JR山手線", "JR埼京線", "JR湘南新宿ライン", "東急東横線", "東急田園都市線", "京王井の頭線", "東京メトロ銀座線", "東京メトロ半蔵門線", "東京メトロ副都心線"]),
-            StationModel(id: "ikebukuro", name: "池袋", latitude: 35.7295, longitude: 139.7109, lines: ["JR山手線", "JR埼京線", "JR湘南新宿ライン", "東武東上線", "西武池袋線", "東京メトロ丸ノ内線", "東京メトロ有楽町線", "東京メトロ副都心線"]),
-            StationModel(id: "shinagawa", name: "品川", latitude: 35.6284, longitude: 139.7387, lines: ["JR山手線", "JR京浜東北線", "JR東海道線", "JR横須賀線", "JR東海道新幹線", "京急本線"]),
-            StationModel(id: "ueno", name: "上野", latitude: 35.7141, longitude: 139.7774, lines: ["JR山手線", "JR京浜東北線", "JR高崎線", "JR宇都宮線", "JR常磐線", "東京メトロ銀座線", "東京メトロ日比谷線"]),
-            StationModel(id: "akihabara", name: "秋葉原", latitude: 35.6984, longitude: 139.7731, lines: ["JR山手線", "JR京浜東北線", "JR総武線", "つくばエクスプレス", "東京メトロ日比谷線"]),
-            StationModel(id: "harajuku", name: "原宿", latitude: 35.6702, longitude: 139.7026, lines: ["JR山手線", "東京メトロ千代田線（明治神宮前）", "東京メトロ副都心線（明治神宮前）"]),
-            StationModel(id: "ebisu", name: "恵比寿", latitude: 35.6467, longitude: 139.7100, lines: ["JR山手線", "JR埼京線", "JR湘南新宿ライン", "東京メトロ日比谷線"]),
-            StationModel(id: "meguro", name: "目黒", latitude: 35.6339, longitude: 139.7158, lines: ["JR山手線", "東急目黒線", "東京メトロ南北線", "都営三田線"]),
+            StationModel(
+                id: "tokyo", name: "東京", latitude: 35.6812, longitude: 139.7671,
+                lines: ["JR山手線", "JR中央線", "JR京浜東北線", "JR東海道線", "JR横須賀線", "JR総武線快速", "JR京葉線", "東京メトロ丸ノ内線"]
+            ),
+            StationModel(
+                id: "shinjuku", name: "新宿", latitude: 35.6896, longitude: 139.7006,
+                lines: ["JR山手線", "JR中央線", "JR埼京線", "JR湘南新宿ライン", "JR総武線",
+                        "小田急線", "京王線", "東京メトロ丸ノ内線", "東京メトロ副都心線", "都営新宿線", "都営大江戸線"]
+            ),
+            StationModel(
+                id: "shibuya", name: "渋谷", latitude: 35.6580, longitude: 139.7016,
+                lines: ["JR山手線", "JR埼京線", "JR湘南新宿ライン", "東急東横線", "東急田園都市線",
+                        "京王井の頭線", "東京メトロ銀座線", "東京メトロ半蔵門線", "東京メトロ副都心線"]
+            ),
+            StationModel(
+                id: "ikebukuro", name: "池袋", latitude: 35.7295, longitude: 139.7109,
+                lines: ["JR山手線", "JR埼京線", "JR湘南新宿ライン", "東武東上線", "西武池袋線",
+                        "東京メトロ丸ノ内線", "東京メトロ有楽町線", "東京メトロ副都心線"]
+            ),
+            StationModel(
+                id: "shinagawa", name: "品川", latitude: 35.6284, longitude: 139.7387,
+                lines: ["JR山手線", "JR京浜東北線", "JR東海道線", "JR横須賀線", "JR東海道新幹線", "京急本線"]
+            ),
+            StationModel(
+                id: "ueno", name: "上野", latitude: 35.7141, longitude: 139.7774,
+                lines: ["JR山手線", "JR京浜東北線", "JR高崎線", "JR宇都宮線", "JR常磐線",
+                        "東京メトロ銀座線", "東京メトロ日比谷線"]
+            ),
+            StationModel(
+                id: "akihabara", name: "秋葉原", latitude: 35.6984, longitude: 139.7731,
+                lines: ["JR山手線", "JR京浜東北線", "JR総武線", "つくばエクスプレス", "東京メトロ日比谷線"]
+            ),
+            StationModel(
+                id: "harajuku", name: "原宿", latitude: 35.6702, longitude: 139.7026,
+                lines: ["JR山手線", "東京メトロ千代田線（明治神宮前）", "東京メトロ副都心線（明治神宮前）"]
+            ),
+            StationModel(
+                id: "ebisu", name: "恵比寿", latitude: 35.6467, longitude: 139.7100,
+                lines: ["JR山手線", "JR埼京線", "JR湘南新宿ライン", "東京メトロ日比谷線"]
+            ),
+            StationModel(
+                id: "meguro", name: "目黒", latitude: 35.6339, longitude: 139.7158,
+                lines: ["JR山手線", "東急目黒線", "東京メトロ南北線", "都営三田線"]
+            ),
             
             // その他主要駅
-            StationModel(id: "yokohama", name: "横浜", latitude: 35.4657, longitude: 139.6223, lines: ["JR東海道線", "JR横須賀線", "JR京浜東北線", "JR根岸線", "京急本線", "東急東横線", "相鉄線", "横浜市営地下鉄ブルーライン"]),
-            StationModel(id: "kawasaki", name: "川崎", latitude: 35.5308, longitude: 139.6973, lines: ["JR東海道線", "JR京浜東北線", "JR南武線"]),
-            StationModel(id: "omiya", name: "大宮", latitude: 35.9064, longitude: 139.6238, lines: ["JR京浜東北線", "JR高崎線", "JR東北線", "JR埼京線", "JR川越線", "東武野田線", "埼玉新都市交通"]),
-            StationModel(id: "chiba", name: "千葉", latitude: 35.6131, longitude: 140.1139, lines: ["JR総武線", "JR成田線", "JR外房線", "JR内房線", "千葉都市モノレール"]),
-            StationModel(id: "tachikawa", name: "立川", latitude: 35.6978, longitude: 139.4138, lines: ["JR中央線", "JR青梅線", "JR南武線", "多摩都市モノレール"]),
-            StationModel(id: "funabashi", name: "船橋", latitude: 35.7020, longitude: 139.9854, lines: ["JR総武線", "東武野田線", "京成本線"]),
-            StationModel(id: "kichijoji", name: "吉祥寺", latitude: 35.7032, longitude: 139.5800, lines: ["JR中央線", "JR総武線", "京王井の頭線"]),
-            StationModel(id: "machida", name: "町田", latitude: 35.5461, longitude: 139.4386, lines: ["JR横浜線", "小田急線"]),
-            StationModel(id: "nakano", name: "中野", latitude: 35.7056, longitude: 139.6658, lines: ["JR中央線", "JR総武線", "東京メトロ東西線"]),
-            StationModel(id: "musashikosugi", name: "武蔵小杉", latitude: 35.5765, longitude: 139.6594, lines: ["JR横須賀線", "JR湘南新宿ライン", "JR南武線", "東急東横線", "東急目黒線"])
+            StationModel(
+                id: "yokohama", name: "横浜", latitude: 35.4657, longitude: 139.6223,
+                lines: ["JR東海道線", "JR横須賀線", "JR京浜東北線", "JR根岸線",
+                        "京急本線", "東急東横線", "相鉄線", "横浜市営地下鉄ブルーライン"]
+            ),
+            StationModel(
+                id: "kawasaki", name: "川崎", latitude: 35.5308, longitude: 139.6973,
+                lines: ["JR東海道線", "JR京浜東北線", "JR南武線"]
+            ),
+            StationModel(
+                id: "omiya", name: "大宮", latitude: 35.9064, longitude: 139.6238,
+                lines: ["JR京浜東北線", "JR高崎線", "JR東北線", "JR埼京線", "JR川越線",
+                        "東武野田線", "埼玉新都市交通"]
+            ),
+            StationModel(
+                id: "chiba", name: "千葉", latitude: 35.6131, longitude: 140.1139,
+                lines: ["JR総武線", "JR成田線", "JR外房線", "JR内房線", "千葉都市モノレール"]
+            ),
+            StationModel(
+                id: "tachikawa", name: "立川", latitude: 35.6978, longitude: 139.4138,
+                lines: ["JR中央線", "JR青梅線", "JR南武線", "多摩都市モノレール"]
+            ),
+            StationModel(
+                id: "funabashi", name: "船橋", latitude: 35.7020, longitude: 139.9854,
+                lines: ["JR総武線", "東武野田線", "京成本線"]
+            ),
+            StationModel(
+                id: "kichijoji", name: "吉祥寺", latitude: 35.7032, longitude: 139.5800,
+                lines: ["JR中央線", "JR総武線", "京王井の頭線"]
+            ),
+            StationModel(
+                id: "machida", name: "町田", latitude: 35.5461, longitude: 139.4386,
+                lines: ["JR横浜線", "小田急線"]
+            ),
+            StationModel(
+                id: "nakano", name: "中野", latitude: 35.7056, longitude: 139.6658,
+                lines: ["JR中央線", "JR総武線", "東京メトロ東西線"]
+            ),
+            StationModel(
+                id: "musashikosugi", name: "武蔵小杉", latitude: 35.5765, longitude: 139.6594,
+                lines: ["JR横須賀線", "JR湘南新宿ライン", "JR南武線", "東急東横線", "東急目黒線"]
+            )
         ]
         
         // クエリで絞り込み（駅名のみで検索）
