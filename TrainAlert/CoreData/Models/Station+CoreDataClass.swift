@@ -1,20 +1,19 @@
-import Foundation
 import CoreData
 import CoreLocation
+import Foundation
 
 @objc(Station)
 public class Station: NSManagedObject {
-    
     // MARK: - Computed Properties
     
     /// 駅の座標を返す
     var coordinate: CLLocationCoordinate2D {
-        return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+        CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }
     
     /// 駅の位置情報を返す
     var location: CLLocation {
-        return CLLocation(latitude: latitude, longitude: longitude)
+        CLLocation(latitude: latitude, longitude: longitude)
     }
     
     /// 路線の配列を返す（カンマ区切り文字列から変換）
@@ -25,7 +24,7 @@ public class Station: NSManagedObject {
     
     /// アクティブなアラートの数
     var activeAlertCount: Int {
-        return (alerts as? Set<Alert>)?.filter { $0.isActive }.count ?? 0
+        (alerts as? Set<Alert>)?.filter { $0.isActive }.count ?? 0
     }
     
     /// 最後に使用された日時の表示用文字列
@@ -41,26 +40,26 @@ public class Station: NSManagedObject {
     
     // MARK: - Core Data Methods
     
-    public override func awakeFromInsert() {
+    override public func awakeFromInsert() {
         super.awakeFromInsert()
         
-        // デフォルト値の設定
-        if stationId == nil {
-            stationId = UUID().uuidString
-        }
-        
-        isFavorite = false
-        lastUsedAt = Date()
+        // デフォルト値の設定 - 型を明確に指定
+        setPrimitiveValue(UUID().uuidString, forKey: "stationId")
+        setPrimitiveValue(Date(), forKey: "createdAt")
+        setPrimitiveValue(NSNumber(value: false), forKey: "isFavorite")
+        setPrimitiveValue(NSNumber(value: 0.0), forKey: "latitude")
+        setPrimitiveValue(NSNumber(value: 0.0), forKey: "longitude")
+        setPrimitiveValue(Date(), forKey: "lastUsedAt")
     }
     
     // MARK: - Validation
     
-    public override func validateForInsert() throws {
+    override public func validateForInsert() throws {
         try super.validateForInsert()
         try validateStation()
     }
     
-    public override func validateForUpdate() throws {
+    override public func validateForUpdate() throws {
         try super.validateForUpdate()
         try validateStation()
     }
@@ -92,7 +91,7 @@ public class Station: NSManagedObject {
     /// - Parameter location: 現在地
     /// - Returns: 距離（メートル）
     func distance(from location: CLLocation) -> CLLocationDistance {
-        return self.location.distance(from: location)
+        self.location.distance(from: location)
     }
     
     /// お気に入りの切り替え
@@ -116,16 +115,15 @@ public class Station: NSManagedObject {
     /// - Parameter lineName: 路線名
     /// - Returns: 含まれている場合true
     func containsLine(_ lineName: String) -> Bool {
-        return lineArray.contains(lineName)
+        lineArray.contains(lineName)
     }
 }
 
 // MARK: - Fetch Requests
 
 extension Station {
-    
     @nonobjc public class func fetchRequest() -> NSFetchRequest<Station> {
-        return NSFetchRequest<Station>(entityName: "Station")
+        NSFetchRequest<Station>(entityName: "Station")
     }
     
     /// 駅IDで検索するFetch Request
@@ -172,7 +170,7 @@ extension Station {
 // MARK: - Core Data Properties
 
 extension Station {
-    
+    @NSManaged public var createdAt: Date?
     @NSManaged public var stationId: String?
     @NSManaged public var name: String?
     @NSManaged public var latitude: Double
@@ -186,7 +184,6 @@ extension Station {
 // MARK: - Generated accessors for alerts
 
 extension Station {
-    
     @objc(addAlertsObject:)
     @NSManaged public func addToAlerts(_ value: Alert)
     
@@ -204,7 +201,7 @@ extension Station {
 
 extension Station: Identifiable {
     public var id: String {
-        return stationId ?? UUID().uuidString
+        stationId ?? UUID().uuidString
     }
 }
 

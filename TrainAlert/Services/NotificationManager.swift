@@ -98,6 +98,7 @@ class NotificationManager: NSObject, ObservableObject {
     @Published var settings = NotificationSettings()
     
     private let center = UNUserNotificationCenter.current()
+    private let openAIClient = OpenAIClient.shared
     private var pendingNotifications: Set<String> = []
     private var snoozeCounters: [String: Int] = [:]
     private var settingsObserver: NSObjectProtocol?
@@ -307,6 +308,84 @@ class NotificationManager: NSObject, ObservableObject {
         pendingNotifications.insert(snoozeIdentifier)
         
         // 😴 Scheduled snooze notification
+    }
+    
+    /// Schedule a route-based notification for timetable alerts
+    func scheduleRouteNotification(
+        routeAlert: RouteAlert,
+        at notificationTime: Date
+    ) async {
+        guard isPermissionGranted else {
+            print("通知の許可がありません")
+            return
+        }
+        
+        guard let departureStation = routeAlert.departureStationName,
+              let arrivalStation = routeAlert.arrivalStationName,
+              let alert = routeAlert.alert else {
+            return
+        }
+        
+        let identifier = "route_alert_\(routeAlert.routeAlertId?.uuidString ?? UUID().uuidString)"
+        
+        // Cancel existing notification
+        cancelNotification(identifier: identifier)
+        
+        let content = UNMutableNotificationContent()
+        content.categoryIdentifier = NotificationCategory.trainAlert.identifier
+        content.sound = getNotificationSound()
+        
+        // Generate message using character style
+        let characterStyle = CharacterStyle(rawValue: alert.characterStyle ?? "") ?? .normal
+        let arrivalTimeString = routeAlert.arrivalTimeString
+        
+        // Generate message using OpenAI or fallback
+        let message: String
+        if openAIClient.hasAPIKey() {
+            do {
+                message = try await openAIClient.generateNotificationMessage(
+                    for: arrivalStation,
+                    arrivalTime: arrivalTimeString,
+                    characterStyle: characterStyle
+                )
+            } catch {
+                // Fallback to default message
+                message = characterStyle.generateDefaultMessage(for: arrivalStation)
+            }
+        } else {
+            message = characterStyle.generateDefaultMessage(for: arrivalStation)
+        }
+        
+        content.title = "🚃 もうすぐ到着駅です"
+        content.body = message
+        content.subtitle = "\(arrivalStation)駅に到着予定"
+        
+        // Add user info
+        content.userInfo = [
+            "stationName": arrivalStation,
+            "departureStation": departureStation,
+            "routeAlertId": routeAlert.routeAlertId?.uuidString ?? "",
+            "type": "route"
+        ]
+        
+        let trigger = UNTimeIntervalNotificationTrigger(
+            timeInterval: max(1, notificationTime.timeIntervalSinceNow),
+            repeats: false
+        )
+        
+        let request = UNNotificationRequest(
+            identifier: identifier,
+            content: content,
+            trigger: trigger
+        )
+        
+        do {
+            try await center.add(request)
+            pendingNotifications.insert(identifier)
+            print("🚆 時刻表ベースの通知をスケジュールしました: \(arrivalStation)駅")
+        } catch {
+            print("通知のスケジュールに失敗しました: \(error)")
+        }
     }
     
     // MARK: - Notification Content Creation

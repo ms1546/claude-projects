@@ -5,8 +5,8 @@
 //  Created by Claude on 2024/01/08.
 //
 
-import Foundation
 import CoreLocation
+import Foundation
 import os.log
 
 // MARK: - API Models
@@ -58,7 +58,6 @@ enum StationAPIError: LocalizedError {
 
 /// 駅情報APIクライアント
 class StationAPIClient: ObservableObject {
-    
     // MARK: - Properties
     
     private let baseURL = "https://overpass-api.de/api/interpreter"
@@ -70,8 +69,8 @@ class StationAPIClient: ObservableObject {
     
     init() {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 30
-        config.timeoutIntervalForResource = 60
+        config.timeoutIntervalForRequest = 5
+        config.timeoutIntervalForResource = 10
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         self.urlSession = URLSession(configuration: config)
     }
@@ -79,7 +78,7 @@ class StationAPIClient: ObservableObject {
     // MARK: - Public Methods
     
     /// 指定された座標の最寄り駅を検索
-    func getNearbyStations(latitude: Double, longitude: Double, radius: Double = 2000) async throws -> [StationModel] {
+    func getNearbyStations(latitude: Double, longitude: Double, radius: Double = 2_000) async throws -> [StationModel] {
         let location = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
         
         // Check cache first
@@ -90,7 +89,7 @@ class StationAPIClient: ObservableObject {
         
         // Build Overpass Query with detailed tags
         let query = """
-        [out:json][timeout:25];
+        [out:json][timeout:5];
         (
           node[railway=station]
           (around:\(radius),\(latitude),\(longitude));
@@ -134,7 +133,7 @@ class StationAPIClient: ObservableObject {
         if let location = location {
             // Search near a specific location
             overpassQuery = """
-            [out:json][timeout:25];
+            [out:json][timeout:5];
             (
               node[railway=station][name~"\(escapedQuery)",i]
               (around:50000,\(location.latitude),\(location.longitude));
@@ -146,7 +145,7 @@ class StationAPIClient: ObservableObject {
         } else {
             // Search in Tokyo area (wider search)
             overpassQuery = """
-            [out:json][timeout:25];
+            [out:json][timeout:5];
             (
               node[railway=station][name~"\(escapedQuery)",i]
               (35.5,139.5,35.9,140.0);
@@ -221,14 +220,18 @@ class StationAPIClient: ObservableObject {
             
             logger.info("Fetched \(stations.count) stations from API")
             return stations
-            
         } catch let error as DecodingError {
             logger.error("Decoding error: \(error)")
             throw StationAPIError.decodingError(error)
         } catch let error as StationAPIError {
             throw error
         } catch {
-            logger.error("Network error: \(error)")
+            // タイムアウトやキャンセルエラーは無視
+            let nsError = error as NSError
+            if nsError.code != -999 && nsError.code != -1_001 {
+                logger.error("Network error: \(error)")
+                print("Network error: \(error)")
+            }
             throw StationAPIError.networkError(error)
         }
     }
@@ -356,8 +359,8 @@ class StationCache {
     
     private func cacheKey(for location: CLLocationCoordinate2D) -> String {
         // Round to 3 decimal places (about 100m precision)
-        let lat = round(location.latitude * 1000) / 1000
-        let lon = round(location.longitude * 1000) / 1000
+        let lat = round(location.latitude * 1_000) / 1_000
+        let lon = round(location.longitude * 1_000) / 1_000
         return "\(lat),\(lon)"
     }
 }

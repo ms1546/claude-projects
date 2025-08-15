@@ -231,3 +231,34 @@ struct MessagePair: Codable {
     let title: String
     let body: String
 }
+
+// MARK: - Extensions
+
+extension CharacterStyle {
+    /// デフォルトメッセージを生成
+    func generateDefaultMessage(for stationName: String) -> String {
+        let messages = fallbackMessages.trainAlert
+        return messages.body.replacingOccurrences(of: "{station}", with: stationName)
+    }
+    
+    /// サンプルメッセージ
+    var sampleMessage: String {
+        switch self {
+        case .gyaru:
+            return "もう新宿駅だよ〜！マジで乗り過ごしちゃうから起きなって！"
+        case .butler:
+            return "新宿駅への到着をお知らせいたします。"
+        case .kansai:
+            return "もう新宿駅やで〜！乗り過ごしたらあかんから！"
+        case .tsundere:
+            return "もう新宿駅よ！べ、別に心配してないけど..."
+        case .sporty:
+            return "新宿駅到着だ！気合い入れて降車準備！"
+        case .healing:
+            return "新宿駅にもうすぐ到着しますね。"
+        }
+    }
+    
+    /// 通常のスタイル
+    static let normal = CharacterStyle.healing
+}

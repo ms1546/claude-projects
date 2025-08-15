@@ -3,13 +3,12 @@ import SwiftUI
 // MARK: - Card Component
 
 struct Card<Content: View>: View {
-    
     // MARK: - Properties
     
     let content: () -> Content
     
     var style: CardStyle = .default
-    var padding: EdgeInsets = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16)
+    var padding = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16)
     var cornerRadius: CGFloat = 12
     var shadowStyle: ShadowStyle = .subtle
     
@@ -32,15 +31,15 @@ struct Card<Content: View>: View {
         case strong
         
         var color: Color {
-            return Color.black.opacity(opacity)
+            Color.black.opacity(opacity)
         }
         
         var opacity: Double {
             switch self {
             case .none: return 0
-            case .subtle: return 0.1
-            case .medium: return 0.15
-            case .strong: return 0.25
+            case .subtle: return 0.05
+            case .medium: return 0.08
+            case .strong: return 0.12
             }
         }
         
@@ -101,7 +100,7 @@ struct Card<Content: View>: View {
     private var overlayView: some View {
         if style == .outlined {
             RoundedRectangle(cornerRadius: cornerRadius)
-                .stroke(Color.trainLightGray.opacity(0.3), lineWidth: 1)
+                .stroke(Color.trainLightGray.opacity(0.15), lineWidth: 1)
         }
     }
     
@@ -125,7 +124,6 @@ struct Card<Content: View>: View {
 // MARK: - Convenience Initializers
 
 extension Card {
-    
     /// エレベーションカード（浮き上がって見える）
     static func elevated<T: View>(
         padding: EdgeInsets = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16),
@@ -206,7 +204,6 @@ extension Card {
 
 /// アラートカード（通知表示用）
 struct AlertCard: View {
-    
     let title: String
     let subtitle: String?
     let status: AlertStatus
@@ -293,7 +290,6 @@ struct AlertCard: View {
 
 /// 駅カード（駅選択用）
 struct StationCard: View {
-    
     let stationName: String
     let distance: String?
     let isSelected: Bool
@@ -356,7 +352,6 @@ struct StationCard: View {
 
 /// 履歴カード（履歴表示用）
 struct HistoryCard: View {
-    
     let stationName: String
     let date: String
     let time: String
@@ -491,20 +486,18 @@ struct Card_Previews: PreviewProvider {
                 AlertCard(
                     title: "渋谷駅",
                     subtitle: "到着予定: 18:45",
-                    status: .active,
-                    action: {
+                    status: .active
+                ) {
                         print("アラートカードがタップされました")
-                    }
-                )
+                }
                 
                 StationCard(
                     stationName: "新宿駅",
                     distance: "2.3km",
-                    isSelected: true,
-                    action: {
+                    isSelected: true
+                ) {
                         print("駅カードがタップされました")
-                    }
-                )
+                }
                 
                 HistoryCard(
                     stationName: "東京駅",
