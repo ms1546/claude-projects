@@ -5,15 +5,14 @@
 //  Created by Claude on 2024/01/08.
 //
 
-import XCTest
-import CoreLocation
 import CoreData
-import UserNotifications
+import CoreLocation
 @testable import TrainAlert
+import UserNotifications
+import XCTest
 
 @MainActor
 final class IntegrationTests: XCTestCase {
-    
     var mockStationAPIClient: MockStationAPIClient!
     var mockOpenAIClient: MockOpenAIClient!
     var mockNotificationManager: MockNotificationManager!
@@ -83,7 +82,7 @@ final class IntegrationTests: XCTestCase {
             name: selectedStation.name,
             latitude: selectedStation.latitude,
             longitude: selectedStation.longitude,
-            lines: selectedStation.lines.joined(separator: ",")
+            lines: selectedStation.lines
         )
         
         let alert = testCoreDataManager.createAlert(
@@ -148,7 +147,7 @@ final class IntegrationTests: XCTestCase {
             name: manualStation.name,
             latitude: manualStation.latitude,
             longitude: manualStation.longitude,
-            lines: manualStation.lines.joined(separator: ",")
+            lines: manualStation.lines
         )
         
         XCTAssertNotNil(stationEntity)
@@ -180,7 +179,6 @@ final class IntegrationTests: XCTestCase {
                 // Verify tracking
                 XCTAssertEqual(mockOpenAIClient.lastStationName, stationName)
                 XCTAssertEqual(mockOpenAIClient.lastCharacterStyle, style)
-                
             } catch {
                 XCTFail("Message generation failed for \(style.displayName): \(error)")
             }
@@ -477,7 +475,7 @@ final class IntegrationTests: XCTestCase {
         // Execute concurrent API requests
         let tasks = locations.map { lat, lon in
             Task {
-                return try await mockStationAPIClient.getNearbyStations(latitude: lat, longitude: lon)
+                try await mockStationAPIClient.getNearbyStations(latitude: lat, longitude: lon)
             }
         }
         

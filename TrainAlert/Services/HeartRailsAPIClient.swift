@@ -39,6 +39,35 @@ final class HeartRailsAPIClient {
     private let baseURL = "http://express.heartrails.com/api/json"
     private let session: URLSession
     
+    // よく使われる駅名の別名マッピング
+    private let stationAliases: [String: String] = [
+        "読売ランド": "読売ランド前",
+        "成田": "京成成田",
+        "羽田": "羽田空港第1・第2ターミナル",
+        "羽田空港": "羽田空港第1・第2ターミナル",
+        "ディズニー": "舞浜",
+        "ディズニーランド": "舞浜",
+        "スカイツリー": "とうきょうスカイツリー",
+        "東京スカイツリー": "とうきょうスカイツリー",
+        "築地": "築地市場",
+        "豊洲市場": "市場前",
+        "お台場": "台場",
+        "ビッグサイト": "東京ビッグサイト",
+        "有明": "国際展示場",
+        "晴海": "勝どき",
+        "六本木ヒルズ": "六本木",
+        "東京タワー": "神谷町",
+        "皇居": "二重橋前",
+        "国会議事堂": "国会議事堂前",
+        "東大": "本郷三丁目",
+        "早稲田": "早稲田",
+        "慶応": "日吉",
+        "慶應": "日吉",
+        "明治大学": "御茶ノ水",
+        "青学": "表参道",
+        "青山学院": "表参道"
+    ]
+    
     private init() {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 5.0  // 5秒のタイムアウト
@@ -51,6 +80,44 @@ final class HeartRailsAPIClient {
     func searchStations(by name: String) async throws -> [HeartRailsStation] {
         guard !name.isEmpty else { return [] }
         
+        // まずエイリアスをチェック
+        let searchName = stationAliases[name] ?? name
+        
+        // 入力されたままで検索（エイリアスがあればそれを使用）
+        var stations = await searchStationsExact(name: searchName)
+        
+        // 結果が0件の場合、いくつかのパターンを試す
+        if stations.isEmpty {
+            // 「前」を追加して検索（例：読売ランド → 読売ランド前）
+            stations = await searchStationsExact(name: searchName + "前")
+            
+            // それでも見つからない場合、「駅」を追加
+            if stations.isEmpty {
+                stations = await searchStationsExact(name: searchName + "駅")
+            }
+            
+            // 「ヶ」と「ケ」の変換を試す
+            if stations.isEmpty && (searchName.contains("ヶ") || searchName.contains("ケ")) {
+                let altName = searchName.contains("ヶ") ? 
+                    searchName.replacingOccurrences(of: "ヶ", with: "ケ") :
+                    searchName.replacingOccurrences(of: "ケ", with: "ヶ")
+                stations = await searchStationsExact(name: altName)
+            }
+            
+            // 「ノ」と「の」の変換を試す
+            if stations.isEmpty && (searchName.contains("ノ") || searchName.contains("の")) {
+                let altName = searchName.contains("ノ") ?
+                    searchName.replacingOccurrences(of: "ノ", with: "の") :
+                    searchName.replacingOccurrences(of: "の", with: "ノ")
+                stations = await searchStationsExact(name: altName)
+            }
+        }
+        
+        return stations
+    }
+    
+    /// 駅名で完全一致検索（内部メソッド）
+    private func searchStationsExact(name: String) async -> [HeartRailsStation] {
         var components = URLComponents(string: "\(baseURL)/station")!
         components.queryItems = [
             URLQueryItem(name: "method", value: "getStations"),
@@ -58,7 +125,7 @@ final class HeartRailsAPIClient {
         ]
         
         guard let url = components.url else {
-            throw URLError(.badURL)
+            return []
         }
         
         print("HeartRails API: Searching for '\(name)' - URL: \(url.absoluteString)")
@@ -77,7 +144,6 @@ final class HeartRailsAPIClient {
             return stations
         } catch {
             print("HeartRails API Error: \(error)")
-            // エラー時は空配列を返す
             return []
         }
     }
@@ -111,9 +177,11 @@ final class HeartRailsAPIClient {
 extension HeartRailsStation {
     /// HeartRails Station を ODPT Station 形式に変換
     func toODPTStation() -> ODPTStation {
-        ODPTStation(
-            id: "heartrails:\(name)",
-            sameAs: "heartrails.Station:\(name)",
+        // 路線名を含めて一意のIDを生成
+        let uniqueId = "heartrails:\(name):\(line)"
+        return ODPTStation(
+            id: uniqueId,
+            sameAs: uniqueId,
             date: nil,
             title: name,
             stationTitle: ODPTMultilingualTitle(ja: name, en: nil),

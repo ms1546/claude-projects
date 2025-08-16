@@ -16,50 +16,76 @@ struct TimetableAlertSetupView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var notificationManager: NotificationManager
     
-    @State private var notificationMinutes: Int = 5
+    @State private var notificationMinutes: Int = 0  // onAppearで初期化
+    @State private var notificationStations: Int = 2  // 何駅前（デフォルト2駅前）
+    @State private var notificationType: String = "time"  // "time" or "station"
     @State private var characterStyle: CharacterStyle = .healing
     @State private var isSaving = false
     @State private var showingSaveSuccess = false
     @State private var errorMessage: String?
     @State private var showError = false
     
-    private let notificationOptions = [1, 3, 5, 10, 15, 20, 30]
+    // AI設定の状態を監視
+    @AppStorage("useAIGeneratedMessages") private var useAIGeneratedMessages = false
+    @State private var hasValidAPIKey = false
+    
+    private let allNotificationOptions = [1, 3, 5, 10, 15, 20, 30]
+    
+    // 何駅前の選択肢（動的に決定）
+    private var stationCountOptions: [Int] {
+        // 現在は仮実装で1〜3駅前を表示（一般的な利用ケース）
+        // TODO: 実際の経路の駅数に基づいて制限する
+        // 将来的にはODPT APIから駅順情報を取得して正確な駅数を計算
+        [1, 2, 3]
+    }
+    
+    // 乗車時間に基づいてフィルタリングされた通知オプション
+    private var availableNotificationOptions: [Int] {
+        let duration = calculateDuration()
+        return allNotificationOptions.filter { $0 < duration }
+    }
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                // 経路情報カード
-                routeInfoCard
-                
-                // 通知設定
-                notificationSettingsCard
-                
-                // キャラクター設定
-                characterSettingsCard
-                
-                // 通知プレビュー
-                notificationPreviewCard
-                
-                // 保存ボタン
-                PrimaryButton(
-                    "アラートを設定",
-                    isEnabled: !isSaving,
-                    action: saveAlert
-                )
-                .padding(.horizontal)
-                .padding(.top)
+        ZStack {
+            // 背景色
+            Color(red: 250 / 255, green: 251 / 255, blue: 252 / 255)
+                .ignoresSafeArea()
+            
+            ScrollView {
+                VStack(spacing: 16) {
+                    // 経路情報カード
+                    routeInfoCard
+                    
+                    // 通知設定
+                    notificationSettingsCard
+                    
+                    // キャラクター設定
+                    characterSettingsCard
+                    
+                    // 通知プレビュー
+                    notificationPreviewCard
+                    
+                    // AI生成メッセージの注意文
+                    if useAIGeneratedMessages && !hasValidAPIKey {
+                        aiKeyWarningCard
+                    }
+                    
+                    // 保存ボタン
+                    PrimaryButton(
+                        "目覚ましを設定",
+                        isEnabled: !isSaving && (notificationType == "station" || !availableNotificationOptions.isEmpty),
+                        action: saveAlert
+                    )
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                    .padding(.bottom, 20)
+                }
+                .padding(.top, 16)
             }
-            .padding(.vertical)
         }
-        .navigationTitle("アラート設定")
+        .navigationTitle("目覚まし設定")
         .navigationBarTitleDisplayMode(.inline)
-        .alert("保存完了", isPresented: $showingSaveSuccess) {
-            Button("OK") {
-                dismiss()
-            }
-        } message: {
-            Text("アラートを設定しました")
-        }
+        // 目覚まし成功メッセージは表示せず、直接ホームに戻る
         .alert("エラー", isPresented: $showError) {
             Button("OK") {
                 showError = false
@@ -67,34 +93,53 @@ struct TimetableAlertSetupView: View {
         } message: {
             Text(errorMessage ?? "不明なエラーが発生しました")
         }
+        .onAppear {
+            // 利用可能な通知オプションから適切なデフォルト値を設定
+            if !availableNotificationOptions.isEmpty {
+                // 5分があれば5分、なければ最大値を設定
+                if availableNotificationOptions.contains(5) {
+                    notificationMinutes = 5
+                } else {
+                    notificationMinutes = availableNotificationOptions.last ?? 1
+                }
+            }
+            
+            // APIキーの状態をチェック
+            checkAPIKeyStatus()
+        }
     }
     
     // MARK: - Route Info Card
     
     private var routeInfoCard: some View {
-        Card {
-            VStack(alignment: .leading, spacing: 16) {
-                Label("経路情報", systemImage: "tram.fill")
-                    .font(.headline)
-                
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        // 出発
-                        HStack {
-                            Image(systemName: "location.circle.fill")
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "tram.fill")
+                    .foregroundColor(Color(red: 79 / 255, green: 70 / 255, blue: 229 / 255))
+                    .font(.system(size: 18))
+                Text("経路情報")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(Color(red: 17 / 255, green: 24 / 255, blue: 39 / 255))
+            }
+            
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 8) {
+                    // 出発
+                    HStack {
+                        Image(systemName: "location.circle.fill")
                                 .foregroundColor(.accentColor)
-                            VStack(alignment: .leading) {
-                                Text(formatTime(route.departureTime))
-                                    .font(.title3)
-                                    .fontWeight(.bold)
-                                Text(route.departureStation)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
+                        VStack(alignment: .leading) {
+                            Text(formatTime(route.departureTime))
+                                .font(.title3)
+                                .fontWeight(.bold)
+                            Text(route.departureStation)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
-                        
-                        // 縦線
-                        HStack {
+                    }
+                    
+                    // 縦線
+                    HStack {
                             Rectangle()
                                 .fill(Color.accentColor.opacity(0.3))
                                 .frame(width: 2)
@@ -111,77 +156,179 @@ struct TimetableAlertSetupView: View {
                                     .foregroundColor(.secondary)
                             }
                             .padding(.leading, 8)
-                        }
-                        .frame(height: 40)
-                        
-                        // 到着
-                        HStack {
+                    }
+                    .frame(height: 40)
+                    
+                    // 到着
+                    HStack {
                             Image(systemName: "mappin.circle.fill")
                                 .foregroundColor(.red)
-                            VStack(alignment: .leading) {
-                                Text(formatTime(route.arrivalTime))
-                                    .font(.title3)
-                                    .fontWeight(.bold)
-                                Text(route.arrivalStation)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    // 列車番号
-                    if let trainNumber = route.trainNumber {
-                        VStack(alignment: .trailing) {
-                            Text("列車番号")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                            Text(trainNumber)
+                        VStack(alignment: .leading) {
+                            Text(formatTime(route.arrivalTime))
+                                .font(.title3)
+                                .fontWeight(.bold)
+                            Text(route.arrivalStation)
                                 .font(.caption)
-                                .fontWeight(.medium)
+                                .foregroundColor(.secondary)
                         }
                     }
                 }
+                
+                Spacer()
+                
+                // 列車番号
+                if let trainNumber = route.trainNumber {
+                    VStack(alignment: .trailing) {
+                        Text("列車番号")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        Text(trainNumber)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                }
             }
-            .padding()
         }
+        .padding(20)
+        .background(Color.white)
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
         .padding(.horizontal)
     }
     
     // MARK: - Notification Settings Card
     
     private var notificationSettingsCard: some View {
-        Card {
-            VStack(alignment: .leading, spacing: 16) {
-                Label("通知設定", systemImage: "bell.fill")
-                    .font(.headline)
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "bell.fill")
+                    .foregroundColor(Color(red: 79 / 255, green: 70 / 255, blue: 229 / 255))
+                    .font(.system(size: 18))
+                Text("通知設定")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(Color(red: 17 / 255, green: 24 / 255, blue: 39 / 255))
+            }
+            
+            // 通知タイプ選択
+            VStack(alignment: .leading, spacing: 12) {
+                Text("通知タイミング")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
                 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("到着何分前に通知しますか？")
+                HStack(spacing: 12) {
+                    // 時間ベース
+                    Button(action: {
+                        withAnimation {
+                            notificationType = "time"
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "clock")
+                            Text("時間で設定")
+                        }
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(notificationType == "time" ? .white : .primary)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(notificationType == "time" ? Color.accentColor : Color(UIColor.secondarySystemBackground))
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
                     
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(notificationOptions, id: \.self) { minutes in
-                                notificationOptionButton(minutes: minutes)
+                    // 駅数ベース
+                    Button(action: {
+                        withAnimation {
+                            notificationType = "station"
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "tram")
+                            Text("駅数で設定")
+                        }
+                        .font(.subheadline)
+                        .foregroundColor(notificationType == "station" ? .white : .primary)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(notificationType == "station" ? Color.accentColor : Color(UIColor.secondarySystemBackground))
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+                
+                // 設定内容
+                VStack(alignment: .leading, spacing: 8) {
+                    if notificationType == "time" {
+                        Text("到着何分前に通知しますか？")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        if availableNotificationOptions.isEmpty {
+                            Text("乗車時間が短すぎるため、通知設定ができません")
+                                .font(.caption)
+                                .foregroundColor(.red)
+                                .padding(.vertical, 8)
+                        } else {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 12) {
+                                    ForEach(availableNotificationOptions, id: \.self) { minutes in
+                                        notificationOptionButton(minutes: minutes)
+                                    }
+                                }
                             }
                         }
-                    }
-                    
-                    HStack {
-                        Image(systemName: "clock")
+                        
+                        HStack {
+                            Image(systemName: "clock")
+                                .foregroundColor(.secondary)
+                            Text("通知予定時刻: \(formatNotificationTime())")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.top, 4)
+                    } else {
+                        Text("到着何駅前に通知しますか？")
+                            .font(.subheadline)
                             .foregroundColor(.secondary)
-                        Text("通知予定時刻: \(formatNotificationTime())")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                ForEach(stationCountOptions, id: \.self) { count in
+                                    stationCountOptionButton(count: count)
+                                }
+                            }
+                        }
+                        
+                        // 注意事項
+                        HStack {
+                            Image(systemName: "info.circle")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                            Text("実際の駅数より多い設定は通知されません")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.top, 4)
+                        
+                        HStack {
+                            Image(systemName: "tram")
+                                .foregroundColor(.secondary)
+                            Text("\(notificationStations)駅前で通知")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.top, 4)
                     }
-                    .padding(.top, 4)
                 }
             }
-            .padding()
         }
+        .padding(20)
+        .background(Color.white)
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
         .padding(.horizontal)
     }
     
@@ -205,24 +352,51 @@ struct TimetableAlertSetupView: View {
         .buttonStyle(PlainButtonStyle())
     }
     
+    private func stationCountOptionButton(count: Int) -> some View {
+        Button(action: {
+            withAnimation {
+                notificationStations = count
+            }
+        }) {
+            Text("\(count)駅前")
+                .font(.subheadline)
+                .fontWeight(notificationStations == count ? .bold : .regular)
+                .foregroundColor(notificationStations == count ? .white : .primary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(notificationStations == count ? Color.accentColor : Color(UIColor.secondarySystemBackground))
+                )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
     // MARK: - Character Settings Card
     
     private var characterSettingsCard: some View {
-        Card {
-            VStack(alignment: .leading, spacing: 16) {
-                Label("通知メッセージ", systemImage: "message.fill")
-                    .font(.headline)
-                
-                Text("メッセージのスタイルを選択")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
-                ForEach(CharacterStyle.allCases, id: \.self) { style in
-                    characterStyleOption(style)
-                }
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "message.fill")
+                    .foregroundColor(Color(red: 79 / 255, green: 70 / 255, blue: 229 / 255))
+                    .font(.system(size: 18))
+                Text("通知メッセージ")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(Color(red: 17 / 255, green: 24 / 255, blue: 39 / 255))
             }
-            .padding()
+            
+            Text("メッセージのスタイルを選択")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            
+            ForEach(CharacterStyle.allCases, id: \.self) { style in
+                characterStyleOption(style)
+            }
         }
+        .padding(20)
+        .background(Color.white)
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
         .padding(.horizontal)
     }
     
@@ -258,15 +432,20 @@ struct TimetableAlertSetupView: View {
     // MARK: - Notification Preview
     
     private var notificationPreviewCard: some View {
-        Card {
-            VStack(alignment: .leading, spacing: 16) {
-                Label("通知プレビュー", systemImage: "bell.badge")
-                    .font(.headline)
-                
-                // 通知サンプル
-                VStack(alignment: .leading, spacing: 12) {
-                    // ヘッダー
-                    HStack {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "bell.badge")
+                    .foregroundColor(Color(red: 79 / 255, green: 70 / 255, blue: 229 / 255))
+                    .font(.system(size: 18))
+                Text("通知プレビュー")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(Color(red: 17 / 255, green: 24 / 255, blue: 39 / 255))
+            }
+            
+            // 通知サンプル
+            VStack(alignment: .leading, spacing: 12) {
+                // ヘッダー
+                HStack {
                         Image(systemName: "app.badge.fill")
                             .foregroundColor(.orange)
                             .font(.title3)
@@ -276,38 +455,45 @@ struct TimetableAlertSetupView: View {
                         Text("今")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                    }
-                    
-                    // タイトル
-                    Text("🚃 もうすぐ\(route.arrivalStation)駅です！")
-                        .font(.headline)
-                    
-                    // メッセージ本文
-                    Text(getPreviewMessage())
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    
-                    // 到着予定時刻
-                    HStack {
+                }
+                
+                // タイトル
+                Text("🚃 もうすぐ\(route.arrivalStation)駅です！")
+                    .font(.headline)
+                
+                // メッセージ本文
+                Text(getPreviewMessage())
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                
+                // 到着予定時刻
+                HStack {
                         Image(systemName: "clock")
                             .font(.caption)
                         Text("到着予定: \(formatTime(route.arrivalTime))")
                             .font(.caption)
-                    }
-                    .foregroundColor(.secondary)
                 }
-                .padding()
-                .background(Color(UIColor.secondarySystemGroupedBackground))
-                .cornerRadius(12)
+                .foregroundColor(.secondary)
             }
             .padding()
+            .background(Color(UIColor.secondarySystemGroupedBackground))
+            .cornerRadius(12)
         }
+        .padding(20)
+        .background(Color.white)
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
         .padding(.horizontal)
     }
     
     private func getPreviewMessage() -> String {
-        let baseMessage = "あと約\(notificationMinutes)分で到着予定です。"
+        let baseMessage: String
+        if notificationType == "time" {
+            baseMessage = "あと約\(notificationMinutes)分で到着予定です。"
+        } else {
+            baseMessage = "あと\(notificationStations)駅で到着予定です。"
+        }
         
         switch characterStyle {
         case .healing:
@@ -332,18 +518,83 @@ struct TimetableAlertSetupView: View {
         
         Task {
             do {
-                // RouteAlertエンティティを作成
-                let routeAlert = RouteAlert.create(
-                    from: route,
-                    notificationMinutes: Int16(notificationMinutes),
-                    in: viewContext
-                )
+                // 一時的にAlertエンティティを使用（RouteAlertの問題を回避）
+                let alert = Alert(context: viewContext)
+                alert.alertId = UUID()
+                alert.isActive = true
+                alert.characterStyle = characterStyle.rawValue
+                alert.notificationType = notificationType
                 
-                // キャラクタースタイルを保存（RouteAlertに追加するか、別途保存）
-                // 一時的にUserDefaultsに保存
+                // 通知タイプに応じて値を設定
+                if notificationType == "time" {
+                    alert.notificationTime = Int16(notificationMinutes)
+                    alert.notificationStationsBefore = 0
+                } else {
+                    alert.notificationTime = 0
+                    alert.notificationStationsBefore = Int16(notificationStations)
+                }
+                
+                alert.notificationDistance = 0 // 経路ベースでは距離は使わない
+                alert.createdAt = Date()
+                
+                // 経路情報を保存
+                alert.departureStation = route.departureStation
+                alert.arrivalTime = route.arrivalTime
+                
+                // 到着駅の情報を保存
+                // 既存の駅を検索または新規作成
+                let stationName = route.arrivalStation
+                let stationId = "station_\(stationName.replacingOccurrences(of: " ", with: "_"))"
+                
+                // 既存の駅を検索
+                let fetchRequest = Station.fetchRequest(stationId: stationId)
+                let existingStation = try? viewContext.fetch(fetchRequest).first
+                
+                let station: Station
+                if let existing = existingStation {
+                    station = existing
+                    print("Using existing station: \(stationName)")
+                } else {
+                    // 新規作成
+                    station = Station(context: viewContext)
+                    station.stationId = stationId
+                    station.name = stationName
+                    // 暫定的な座標（将来的には実際の駅座標を取得）
+                    station.latitude = 35.6812  // 東京駅の座標
+                    station.longitude = 139.7671
+                    station.lines = []
+                    station.isFavorite = false
+                    station.createdAt = Date()
+                    station.lastUsedAt = nil
+                    
+                    print("Created new station: \(stationName)")
+                    print("  stationId: \(stationId)")
+                    print("  latitude: \(station.latitude)")
+                    print("  longitude: \(station.longitude)")
+                }
+                
+                // 最終使用日時を更新
+                station.lastUsedAt = Date()
+                
+                // アラートとの関連付け
+                alert.station = station
+                print("Station relationship established successfully")
+                
+                // 経路情報をUserDefaultsに保存（一時的な対応）
+                let routeInfo = [
+                    "departureStation": route.departureStation,
+                    "arrivalStation": route.arrivalStation,
+                    "departureTime": route.departureTime.timeIntervalSince1970,
+                    "arrivalTime": route.arrivalTime.timeIntervalSince1970
+                ] as [String: Any]
+                UserDefaults.standard.set(routeInfo, forKey: "lastRouteInfo")
                 UserDefaults.standard.set(characterStyle.rawValue, forKey: "defaultCharacterStyle")
                 
                 try viewContext.save()
+                print("✅ Core Data保存成功")
+                print("  Alert ID: \(alert.alertId?.uuidString ?? "nil")")
+                print("  Station: \(alert.station?.name ?? "nil")")
+                print("  Notification: \(alert.notificationTime)分前")
                 
                 // 通知をスケジュール
                 // 到着駅の位置情報は暫定的にnil（将来的に駅の座標を取得）
@@ -352,21 +603,38 @@ struct TimetableAlertSetupView: View {
                         for: route.arrivalStation,
                         arrivalTime: route.arrivalTime,
                         currentLocation: nil,
-                        targetLocation: CLLocation(latitude: 35.6812, longitude: 139.7671), // 暫定的に東京駅の座標
+                        targetLocation: CLLocation(latitude: station.latitude, longitude: station.longitude),
                         characterStyle: characterStyle
                     )
+                    print("✅ 通知スケジュール成功")
                 } catch {
-                    // エラーログ（本番環境では適切なロギングシステムを使用）
-                    #if DEBUG
-                    print("通知のスケジュールに失敗: \(error)")
-                    #endif
+                    print("⚠️ 通知のスケジュールに失敗: \(error)")
                 }
                 
                 await MainActor.run {
                     isSaving = false
-                    showingSaveSuccess = true
+                    print("✅ 目覚まし設定完了")
+                    
+                    // 成功のHaptic feedback
+                    let notificationFeedback = UINotificationFeedbackGenerator()
+                    notificationFeedback.notificationOccurred(.success)
+                    
+                    // HomeViewを更新
+                    NotificationCenter.default.post(name: NSNotification.Name("RefreshHomeView"), object: nil)
+                    
+                    // 目覚まし監視サービスを更新
+                    AlertMonitoringService.shared.reloadAlerts()
+                    
+                    // 少し遅延させてから経路検索画面を閉じる
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        NotificationCenter.default.post(name: NSNotification.Name("CloseRouteSearch"), object: nil)
+                    }
                 }
             } catch {
+                print("❌ 目覚まし保存エラー: \(error)")
+                print("  Error type: \(type(of: error))")
+                print("  Error description: \(error.localizedDescription)")
+                
                 await MainActor.run {
                     isSaving = false
                     errorMessage = "保存に失敗しました: \(error.localizedDescription)"
@@ -394,6 +662,50 @@ struct TimetableAlertSetupView: View {
         let duration = route.arrivalTime.timeIntervalSince(route.departureTime)
         return Int(duration / 60)
     }
+    
+    // MARK: - AI Key Warning Card
+    
+    private var aiKeyWarningCard: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.orange)
+                .font(.system(size: 20))
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("AI生成メッセージについて")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Color(red: 17 / 255, green: 24 / 255, blue: 39 / 255))
+                
+                Text("OpenAI APIキーが設定されていません。デフォルトのメッセージが使用されます。")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            
+            Spacer()
+        }
+        .padding(16)
+        .background(Color.orange.opacity(0.1))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+        )
+        .padding(.horizontal)
+    }
+    
+    // APIキーの状態をチェック
+    private func checkAPIKeyStatus() {
+        if useAIGeneratedMessages {
+            // KeychainからAPIキーを取得して有効性を確認
+            if let apiKey = try? KeychainManager.shared.getOpenAIAPIKey(),
+               !apiKey.isEmpty {
+                hasValidAPIKey = true
+            } else {
+                hasValidAPIKey = false
+            }
+        }
+    }
 }
 
 // MARK: - Preview
@@ -410,7 +722,8 @@ struct TimetableAlertSetupView_Previews: PreviewProvider {
                     trainType: "快速",
                     trainNumber: "1234M",
                     transferCount: 0,
-                    sections: []
+                    sections: [],
+                    isActualArrivalTime: true
                 )
             )
         }

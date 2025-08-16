@@ -1,18 +1,17 @@
-import Foundation
-import CoreData
-import OSLog
 import Combine
+import CoreData
+import Foundation
+import OSLog
 
 /// Core Dataスタックを管理するマネージャークラス
 /// シングルトンパターンで実装し、アプリ全体でCore Dataの操作を統一管理する
 final class CoreDataManager: ObservableObject {
-    
     // MARK: - Singleton
     
     static let shared = CoreDataManager()
     
-    // Flag to prevent initialization
-    private static var shouldInitialize = false
+    // Flag to prevent initialization - default to true for immediate use
+    private static var shouldInitialize = true
     
     static func enableCoreData() {
         shouldInitialize = true
@@ -27,9 +26,21 @@ final class CoreDataManager: ObservableObject {
     lazy var persistentContainer: NSPersistentContainer = {
         // Check if Core Data should be initialized
         guard Self.shouldInitialize else {
-            // Return a dummy container that won't crash
+            // Return a properly initialized container even if shouldInitialize is false
             let model = createManagedObjectModel()
             let container = NSPersistentContainer(name: "TrainAlert", managedObjectModel: model)
+            
+            // Use in-memory store for dummy container
+            let description = NSPersistentStoreDescription()
+            description.type = NSInMemoryStoreType
+            container.persistentStoreDescriptions = [description]
+            
+            container.loadPersistentStores { _, error in
+                if let error = error {
+                    print("🔴 Core Data Error (dummy): \(error)")
+                }
+            }
+            
             return container
         }
         
@@ -91,11 +102,18 @@ final class CoreDataManager: ObservableObject {
         longitude.attributeType = .doubleAttributeType
         longitude.isOptional = false
         
-        // Add lines property
+        // Add lines property (Transformable for array)
         let lines = NSAttributeDescription()
         lines.name = "lines"
-        lines.attributeType = .stringAttributeType
+        lines.attributeType = .transformableAttributeType
+        lines.valueTransformerName = "NSSecureUnarchiveFromData"
         lines.isOptional = true
+        
+        // Add createdAt property
+        let createdAt = NSAttributeDescription()
+        createdAt.name = "createdAt"
+        createdAt.attributeType = .dateAttributeType
+        createdAt.isOptional = true
         
         // Add isFavorite property
         let isFavorite = NSAttributeDescription()
@@ -109,7 +127,7 @@ final class CoreDataManager: ObservableObject {
         lastUsedAt.attributeType = .dateAttributeType
         lastUsedAt.isOptional = true
         
-        stationEntity.properties = [stationId, name, latitude, longitude, lines, isFavorite, lastUsedAt]
+        stationEntity.properties = [stationId, name, latitude, longitude, lines, createdAt, isFavorite, lastUsedAt]
         
         // Alert Entity
         let alertEntity = NSEntityDescription()
@@ -131,10 +149,10 @@ final class CoreDataManager: ObservableObject {
         notificationTime.attributeType = .integer16AttributeType
         notificationTime.defaultValue = 5
         
-        let createdAt = NSAttributeDescription()
-        createdAt.name = "createdAt"
-        createdAt.attributeType = .dateAttributeType
-        createdAt.isOptional = false
+        let alertCreatedAt = NSAttributeDescription()
+        alertCreatedAt.name = "createdAt"
+        alertCreatedAt.attributeType = .dateAttributeType
+        alertCreatedAt.isOptional = false
         
         // Add stationName and lineName for compatibility
         let stationName = NSAttributeDescription()
@@ -146,6 +164,17 @@ final class CoreDataManager: ObservableObject {
         lineName.name = "lineName"
         lineName.attributeType = .stringAttributeType
         lineName.isOptional = true
+        
+        // Add route information fields
+        let alertDepartureStation = NSAttributeDescription()
+        alertDepartureStation.name = "departureStation"
+        alertDepartureStation.attributeType = .stringAttributeType
+        alertDepartureStation.isOptional = true
+        
+        let alertArrivalTime = NSAttributeDescription()
+        alertArrivalTime.name = "arrivalTime"
+        alertArrivalTime.attributeType = .dateAttributeType
+        alertArrivalTime.isOptional = true
         
         // Add notificationDistance
         let notificationDistance = NSAttributeDescription()
@@ -165,6 +194,19 @@ final class CoreDataManager: ObservableObject {
         characterStyle.attributeType = .stringAttributeType
         characterStyle.isOptional = true
         
+        // Add notificationStationsBefore（何駅前）
+        let notificationStationsBefore = NSAttributeDescription()
+        notificationStationsBefore.name = "notificationStationsBefore"
+        notificationStationsBefore.attributeType = .integer16AttributeType
+        notificationStationsBefore.defaultValue = 0
+        
+        // Add notificationType（通知タイプ: time or station）
+        let notificationType = NSAttributeDescription()
+        notificationType.name = "notificationType"
+        notificationType.attributeType = .stringAttributeType
+        notificationType.defaultValue = "time"
+        notificationType.isOptional = true
+        
         // Relationship to Station (to-one relationship)
         let stationRelation = NSRelationshipDescription()
         stationRelation.name = "station"
@@ -183,7 +225,7 @@ final class CoreDataManager: ObservableObject {
         historiesRelation.maxCount = 0  // 0 means unlimited (to-many)
         historiesRelation.minCount = 0
         
-        alertEntity.properties = [alertId, isActive, notificationTime, notificationDistance, snoozeInterval, characterStyle, createdAt, stationName, lineName, stationRelation, historiesRelation]
+        alertEntity.properties = [alertId, isActive, notificationTime, notificationDistance, snoozeInterval, characterStyle, notificationStationsBefore, notificationType, alertCreatedAt, stationName, lineName, alertDepartureStation, alertArrivalTime, stationRelation, historiesRelation]
         
         // History Entity
         let historyEntity = NSEntityDescription()
@@ -248,14 +290,91 @@ final class CoreDataManager: ObservableObject {
             alertRelation.inverseRelationship = historiesRelation
         }
         
-        model.entities = [alertEntity, stationEntity, historyEntity]
+        // RouteAlert Entity
+        let routeAlertEntity = NSEntityDescription()
+        routeAlertEntity.name = "RouteAlert"
+        routeAlertEntity.managedObjectClassName = "RouteAlert"
+        
+        // RouteAlert attributes
+        let routeId = NSAttributeDescription()
+        routeId.name = "routeId"
+        routeId.attributeType = .UUIDAttributeType
+        routeId.isOptional = true
+        
+        let routeDepartureStation = NSAttributeDescription()
+        routeDepartureStation.name = "departureStation"
+        routeDepartureStation.attributeType = .stringAttributeType
+        routeDepartureStation.isOptional = true
+        
+        let routeArrivalStation = NSAttributeDescription()
+        routeArrivalStation.name = "arrivalStation"
+        routeArrivalStation.attributeType = .stringAttributeType
+        routeArrivalStation.isOptional = true
+        
+        let routeDepartureTime = NSAttributeDescription()
+        routeDepartureTime.name = "departureTime"
+        routeDepartureTime.attributeType = .dateAttributeType
+        routeDepartureTime.isOptional = true
+        
+        let routeArrivalTime = NSAttributeDescription()
+        routeArrivalTime.name = "arrivalTime"
+        routeArrivalTime.attributeType = .dateAttributeType
+        routeArrivalTime.isOptional = true
+        
+        let trainNumber = NSAttributeDescription()
+        trainNumber.name = "trainNumber"
+        trainNumber.attributeType = .stringAttributeType
+        trainNumber.isOptional = true
+        
+        let trainType = NSAttributeDescription()
+        trainType.name = "trainType"
+        trainType.attributeType = .stringAttributeType
+        trainType.isOptional = true
+        
+        let railway = NSAttributeDescription()
+        railway.name = "railway"
+        railway.attributeType = .stringAttributeType
+        railway.isOptional = true
+        
+        let routeData = NSAttributeDescription()
+        routeData.name = "routeData"
+        routeData.attributeType = .binaryDataAttributeType
+        routeData.isOptional = true
+        
+        let notificationMinutes = NSAttributeDescription()
+        notificationMinutes.name = "notificationMinutes"
+        notificationMinutes.attributeType = .integer16AttributeType
+        notificationMinutes.defaultValue = 5
+        
+        let routeIsActive = NSAttributeDescription()
+        routeIsActive.name = "isActive"
+        routeIsActive.attributeType = .booleanAttributeType
+        routeIsActive.defaultValue = true
+        
+        let routeCreatedAt = NSAttributeDescription()
+        routeCreatedAt.name = "createdAt"
+        routeCreatedAt.attributeType = .dateAttributeType
+        routeCreatedAt.isOptional = true
+        
+        let routeUpdatedAt = NSAttributeDescription()
+        routeUpdatedAt.name = "updatedAt"
+        routeUpdatedAt.attributeType = .dateAttributeType
+        routeUpdatedAt.isOptional = true
+        
+        routeAlertEntity.properties = [
+            routeId, routeDepartureStation, routeArrivalStation, routeDepartureTime, routeArrivalTime,
+            trainNumber, trainType, railway, routeData, notificationMinutes,
+            routeIsActive, routeCreatedAt, routeUpdatedAt
+        ]
+        
+        model.entities = [alertEntity, stationEntity, historyEntity, routeAlertEntity]
         
         return model
     }
     
     /// メインコンテキスト（UIスレッドで使用）
     var viewContext: NSManagedObjectContext {
-        return persistentContainer.viewContext
+        persistentContainer.viewContext
     }
     
     // MARK: - Initializer
@@ -267,7 +386,7 @@ final class CoreDataManager: ObservableObject {
     /// バックグラウンドコンテキストを作成
     /// - Returns: バックグラウンド処理用のコンテキスト
     func newBackgroundContext() -> NSManagedObjectContext {
-        return persistentContainer.newBackgroundContext()
+        persistentContainer.newBackgroundContext()
     }
     
     /// メインコンテキストの変更を保存
@@ -360,7 +479,7 @@ final class CoreDataManager: ObservableObject {
                 return try viewContext.fetch(request)
             } else {
                 return try await performBackgroundTask { bgContext in
-                    return try bgContext.fetch(request)
+                    try bgContext.fetch(request)
                 }
             }
         }
@@ -378,7 +497,7 @@ final class CoreDataManager: ObservableObject {
             return try viewContext.count(for: request)
         } else {
             return try await performBackgroundTask { bgContext in
-                return try bgContext.count(for: request)
+                try bgContext.count(for: request)
             }
         }
     }
@@ -391,20 +510,27 @@ final class CoreDataManager: ObservableObject {
     ///   - name: 駅名
     ///   - latitude: 緯度
     ///   - longitude: 経度
-    ///   - lines: 路線情報（カンマ区切り）
+    ///   - lines: 路線情報（配列）
     /// - Returns: 作成された駅エンティティ
-    func createStation(stationId: String, name: String, latitude: Double, longitude: Double, lines: String? = nil) -> Station {
+    func createStation(stationId: String, name: String, latitude: Double, longitude: Double, lines: [String]? = nil) -> Station {
         let station = Station(context: viewContext)
+        
+        // すべてのプロパティを直接設定（awakeFromInsertの後に上書き）
         station.stationId = stationId
         station.name = name
         station.latitude = latitude
         station.longitude = longitude
         station.lines = lines
         station.isFavorite = false
-        station.lastUsedAt = Date()
+        station.createdAt = Date()
+        station.lastUsedAt = nil
+        
+        // 検証
+        assert(station.latitude == latitude, "Latitude was not set correctly")
+        assert(station.longitude == longitude, "Longitude was not set correctly")
         
         save()
-        logger.info("Station created: \(name)")
+        logger.info("Station created: \(name) at lat: \(latitude), lon: \(longitude)")
         return station
     }
     
@@ -512,7 +638,7 @@ final class CoreDataManager: ObservableObject {
     ///   - offset: オフセット
     /// - Returns: 履歴の配列
     func fetchHistoryAsync(limit: Int = 50, offset: Int = 0) async throws -> [History] {
-        return try await performBackgroundTask { context in
+        try await performBackgroundTask { context in
             let request: NSFetchRequest<History> = History.fetchRequest()
             request.sortDescriptors = [NSSortDescriptor(keyPath: \History.notifiedAt, ascending: false)]
             request.fetchLimit = limit
@@ -664,7 +790,6 @@ final class CoreDataManager: ObservableObject {
 // MARK: - Performance Optimization Extensions
 
 extension CoreDataManager {
-    
     /// Core Dataのマイグレーションが必要かチェック
     /// - Returns: マイグレーションが必要な場合true
     func requiresMigration() -> Bool {
@@ -693,7 +818,7 @@ extension CoreDataManager {
     
     /// データベースのパフォーマンス統計を取得
     func getPerformanceStats() async -> CoreDataPerformanceStats {
-        return try! await performBackgroundTask { context in
+        try! await performBackgroundTask { context in
             let stationCount = try! context.count(for: Station.fetchRequest())
             let alertCount = try! context.count(for: Alert.fetchRequest())
             let historyCount = try! context.count(for: History.fetchRequest())
@@ -753,7 +878,7 @@ struct CoreDataPerformanceStats {
     let databaseSize: Int64
     
     var databaseSizeMB: Double {
-        Double(databaseSize) / 1024.0 / 1024.0
+        Double(databaseSize) / 1_024.0 / 1_024.0
     }
 }
 
@@ -761,7 +886,7 @@ struct CoreDataPerformanceStats {
 
 extension Array {
     func chunked(into size: Int) -> [[Element]] {
-        return stride(from: 0, to: count, by: size).map {
+        stride(from: 0, to: count, by: size).map {
             Array(self[$0..<Swift.min($0 + size, count)])
         }
     }

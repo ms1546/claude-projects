@@ -16,10 +16,9 @@ public class Station: NSManagedObject {
         CLLocation(latitude: latitude, longitude: longitude)
     }
     
-    /// 路線の配列を返す（カンマ区切り文字列から変換）
+    /// 路線の配列を返す
     var lineArray: [String] {
-        guard let lines = lines else { return [] }
-        return lines.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        lines ?? []
     }
     
     /// アクティブなアラートの数
@@ -36,20 +35,6 @@ public class Station: NSManagedObject {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .full
         return formatter.localizedString(for: lastUsedAt, relativeTo: Date())
-    }
-    
-    // MARK: - Core Data Methods
-    
-    override public func awakeFromInsert() {
-        super.awakeFromInsert()
-        
-        // デフォルト値の設定 - 型を明確に指定
-        setPrimitiveValue(UUID().uuidString, forKey: "stationId")
-        setPrimitiveValue(Date(), forKey: "createdAt")
-        setPrimitiveValue(NSNumber(value: false), forKey: "isFavorite")
-        setPrimitiveValue(NSNumber(value: 0.0), forKey: "latitude")
-        setPrimitiveValue(NSNumber(value: 0.0), forKey: "longitude")
-        setPrimitiveValue(Date(), forKey: "lastUsedAt")
     }
     
     // MARK: - Validation
@@ -108,7 +93,7 @@ public class Station: NSManagedObject {
     /// 路線情報を設定（配列から）
     /// - Parameter lineArray: 路線の配列
     func setLines(_ lineArray: [String]) {
-        lines = lineArray.joined(separator: ", ")
+        lines = lineArray
     }
     
     /// 指定された路線が含まれているかチェック
@@ -170,13 +155,13 @@ extension Station {
 // MARK: - Core Data Properties
 
 extension Station {
-    @NSManaged public var createdAt: Date?
     @NSManaged public var stationId: String?
     @NSManaged public var name: String?
     @NSManaged public var latitude: Double
     @NSManaged public var longitude: Double
-    @NSManaged public var lines: String?
+    @NSManaged public var lines: [String]?
     @NSManaged public var isFavorite: Bool
+    @NSManaged public var createdAt: Date?
     @NSManaged public var lastUsedAt: Date?
     @NSManaged public var alerts: NSSet?
 }
@@ -201,7 +186,14 @@ extension Station {
 
 extension Station: Identifiable {
     public var id: String {
-        stationId ?? UUID().uuidString
+        if let stationId = stationId {
+            return stationId
+        } else {
+            // stationIdがnilの場合は新しいUUIDを生成して設定
+            let newId = UUID().uuidString
+            self.stationId = newId
+            return newId
+        }
     }
 }
 

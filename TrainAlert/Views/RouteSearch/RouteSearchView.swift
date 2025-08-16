@@ -11,6 +11,7 @@ import SwiftUI
 struct RouteSearchView: View {
     @StateObject private var viewModel = RouteSearchViewModel()
     @EnvironmentObject var locationManager: LocationManager
+    @Environment(\.dismiss) private var dismiss
     @State private var showingDatePicker = false
     @State private var showingFavoriteRoutes = false
     @FocusState private var focusedField: Field?
@@ -48,9 +49,15 @@ struct RouteSearchView: View {
                         emptyStateView
                             .frame(minHeight: 300)
                             .background(Color(red: 250 / 255, green: 251 / 255, blue: 252 / 255))
+                            .onAppear {
+                                print("Empty state view appeared")
+                            }
                     } else {
                         searchResultsContent
                             .background(Color(red: 250 / 255, green: 251 / 255, blue: 252 / 255))
+                            .onAppear {
+                                print("Search results content appeared with \(viewModel.searchResults.count) results")
+                            }
                     }
                 }
             }
@@ -74,6 +81,9 @@ struct RouteSearchView: View {
                 }
             } message: {
                 Text(viewModel.errorMessage ?? "不明なエラーが発生しました")
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CloseRouteSearch"))) { _ in
+                dismiss()
             }
         }
     }
@@ -218,10 +228,30 @@ struct RouteSearchView: View {
                     }
                     .padding(.vertical, 8)
                 } else if !viewModel.arrivalStationSuggestions.isEmpty {
-                    stationSuggestions(
-                        stations: viewModel.arrivalStationSuggestions,
-                        onSelect: viewModel.selectArrivalStation
-                    )
+                    VStack(alignment: .leading, spacing: 8) {
+                        stationSuggestions(
+                            stations: viewModel.arrivalStationSuggestions,
+                            onSelect: viewModel.selectArrivalStation
+                        )
+                        
+                        // 制約メッセージ表示
+                        if let constraintMessage = viewModel.searchConstraintMessage {
+                            HStack {
+                                Image(systemName: "info.circle.fill")
+                                    .font(.caption2)
+                                    .foregroundColor(.orange)
+                                Text(constraintMessage)
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color.orange.opacity(0.1))
+                            )
+                        }
+                    }
                 }
             }
             
@@ -411,12 +441,14 @@ struct RouteSearchView: View {
     // MARK: - Search Results
     
     private var searchResultsContent: some View {
-        LazyVStack(spacing: 12) {
-            ForEach(Array(viewModel.searchResults.enumerated()), id: \.offset) { _, route in
-                NavigationLink(destination: TimetableAlertSetupView(route: route)) {
-                    routeCard(route)
+        VStack(spacing: 12) {
+            LazyVStack(spacing: 12) {
+                ForEach(Array(viewModel.searchResults.enumerated()), id: \.offset) { _, route in
+                    NavigationLink(destination: TimetableAlertSetupView(route: route)) {
+                        routeCard(route)
+                    }
+                    .buttonStyle(PlainButtonStyle())
                 }
-                .buttonStyle(PlainButtonStyle())
             }
         }
         .padding()
@@ -441,9 +473,16 @@ struct RouteSearchView: View {
                     Image(systemName: "arrow.forward")
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(Color(red: 79 / 255, green: 70 / 255, blue: 229 / 255))
-                    Text("\(calculateDuration(from: route.departureTime, to: route.arrivalTime))分")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(Color(red: 79 / 255, green: 70 / 255, blue: 229 / 255))
+                    VStack(spacing: 2) {
+                        Text("\(calculateDuration(from: route.departureTime, to: route.arrivalTime))分")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color(red: 79 / 255, green: 70 / 255, blue: 229 / 255))
+                        if !route.isActualArrivalTime {
+                            Text("目安")
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
                 .padding(.horizontal, 20)
                 
@@ -510,14 +549,25 @@ struct RouteSearchView: View {
                 .font(.system(size: 60))
                 .foregroundColor(.gray)
             
-            Text("経路を検索してください")
-                .font(.headline)
-                .foregroundColor(.secondary)
-            
-            Text("出発駅と到着駅を入力して\n経路を検索できます")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
+            if viewModel.selectedDepartureStation != nil || viewModel.selectedArrivalStation != nil {
+                Text("検索結果がありません")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+                
+                Text("正確な到着時刻が取得できる列車が見つかりませんでした")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            } else {
+                Text("経路を検索してください")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+                
+                Text("出発駅と到着駅を入力して\n経路を検索できます")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
@@ -543,7 +593,15 @@ struct RouteSearchView: View {
     
     private func calculateDuration(from: Date, to: Date) -> Int {
         let duration = to.timeIntervalSince(from)
-        return Int(duration / 60)
+        let minutes = Int(duration / 60)
+        
+        // 負の値の場合はデフォルト値を返す
+        if minutes <= 0 {
+            print("⚠️ Warning: Invalid duration detected. from: \(from), to: \(to), duration: \(minutes) minutes")
+            return 30 // デフォルト値として30分を返す
+        }
+        
+        return minutes
     }
     
     // MARK: - Helpers

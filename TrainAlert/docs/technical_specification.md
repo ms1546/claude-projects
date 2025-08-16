@@ -16,7 +16,8 @@
 - **URLSession**: API通信
 
 ### 1.3 外部API
-- **HeartRails Express API**: 駅情報・路線情報・遅延情報
+- **HeartRails Express API**: 駅名検索（高速・日本専用）
+- **Overpass API (OpenStreetMap)**: 位置情報ベースの最寄り駅検索
 - **OpenAI API (ChatGPT)**: 通知メッセージ生成
 
 ## 2. 機能仕様
@@ -98,16 +99,46 @@
 
 ## 3. API仕様
 
-### 3.1 HeartRails Express API
+### 3.1 駅検索API
+
+#### HeartRails Express API（駅名検索用）
+- **用途**: 駅名による高速検索
+- **特徴**: 日本の駅専用、レスポンス1秒以内
+- **制限**: なし（無料）
+
+**駅名検索**
+```
+GET http://express.heartrails.com/api/json?method=getStations&name={station_name}
+```
+
+**レスポンス例**
+```json
+{
+  "response": {
+    "station": [{
+      "name": "読売ランド前",
+      "line": "小田急小田原線",
+      "x": 139.518788,
+      "y": 35.635013
+    }]
+  }
+}
+```
+
+#### Overpass API（位置情報検索用）
+- **用途**: 現在地から最寄り駅検索
+- **特徴**: OpenStreetMapベース、全世界対応
+- **制限**: 無料だがサーバー負荷により遅延あり
 
 **最寄り駅検索**
 ```
-GET http://express.heartrails.com/api/json?method=getStations&x={longitude}&y={latitude}
-```
-
-**路線情報取得**
-```
-GET http://express.heartrails.com/api/json?method=getLines&name={station_name}
+POST https://overpass-api.de/api/interpreter
+data=[out:json][timeout:25];
+(
+  node[railway=station](around:2000,{latitude},{longitude});
+  way[railway=station](around:2000,{latitude},{longitude});
+);
+out center;
 ```
 
 ### 3.2 OpenAI API
@@ -164,6 +195,20 @@ let request = ChatCompletionRequest(
 ## 7. パフォーマンス目標
 
 - アプリ起動: 2秒以内
-- 駅検索: 1秒以内
+- 駅名検索（HeartRails）: 1秒以内
+- 最寄り駅検索（Overpass）: 5秒以内
 - 通知配信遅延: 10秒以内
 - バッテリー消費: 1時間あたり5%以下
+
+## 8. API選定理由
+
+### 8.1 駅検索APIの使い分け
+- **駅名検索**: HeartRails Express API
+  - タイムアウトエラーが発生しない
+  - 日本の駅に特化した高速レスポンス
+  - 駅名の別名対応（例：読売ランド→読売ランド前）
+  
+- **位置情報検索**: Overpass API
+  - 緯度経度から最寄り駅を検索可能
+  - OpenStreetMapの豊富な地理データを活用
+  - 無料で利用可能だが、レスポンスが遅い場合あり

@@ -69,8 +69,8 @@ class StationAPIClient: ObservableObject {
     
     init() {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 5
-        config.timeoutIntervalForResource = 10
+        config.timeoutIntervalForRequest = 30  // 30秒に増加
+        config.timeoutIntervalForResource = 60  // 60秒に増加
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         self.urlSession = URLSession(configuration: config)
     }
@@ -89,7 +89,7 @@ class StationAPIClient: ObservableObject {
         
         // Build Overpass Query with detailed tags
         let query = """
-        [out:json][timeout:5];
+        [out:json][timeout:25];
         (
           node[railway=station]
           (around:\(radius),\(latitude),\(longitude));
@@ -131,21 +131,21 @@ class StationAPIClient: ObservableObject {
         // Build Overpass Query
         let overpassQuery: String
         if let location = location {
-            // Search near a specific location
+            // Search near a specific location (reduced radius from 50km to 20km)
             overpassQuery = """
-            [out:json][timeout:5];
+            [out:json][timeout:25];
             (
               node[railway=station][name~"\(escapedQuery)",i]
-              (around:50000,\(location.latitude),\(location.longitude));
+              (around:20000,\(location.latitude),\(location.longitude));
               way[railway=station][name~"\(escapedQuery)",i]
-              (around:50000,\(location.latitude),\(location.longitude));
+              (around:20000,\(location.latitude),\(location.longitude));
             );
             out center;
             """
         } else {
             // Search in Tokyo area (wider search)
             overpassQuery = """
-            [out:json][timeout:5];
+            [out:json][timeout:25];
             (
               node[railway=station][name~"\(escapedQuery)",i]
               (35.5,139.5,35.9,140.0);

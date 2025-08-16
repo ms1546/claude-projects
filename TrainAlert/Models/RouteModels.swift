@@ -17,6 +17,7 @@ struct RouteSearchResult: Codable {
     let trainNumber: String?
     let transferCount: Int
     let sections: [RouteSection]
+    let isActualArrivalTime: Bool  // 実際の到着時刻かどうか
     
     enum CodingKeys: String, CodingKey {
         case departureStation
@@ -27,6 +28,7 @@ struct RouteSearchResult: Codable {
         case trainNumber
         case transferCount
         case sections
+        case isActualArrivalTime
     }
 }
 

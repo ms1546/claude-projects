@@ -35,9 +35,9 @@ struct AlertSetupCoordinator: View {
                 case .stationSearch:
                     StationSearchView(
                         setupData: viewModel.setupData
-                    )                        { station in
+                    ) { station in
                             viewModel.selectStation(station)
-                        }
+                    }
                     
                 case .alertSettings:
                     AlertSettingView(
@@ -151,6 +151,9 @@ struct AlertSetupCoordinator: View {
         // Haptic feedback for success
         let notificationFeedback = UINotificationFeedbackGenerator()
         notificationFeedback.notificationOccurred(.success)
+        
+        // HomeViewを更新
+        NotificationCenter.default.post(name: NSNotification.Name("RefreshHomeView"), object: nil)
     }
     
     private func handleError(_ message: String) {

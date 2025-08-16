@@ -5,11 +5,11 @@
 //  Created by Claude on 2024/01/08.
 //
 
-import Foundation
-import CoreLocation
 import Combine
-import UserNotifications
+import CoreLocation
+import Foundation
 @testable import TrainAlert
+import UserNotifications
 
 // MARK: - Mock LocationManager
 
@@ -79,7 +79,7 @@ class MockLocationManager: NSObject, ObservableObject {
     }
     
     func distance(from location1: CLLocation, to location2: CLLocation) -> CLLocationDistance {
-        return location1.distance(from: location2)
+        location1.distance(from: location2)
     }
     
     func distanceToTargetStation() -> CLLocationDistance? {
@@ -123,7 +123,6 @@ class MockLocationManager: NSObject, ObservableObject {
 
 @MainActor
 class MockStationAPIClient: ObservableObject {
-    
     // Mock behavior configuration
     var shouldFailRequests = false
     var shouldReturnEmptyResults = false
@@ -197,7 +196,7 @@ class MockStationAPIClient: ObservableObject {
         let userLocation = CLLocation(latitude: latitude, longitude: longitude)
         let nearbyStations = mockStations.filter { station in
             let stationLocation = CLLocation(latitude: station.latitude, longitude: station.longitude)
-            return userLocation.distance(from: stationLocation) <= 50000 // 50km radius
+            return userLocation.distance(from: stationLocation) <= 50_000 // 50km radius
         }
         
         return nearbyStations
@@ -275,7 +274,7 @@ class MockStationAPIClient: ObservableObject {
     }
     
     func getCacheSize() -> Int {
-        return mockStations.count // Mock cache size
+        mockStations.count // Mock cache size
     }
     
     // Helper methods for testing
@@ -302,7 +301,6 @@ class MockStationAPIClient: ObservableObject {
 
 @MainActor
 class MockOpenAIClient: ObservableObject {
-    
     // Mock behavior configuration
     var shouldFailRequests = false
     var shouldReturnEmptyMessage = false
@@ -328,7 +326,7 @@ class MockOpenAIClient: ObservableObject {
     }
     
     func hasAPIKey() -> Bool {
-        return hasValidAPIKey
+        hasValidAPIKey
     }
     
     func validateAPIKey(_ key: String) async throws -> Bool {
@@ -404,7 +402,6 @@ class MockOpenAIClient: ObservableObject {
 
 @MainActor
 class MockNotificationManager: ObservableObject {
-    
     @Published var authorizationStatus: UNAuthorizationStatus = .notDetermined
     @Published var isPermissionGranted: Bool = false
     @Published var lastError: NotificationError?
@@ -534,7 +531,7 @@ class MockNotificationManager: ObservableObject {
     
     func getPendingNotifications() async -> [UNNotificationRequest] {
         // Return empty array for mock
-        return []
+        []
     }
     
     func updateCharacterStyle(_ style: CharacterStyle) {
@@ -574,11 +571,11 @@ class MockNotificationManager: ObservableObject {
     
     // Helper methods for testing
     func isNotificationScheduled(_ identifier: String) -> Bool {
-        return scheduledNotifications.contains(identifier)
+        scheduledNotifications.contains(identifier)
     }
     
     func isNotificationCancelled(_ identifier: String) -> Bool {
-        return cancelledNotifications.contains(identifier)
+        cancelledNotifications.contains(identifier)
     }
     
     func reset() {
@@ -599,7 +596,6 @@ class MockNotificationManager: ObservableObject {
 // MARK: - Mock CoreDataManager
 
 class MockCoreDataManager: CoreDataManager {
-    
     // Mock behavior configuration
     var shouldFailSave = false
     var shouldFailFetch = false
@@ -640,7 +636,7 @@ class MockCoreDataManager: CoreDataManager {
         super.save()
     }
     
-    override func createStation(stationId: String, name: String, latitude: Double, longitude: Double, lines: String? = nil) -> Station {
+    override func createStation(stationId: String, name: String, latitude: Double, longitude: Double, lines: [String]? = nil) -> Station {
         let station = super.createStation(stationId: stationId, name: name, latitude: latitude, longitude: longitude, lines: lines)
         
         // Store mock data for tracking
@@ -728,15 +724,15 @@ class MockCoreDataManager: CoreDataManager {
     
     // Helper methods for testing
     func getMockStation(id: String) -> MockStation? {
-        return mockStations[id]
+        mockStations[id]
     }
     
     func getMockAlert(id: String) -> MockAlert? {
-        return mockAlerts[id]
+        mockAlerts[id]
     }
     
     func getMockHistory(id: String) -> MockHistory? {
-        return mockHistory[id]
+        mockHistory[id]
     }
     
     func reset() {
@@ -781,7 +777,6 @@ struct MockHistory {
 // MARK: - Mock URLSession for Network Testing
 
 class MockURLSession: URLSession {
-    
     var mockData: Data?
     var mockResponse: HTTPURLResponse?
     var mockError: Error?

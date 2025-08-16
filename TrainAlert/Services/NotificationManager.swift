@@ -320,13 +320,12 @@ class NotificationManager: NSObject, ObservableObject {
             return
         }
         
-        guard let departureStation = routeAlert.departureStationName,
-              let arrivalStation = routeAlert.arrivalStationName,
-              let alert = routeAlert.alert else {
+        guard let departureStation = routeAlert.departureStation,
+              let arrivalStation = routeAlert.arrivalStation else {
             return
         }
         
-        let identifier = "route_alert_\(routeAlert.routeAlertId?.uuidString ?? UUID().uuidString)"
+        let identifier = "route_alert_\(routeAlert.routeId?.uuidString ?? UUID().uuidString)"
         
         // Cancel existing notification
         cancelNotification(identifier: identifier)
@@ -336,7 +335,9 @@ class NotificationManager: NSObject, ObservableObject {
         content.sound = getNotificationSound()
         
         // Generate message using character style
-        let characterStyle = CharacterStyle(rawValue: alert.characterStyle ?? "") ?? .normal
+        // Note: RouteAlertにはcharacterStyleがないため、UserDefaultsから取得
+        let savedStyle = UserDefaults.standard.string(forKey: "defaultCharacterStyle") ?? CharacterStyle.healing.rawValue
+        let characterStyle = CharacterStyle(rawValue: savedStyle) ?? .healing
         let arrivalTimeString = routeAlert.arrivalTimeString
         
         // Generate message using OpenAI or fallback
@@ -364,7 +365,7 @@ class NotificationManager: NSObject, ObservableObject {
         content.userInfo = [
             "stationName": arrivalStation,
             "departureStation": departureStation,
-            "routeAlertId": routeAlert.routeAlertId?.uuidString ?? "",
+            "routeAlertId": routeAlert.routeId?.uuidString ?? "",
             "type": "route"
         ]
         

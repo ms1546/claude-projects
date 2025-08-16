@@ -5,17 +5,16 @@
 //  Created by Claude on 2024/01/08.
 //
 
-import Foundation
-import XCTest
-import CoreLocation
 import CoreData
+import CoreLocation
+import Foundation
 @testable import TrainAlert
+import XCTest
 
 // MARK: - Test Assertion Helpers
 
 /// Custom assertions for testing location-based functionality
 struct LocationTestAssertions {
-    
     /// Assert that two coordinates are approximately equal within a tolerance
     static func XCTAssertCoordinatesEqual(
         _ coordinate1: CLLocationCoordinate2D,
@@ -63,7 +62,6 @@ struct LocationTestAssertions {
 
 /// Custom assertions for testing API responses
 struct APITestAssertions {
-    
     /// Assert that an API response contains expected station data
     static func XCTAssertValidStationResponse(
         _ stations: [Station],
@@ -99,7 +97,6 @@ struct APITestAssertions {
 
 /// Custom assertions for testing notifications
 struct NotificationTestAssertions {
-    
     /// Assert that notification content is properly formatted
     static func XCTAssertValidNotificationContent(
         _ content: NotificationContent,
@@ -159,15 +156,14 @@ struct NotificationTestAssertions {
 
 /// Utilities for testing time-based functionality
 struct TimeTestHelpers {
-    
     /// Create a date in the future for testing
     static func futureDate(minutesFromNow minutes: Int) -> Date {
-        return Date().addingTimeInterval(TimeInterval(minutes * 60))
+        Date().addingTimeInterval(TimeInterval(minutes * 60))
     }
     
     /// Create a date in the past for testing
     static func pastDate(minutesAgo minutes: Int) -> Date {
-        return Date().addingTimeInterval(-TimeInterval(minutes * 60))
+        Date().addingTimeInterval(-TimeInterval(minutes * 60))
     }
     
     /// Wait for async operations with timeout
@@ -175,15 +171,15 @@ struct TimeTestHelpers {
         timeout: TimeInterval = 5.0,
         operation: @escaping () async throws -> T
     ) async throws -> T {
-        return try await withTimeout(seconds: timeout) {
-            return try await operation()
+        try await withTimeout(seconds: timeout) {
+            try await operation()
         }
     }
     
     private static func withTimeout<T>(seconds: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
-        return try await withThrowingTaskGroup(of: T.self) { group in
+        try await withThrowingTaskGroup(of: T.self) { group in
             group.addTask {
-                return try await operation()
+                try await operation()
             }
             
             group.addTask {
@@ -207,7 +203,6 @@ struct TimeoutError: Error {}
 
 /// Utilities for creating and managing mock data
 struct MockDataHelpers {
-    
     /// Setup mock API responses for testing
     static func setupMockAPIClient(_ client: MockStationAPIClient) {
         client.shouldFailRequests = false
@@ -264,7 +259,6 @@ struct MockDataHelpers {
 
 /// Utilities for testing Core Data functionality
 struct CoreDataTestHelpers {
-    
     /// Create a test Core Data stack in memory
     static func createInMemoryTestStack() -> NSPersistentContainer {
         let container = NSPersistentContainer(name: "TrainAlert")
@@ -297,7 +291,7 @@ struct CoreDataTestHelpers {
             entity.name = station.name
             entity.latitude = station.latitude
             entity.longitude = station.longitude
-            entity.lines = station.lines.joined(separator: ",")
+            entity.lines = station.lines
             entity.isFavorite = Bool.random()
             entity.lastUsedAt = Date()
             
@@ -310,7 +304,7 @@ struct CoreDataTestHelpers {
             alert.alertId = UUID()
             alert.station = stationEntity
             alert.notificationTime = Int16.random(in: 1...10)
-            alert.notificationDistance = Double.random(in: 100...1000)
+            alert.notificationDistance = Double.random(in: 100...1_000)
             alert.snoozeInterval = Int16.random(in: 1...10)
             alert.characterStyle = CharacterStyle.allCases.randomElement()?.rawValue
             alert.isActive = true
@@ -353,7 +347,6 @@ struct CoreDataTestHelpers {
 
 /// Utilities for performance testing
 struct PerformanceTestHelpers {
-    
     /// Measure the execution time of a block
     static func measureTime<T>(operation: () throws -> T) rethrows -> (result: T, time: TimeInterval) {
         let startTime = CFAbsoluteTimeGetCurrent()
@@ -372,13 +365,13 @@ struct PerformanceTestHelpers {
     
     /// Create a large dataset for performance testing
     static func createLargeTestDataset(size: Int) -> [Station] {
-        return TestDataFactory.createLargeDataset(count: size)
+        TestDataFactory.createLargeDataset(count: size)
     }
     
     /// Simulate memory pressure for testing
     static func simulateMemoryPressure() {
         // Create temporary large objects to simulate memory pressure
-        let _ = Array(repeating: Data(count: 1024 * 1024), count: 50) // 50MB
+        _ = Array(repeating: Data(count: 1_024 * 1_024), count: 50) // 50MB
     }
 }
 
@@ -386,13 +379,12 @@ struct PerformanceTestHelpers {
 
 /// Utilities for UI testing
 struct UITestHelpers {
-    
     /// Wait for UI element to appear
     static func waitForElement(
         _ element: XCUIElement,
         timeout: TimeInterval = 10.0
     ) -> Bool {
-        return element.waitForExistence(timeout: timeout)
+        element.waitForExistence(timeout: timeout)
     }
     
     /// Perform scroll action until element is visible
@@ -463,7 +455,6 @@ struct TestConfiguration {
 
 /// Utilities for debugging tests
 struct DebugHelpers {
-    
     /// Print detailed information about a test failure
     static func printTestFailureInfo(
         _ message: String,

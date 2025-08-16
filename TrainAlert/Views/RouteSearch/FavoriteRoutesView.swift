@@ -169,6 +169,6 @@ struct FavoriteRoutesView: View {
 struct FavoriteRoutesView_Previews: PreviewProvider {
     static var previews: some View {
         FavoriteRoutesView()
-            .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+            .environment(\.managedObjectContext, CoreDataManager.shared.viewContext)
     }
 }

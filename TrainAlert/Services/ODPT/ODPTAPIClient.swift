@@ -35,7 +35,7 @@ final class ODPTAPIClient {
     /// 駅を検索
     func searchStations(by name: String) async throws -> [ODPTStation] {
         // 開発中・APIキーがない場合は常にモックデータを使用
-        let useMockData = true // タイムアウト回避のためモックデータを使用
+        let useMockData = false // 実際のAPIを使用
         
         if useMockData || !configuration.hasAPIKey || configuration.apiKey.isEmpty {
             print("ODPT API: Using mock data")
@@ -54,11 +54,12 @@ final class ODPTAPIClient {
             URLQueryItem(name: "acl:consumerKey", value: configuration.apiKey)
         ]
         
-        // 特定の路線に限定することでレスポンスを高速化
-        if name.count >= 2 {
-            // JR東日本の駅に限定
-            components.queryItems?.append(URLQueryItem(name: "odpt:operator", value: "odpt.Operator:JR-East"))
-        }
+        // APIキーの権限に応じて事業者を限定
+        // 現在のAPIキーではJR線にアクセスできないため、コメントアウト
+        // if name.count >= 2 {
+        //     // JR東日本の駅に限定
+        //     components.queryItems?.append(URLQueryItem(name: "odpt:operator", value: "odpt.Operator:JR-East"))
+        // }
         
         guard let url = components.url else {
             throw ODPTAPIError.invalidResponse
@@ -66,7 +67,7 @@ final class ODPTAPIClient {
         
         // タイムアウトを設定したリクエスト
         var request = URLRequest(url: url)
-        request.timeoutInterval = 30.0 // 30秒のタイムアウト
+        request.timeoutInterval = 60.0 // 60秒のタイムアウト
         
         // 全駅データを取得してクライアント側でフィルタリング
         let allStations: [ODPTStation] = try await self.request(urlRequest: request)
@@ -118,25 +119,24 @@ final class ODPTAPIClient {
         direction: String? = nil,
         calendar: String = "odpt.Calendar:Weekday"
     ) async throws -> [ODPTStationTimetable] {
-        // 開発中・APIキーがない場合はモック時刻表を返す
-        let useMockData = true // 時刻表は引き続きモックデータを使用
+        // IDの形式をチェック（HeartRails形式の場合はモックを返す）
+        let isHeartRailsFormat = stationId.hasPrefix("heartrails:")
+        let isValidODPTFormat = stationId.hasPrefix("odpt.Station:")
         
-        if useMockData || !configuration.hasAPIKey {
-            print("ODPT API: Returning mock timetable")
+        // 開発中・APIキーがない場合、またはID形式が不正な場合はモック時刻表を返す
+        if !configuration.hasAPIKey || isHeartRailsFormat || !isValidODPTFormat {
+            print("ODPT API: Returning mock timetable (invalid ID format or no API key)")
             return getMockTimetable(for: stationId, railway: railwayId)
         }
         
+        // ODPT APIのパラメータを設定
         var components = URLComponents(string: "\(configuration.baseURL)/odpt:StationTimetable")!
         var queryItems = [
-            URLQueryItem(name: "acl:consumerKey", value: configuration.apiKey),
-            URLQueryItem(name: "odpt:station", value: stationId),
-            URLQueryItem(name: "odpt:railway", value: railwayId),
-            URLQueryItem(name: "odpt:calendar", value: calendar)
+            URLQueryItem(name: "acl:consumerKey", value: configuration.apiKey)
         ]
         
-        if let direction = direction {
-            queryItems.append(URLQueryItem(name: "odpt:railDirection", value: direction))
-        }
+        // 駅IDのみで検索（railwayやcalendarは後で絞り込む）
+        queryItems.append(URLQueryItem(name: "odpt:station", value: stationId))
         
         components.queryItems = queryItems
         
@@ -144,7 +144,28 @@ final class ODPTAPIClient {
             throw ODPTAPIError.invalidResponse
         }
         
-        return try await request(url: url)
+        print("ODPT API: Fetching timetable from URL: \(url.absoluteString)")
+        let allTimetables: [ODPTStationTimetable] = try await request(url: url)
+        print("ODPT API: Received \(allTimetables.count) timetables for station")
+        
+        // 取得したデータから指定された路線・カレンダーでフィルタリング
+        let filteredTimetables = allTimetables.filter { timetable in
+            let matchesRailway = timetable.railway == railwayId
+            let matchesCalendar = timetable.calendar == nil || timetable.calendar == calendar
+            let matchesDirection = direction == nil || timetable.railDirection == direction
+            
+            if !matchesRailway {
+                print("  Filtered out: railway mismatch \(timetable.railway) != \(railwayId)")
+            }
+            if !matchesCalendar {
+                print("  Filtered out: calendar mismatch \(timetable.calendar ?? "nil") != \(calendar)")
+            }
+            
+            return matchesRailway && matchesCalendar && matchesDirection
+        }
+        
+        print("ODPT API: After filtering: \(filteredTimetables.count) timetables")
+        return filteredTimetables
     }
     
     /// 列車時刻表を取得
@@ -194,7 +215,7 @@ final class ODPTAPIClient {
     /// 最寄り駅を検索（緯度経度から）
     func getNearbyStations(location: CLLocation, radius: Double = 1_000) async throws -> [ODPTStation] {
         // 開発中・APIキーがない場合はモックデータから最寄り駅を返す
-        let useMockData = true // タイムアウト回避のためモックデータを使用
+        let useMockData = false // 実際のAPIを使用
         
         if useMockData || !configuration.hasAPIKey {
             print("ODPT API: Using mock nearby stations")
@@ -217,6 +238,8 @@ final class ODPTAPIClient {
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         
+        print("ODPT API Request: \(url.absoluteString)")
+        
         do {
             let (data, response) = try await session.data(for: request)
             
@@ -224,12 +247,22 @@ final class ODPTAPIClient {
                 throw ODPTAPIError.invalidResponse
             }
             
+            print("ODPT API Response: Status \(httpResponse.statusCode), Data size: \(data.count) bytes")
+            
             switch httpResponse.statusCode {
             case 200...299:
                 do {
+                    // デバッグ用：レスポンスの最初の500文字を出力
+                    if let jsonString = String(data: data, encoding: .utf8) {
+                        print("ODPT API Response JSON (first 500 chars): \(String(jsonString.prefix(500)))")
+                    }
+                    
                     return try JSONDecoder().decode(T.self, from: data)
                 } catch {
                     print("Decoding error: \(error)")
+                    if let jsonString = String(data: data, encoding: .utf8) {
+                        print("Failed to decode JSON: \(jsonString)")
+                    }
                     throw ODPTAPIError.decodingError(error)
                 }
             case 429:

@@ -154,3 +154,11 @@ extension RouteAlert {
         }
     }
 }
+
+// MARK: - Identifiable
+
+extension RouteAlert: Identifiable {
+    public var id: String {
+        routeId?.uuidString ?? UUID().uuidString
+    }
+}

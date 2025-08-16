@@ -187,6 +187,29 @@ xcodebuild -exportArchive -archivePath ./build/TrainAlert.xcarchive -exportPath 
 3. **Error Handling**: Always provide user-friendly error messages
 4. **Accessibility**: Support VoiceOver and Dynamic Type
 5. **Privacy**: Request permissions only when needed, explain why
+6. **Build Verification**: ALWAYS verify that code changes compile successfully before finalizing
+   - Check for optional unwrapping errors (e.g., `String?` to `String`)
+   - Verify all property types match their expected values
+   - Test build with `xcodebuild` if possible
+   - Pay special attention to async/await syntax changes
+   - When fixing compile errors, always check related code for similar issues
+7. **Mock Data Policy**: 
+   - Mock data should ONLY be used for development and testing purposes
+   - NEVER use mock data as a fallback for production API failures
+   - When API returns empty or error responses, display appropriate error messages to users
+   - Mock data generators should be clearly marked as development-only features
+   - Prefer proper error handling over mock data substitution
+8. **Data Management Policy**:
+   - AVOID hardcoding any data that might change (station names, travel times, routes, etc.) in the app
+   - Always fetch dynamic data from APIs rather than storing it locally
+   - DO NOT create local databases or mappings for:
+     - Station-to-station travel times
+     - Route information
+     - Timetable data
+     - Station relationships
+   - Reason: When data changes (e.g., new stations, changed schedules), hardcoded data requires app updates and becomes a maintenance burden
+   - Exception: Only minimal mapping data (like station name romanization) that rarely changes may be included
+   - Prefer real-time API calls even if it means showing "estimated" or "unavailable" for some data
 
 ## Common Issues & Solutions
 
