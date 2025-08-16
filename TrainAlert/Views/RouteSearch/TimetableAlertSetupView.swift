@@ -48,7 +48,7 @@ struct TimetableAlertSetupView: View {
     var body: some View {
         ZStack {
             // 背景色
-            Color(red: 250 / 255, green: 251 / 255, blue: 252 / 255)
+            Color.backgroundPrimary
                 .ignoresSafeArea()
             
             ScrollView {
@@ -115,11 +115,11 @@ struct TimetableAlertSetupView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "tram.fill")
-                    .foregroundColor(Color(red: 79 / 255, green: 70 / 255, blue: 229 / 255))
+                    .foregroundColor(Color.trainSoftBlue)
                     .font(.system(size: 18))
                 Text("経路情報")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(Color(red: 17 / 255, green: 24 / 255, blue: 39 / 255))
+                    .foregroundColor(Color.textPrimary)
             }
             
             HStack(alignment: .top) {
@@ -132,9 +132,10 @@ struct TimetableAlertSetupView: View {
                             Text(formatTime(route.departureTime))
                                 .font(.title3)
                                 .fontWeight(.bold)
+                                .foregroundColor(Color.textPrimary)
                             Text(route.departureStation)
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(Color.textSecondary)
                         }
                     }
                     
@@ -149,11 +150,11 @@ struct TimetableAlertSetupView: View {
                                 if let trainType = route.trainType {
                                     Text(trainType)
                                         .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(Color.textSecondary)
                                 }
                                 Text("約\(calculateDuration())分")
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(Color.textSecondary)
                             }
                             .padding(.leading, 8)
                     }
@@ -167,9 +168,10 @@ struct TimetableAlertSetupView: View {
                             Text(formatTime(route.arrivalTime))
                                 .font(.title3)
                                 .fontWeight(.bold)
+                                .foregroundColor(Color.textPrimary)
                             Text(route.arrivalStation)
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(Color.textSecondary)
                         }
                     }
                 }
@@ -181,18 +183,19 @@ struct TimetableAlertSetupView: View {
                     VStack(alignment: .trailing) {
                         Text("列車番号")
                             .font(.caption2)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.textSecondary)
                         Text(trainNumber)
                             .font(.caption)
                             .fontWeight(.medium)
+                            .foregroundColor(Color.textPrimary)
                     }
                 }
             }
         }
         .padding(20)
-        .background(Color.white)
+        .background(Color.backgroundCard)
         .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
         .padding(.horizontal)
     }
     
@@ -202,18 +205,18 @@ struct TimetableAlertSetupView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "bell.fill")
-                    .foregroundColor(Color(red: 79 / 255, green: 70 / 255, blue: 229 / 255))
+                    .foregroundColor(Color.trainSoftBlue)
                     .font(.system(size: 18))
                 Text("通知設定")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(Color(red: 17 / 255, green: 24 / 255, blue: 39 / 255))
+                    .foregroundColor(Color.textPrimary)
             }
             
             // 通知タイプ選択
             VStack(alignment: .leading, spacing: 12) {
                 Text("通知タイミング")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.textSecondary)
                 
                 HStack(spacing: 12) {
                     // 時間ベース
@@ -227,12 +230,12 @@ struct TimetableAlertSetupView: View {
                             Text("時間で設定")
                         }
                         .font(.subheadline)
-                        .foregroundColor(notificationType == "time" ? .white : .primary)
+                        .foregroundColor(notificationType == "time" ? .white : Color.textPrimary)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
                         .background(
                             RoundedRectangle(cornerRadius: 20)
-                                .fill(notificationType == "time" ? Color.accentColor : Color(UIColor.secondarySystemBackground))
+                                .fill(notificationType == "time" ? Color.trainSoftBlue : Color.backgroundSecondary)
                         )
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -248,12 +251,12 @@ struct TimetableAlertSetupView: View {
                             Text("駅数で設定")
                         }
                         .font(.subheadline)
-                        .foregroundColor(notificationType == "station" ? .white : .primary)
+                        .foregroundColor(notificationType == "station" ? .white : Color.textPrimary)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
                         .background(
                             RoundedRectangle(cornerRadius: 20)
-                                .fill(notificationType == "station" ? Color.accentColor : Color(UIColor.secondarySystemBackground))
+                                .fill(notificationType == "station" ? Color.trainSoftBlue : Color.backgroundSecondary)
                         )
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -264,7 +267,7 @@ struct TimetableAlertSetupView: View {
                     if notificationType == "time" {
                         Text("到着何分前に通知しますか？")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.textSecondary)
                         
                         if availableNotificationOptions.isEmpty {
                             Text("乗車時間が短すぎるため、通知設定ができません")
@@ -283,16 +286,16 @@ struct TimetableAlertSetupView: View {
                         
                         HStack {
                             Image(systemName: "clock")
-                                .foregroundColor(.secondary)
+                                .foregroundColor(Color.textSecondary)
                             Text("通知予定時刻: \(formatNotificationTime())")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(Color.textSecondary)
                         }
                         .padding(.top, 4)
                     } else {
                         Text("到着何駅前に通知しますか？")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.textSecondary)
                         
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 12) {
@@ -309,16 +312,16 @@ struct TimetableAlertSetupView: View {
                                 .foregroundColor(.orange)
                             Text("実際の駅数より多い設定は通知されません")
                                 .font(.caption2)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(Color.textSecondary)
                         }
                         .padding(.top, 4)
                         
                         HStack {
                             Image(systemName: "tram")
-                                .foregroundColor(.secondary)
+                                .foregroundColor(Color.textSecondary)
                             Text("\(notificationStations)駅前で通知")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(Color.textSecondary)
                         }
                         .padding(.top, 4)
                     }
@@ -326,9 +329,9 @@ struct TimetableAlertSetupView: View {
             }
         }
         .padding(20)
-        .background(Color.white)
+        .background(Color.backgroundCard)
         .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
         .padding(.horizontal)
     }
     
@@ -341,12 +344,12 @@ struct TimetableAlertSetupView: View {
             Text("\(minutes)分前")
                 .font(.subheadline)
                 .fontWeight(notificationMinutes == minutes ? .bold : .regular)
-                .foregroundColor(notificationMinutes == minutes ? .white : .primary)
+                .foregroundColor(notificationMinutes == minutes ? .white : Color.textPrimary)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 20)
-                        .fill(notificationMinutes == minutes ? Color.accentColor : Color(UIColor.secondarySystemBackground))
+                        .fill(notificationMinutes == minutes ? Color.trainSoftBlue : Color.backgroundSecondary)
                 )
         }
         .buttonStyle(PlainButtonStyle())
@@ -361,12 +364,12 @@ struct TimetableAlertSetupView: View {
             Text("\(count)駅前")
                 .font(.subheadline)
                 .fontWeight(notificationStations == count ? .bold : .regular)
-                .foregroundColor(notificationStations == count ? .white : .primary)
+                .foregroundColor(notificationStations == count ? .white : Color.textPrimary)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 20)
-                        .fill(notificationStations == count ? Color.accentColor : Color(UIColor.secondarySystemBackground))
+                        .fill(notificationStations == count ? Color.trainSoftBlue : Color.backgroundSecondary)
                 )
         }
         .buttonStyle(PlainButtonStyle())
@@ -378,25 +381,25 @@ struct TimetableAlertSetupView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "message.fill")
-                    .foregroundColor(Color(red: 79 / 255, green: 70 / 255, blue: 229 / 255))
+                    .foregroundColor(Color.trainSoftBlue)
                     .font(.system(size: 18))
                 Text("通知メッセージ")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(Color(red: 17 / 255, green: 24 / 255, blue: 39 / 255))
+                    .foregroundColor(Color.textPrimary)
             }
             
             Text("メッセージのスタイルを選択")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.textSecondary)
             
             ForEach(CharacterStyle.allCases, id: \.self) { style in
                 characterStyleOption(style)
             }
         }
         .padding(20)
-        .background(Color.white)
+        .background(Color.backgroundCard)
         .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
         .padding(.horizontal)
     }
     
@@ -411,9 +414,10 @@ struct TimetableAlertSetupView: View {
                     Text(style.displayName)
                         .font(.subheadline)
                         .fontWeight(characterStyle == style ? .bold : .regular)
+                        .foregroundColor(Color.textPrimary)
                     Text(style.sampleMessage)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.textSecondary)
                         .lineLimit(2)
                 }
                 
@@ -421,7 +425,7 @@ struct TimetableAlertSetupView: View {
                 
                 if characterStyle == style {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.accentColor)
+                        .foregroundColor(Color.trainSoftBlue)
                 }
             }
             .padding(.vertical, 8)
@@ -435,11 +439,11 @@ struct TimetableAlertSetupView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "bell.badge")
-                    .foregroundColor(Color(red: 79 / 255, green: 70 / 255, blue: 229 / 255))
+                    .foregroundColor(Color.trainSoftBlue)
                     .font(.system(size: 18))
                 Text("通知プレビュー")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(Color(red: 17 / 255, green: 24 / 255, blue: 39 / 255))
+                    .foregroundColor(Color.textPrimary)
             }
             
             // 通知サンプル
@@ -451,39 +455,42 @@ struct TimetableAlertSetupView: View {
                             .font(.title3)
                         Text("トレ眠")
                             .fontWeight(.semibold)
+                            .foregroundColor(Color.textPrimary)
                         Spacer()
                         Text("今")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.textSecondary)
                 }
                 
                 // タイトル
                 Text("🚃 もうすぐ\(route.arrivalStation)駅です！")
                     .font(.headline)
+                    .foregroundColor(Color.textPrimary)
                 
                 // メッセージ本文
                 Text(getPreviewMessage())
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 
                 // 到着予定時刻
                 HStack {
                         Image(systemName: "clock")
                             .font(.caption)
+                            .foregroundColor(Color.textSecondary)
                         Text("到着予定: \(formatTime(route.arrivalTime))")
                             .font(.caption)
                 }
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.textSecondary)
             }
             .padding()
-            .background(Color(UIColor.secondarySystemGroupedBackground))
+            .background(Color.backgroundSecondary)
             .cornerRadius(12)
         }
         .padding(20)
-        .background(Color.white)
+        .background(Color.backgroundCard)
         .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
         .padding(.horizontal)
     }
     
@@ -674,11 +681,11 @@ struct TimetableAlertSetupView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("AI生成メッセージについて")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Color(red: 17 / 255, green: 24 / 255, blue: 39 / 255))
+                    .foregroundColor(Color.textPrimary)
                 
                 Text("OpenAI APIキーが設定されていません。デフォルトのメッセージが使用されます。")
                     .font(.system(size: 12))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             

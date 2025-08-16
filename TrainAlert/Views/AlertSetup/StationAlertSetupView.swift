@@ -39,7 +39,7 @@ struct StationAlertSetupView: View {
     var body: some View {
         ZStack {
             // 背景色
-            Color(red: 250 / 255, green: 251 / 255, blue: 252 / 255)
+            Color.backgroundPrimary
                 .ignoresSafeArea()
             
             ScrollView {
@@ -94,29 +94,30 @@ struct StationAlertSetupView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "tram.fill")
-                    .foregroundColor(Color(red: 79 / 255, green: 70 / 255, blue: 229 / 255))
+                    .foregroundColor(Color.trainSoftBlue)
                     .font(.system(size: 18))
                 Text("駅情報")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(Color(red: 17 / 255, green: 24 / 255, blue: 39 / 255))
+                    .foregroundColor(Color.textPrimary)
             }
             
             VStack(alignment: .leading, spacing: 8) {
                 Text(station.name ?? "未設定")
                     .font(.title2)
                     .fontWeight(.bold)
+                    .foregroundColor(Color.textPrimary)
                 
                 if let lines = station.lines, !lines.isEmpty {
                     Text(lines.joined(separator: " • "))
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.textSecondary)
                 }
             }
         }
         .padding(20)
-        .background(Color.white)
+        .background(Color.backgroundCard)
         .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
         .padding(.horizontal)
     }
     
@@ -126,17 +127,17 @@ struct StationAlertSetupView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "bell.fill")
-                    .foregroundColor(Color(red: 79 / 255, green: 70 / 255, blue: 229 / 255))
+                    .foregroundColor(Color.trainSoftBlue)
                     .font(.system(size: 18))
                 Text("通知設定")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(Color(red: 17 / 255, green: 24 / 255, blue: 39 / 255))
+                    .foregroundColor(Color.textPrimary)
             }
             
             VStack(alignment: .leading, spacing: 8) {
                 Text("駅からどのくらいの距離で通知しますか？")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.textSecondary)
                 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
@@ -153,15 +154,15 @@ struct StationAlertSetupView: View {
                         .font(.caption)
                     Text("地下鉄では位置情報の精度が低下する場合があります")
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.textSecondary)
                 }
                 .padding(.top, 8)
             }
         }
         .padding(20)
-        .background(Color.white)
+        .background(Color.backgroundCard)
         .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
         .padding(.horizontal)
     }
     
@@ -179,14 +180,14 @@ struct StationAlertSetupView: View {
                 // 電車の平均速度（約40km/h）での目安時間を表示
                 Text(estimatedTimeText(for: distance))
                     .font(.caption2)
-                    .foregroundColor(notificationDistance == distance ? .white.opacity(0.8) : .secondary)
+                    .foregroundColor(notificationDistance == distance ? .white.opacity(0.8) : Color.textSecondary)
             }
-            .foregroundColor(notificationDistance == distance ? .white : .primary)
+            .foregroundColor(notificationDistance == distance ? .white : Color.textPrimary)
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(notificationDistance == distance ? Color.accentColor : Color(UIColor.secondarySystemBackground))
+                    .fill(notificationDistance == distance ? Color.trainSoftBlue : Color.backgroundSecondary)
             )
         }
         .buttonStyle(PlainButtonStyle())
@@ -212,25 +213,25 @@ struct StationAlertSetupView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "message.fill")
-                    .foregroundColor(Color(red: 79 / 255, green: 70 / 255, blue: 229 / 255))
+                    .foregroundColor(Color.trainSoftBlue)
                     .font(.system(size: 18))
                 Text("通知メッセージ")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(Color(red: 17 / 255, green: 24 / 255, blue: 39 / 255))
+                    .foregroundColor(Color.textPrimary)
             }
             
             Text("メッセージのスタイルを選択")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.textSecondary)
             
             ForEach(CharacterStyle.allCases, id: \.self) { style in
                 characterStyleOption(style)
             }
         }
         .padding(20)
-        .background(Color.white)
+        .background(Color.backgroundCard)
         .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
         .padding(.horizontal)
     }
     
@@ -245,9 +246,10 @@ struct StationAlertSetupView: View {
                     Text(style.displayName)
                         .font(.subheadline)
                         .fontWeight(characterStyle == style ? .bold : .regular)
+                        .foregroundColor(Color.textPrimary)
                     Text(style.sampleMessage)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.textSecondary)
                         .lineLimit(2)
                 }
                 
@@ -255,7 +257,7 @@ struct StationAlertSetupView: View {
                 
                 if characterStyle == style {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.accentColor)
+                        .foregroundColor(Color.trainSoftBlue)
                 }
             }
             .padding(.vertical, 8)
@@ -269,11 +271,11 @@ struct StationAlertSetupView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "bell.badge")
-                    .foregroundColor(Color(red: 79 / 255, green: 70 / 255, blue: 229 / 255))
+                    .foregroundColor(Color.trainSoftBlue)
                     .font(.system(size: 18))
                 Text("通知プレビュー")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(Color(red: 17 / 255, green: 24 / 255, blue: 39 / 255))
+                    .foregroundColor(Color.textPrimary)
             }
             
             // 通知サンプル
@@ -285,30 +287,32 @@ struct StationAlertSetupView: View {
                         .font(.title3)
                     Text("トレ眠")
                         .fontWeight(.semibold)
+                        .foregroundColor(Color.textPrimary)
                     Spacer()
                     Text("今")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.textSecondary)
                 }
                 
                 // タイトル
                 Text("🚃 もうすぐ\(station.name ?? "")駅です！")
                     .font(.headline)
+                    .foregroundColor(Color.textPrimary)
                 
                 // メッセージ本文
                 Text(getPreviewMessage())
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding()
-            .background(Color(UIColor.secondarySystemGroupedBackground))
+            .background(Color.backgroundSecondary)
             .cornerRadius(12)
         }
         .padding(20)
-        .background(Color.white)
+        .background(Color.backgroundCard)
         .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
         .padding(.horizontal)
     }
     
@@ -345,11 +349,11 @@ struct StationAlertSetupView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("AI生成メッセージについて")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Color(red: 17 / 255, green: 24 / 255, blue: 39 / 255))
+                    .foregroundColor(Color.textPrimary)
                 
                 Text("OpenAI APIキーが設定されていません。デフォルトのメッセージが使用されます。")
                     .font(.system(size: 12))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             

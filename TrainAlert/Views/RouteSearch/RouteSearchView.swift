@@ -23,42 +23,38 @@ struct RouteSearchView: View {
     
     var body: some View {
         NavigationView {
-            ScrollView {
+            ZStack {
+                Color.backgroundPrimary
+                    .ignoresSafeArea()
+                
+                ScrollView {
                 VStack(spacing: 0) {
                     // 検索フォーム
                     searchForm
                         .padding()
-                        .background(
-                            LinearGradient(
-                                gradient: Gradient(colors: [
-                                    Color(red: 248 / 255, green: 249 / 255, blue: 251 / 255),
-                                    Color(red: 243 / 255, green: 244 / 255, blue: 246 / 255)
-                                ]),
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
+                        .background(Color.backgroundSecondary)
                     
                     // 検索結果
                     if viewModel.isSearching {
                         LoadingIndicator(text: "経路を検索中...")
                             .frame(minHeight: 200)
                             .frame(maxWidth: .infinity)
-                            .background(Color(red: 250 / 255, green: 251 / 255, blue: 252 / 255))
+                            .background(Color.backgroundPrimary)
                     } else if viewModel.searchResults.isEmpty {
                         emptyStateView
                             .frame(minHeight: 300)
-                            .background(Color(red: 250 / 255, green: 251 / 255, blue: 252 / 255))
+                            .background(Color.backgroundPrimary)
                             .onAppear {
                                 print("Empty state view appeared")
                             }
                     } else {
                         searchResultsContent
-                            .background(Color(red: 250 / 255, green: 251 / 255, blue: 252 / 255))
+                            .background(Color.backgroundPrimary)
                             .onAppear {
                                 print("Search results content appeared with \(viewModel.searchResults.count) results")
                             }
                     }
+                }
                 }
             }
             .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -68,7 +64,7 @@ struct RouteSearchView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showingFavoriteRoutes = true }) {
                         Image(systemName: "bookmark.fill")
-                            .foregroundColor(.accentColor)
+                            .foregroundColor(Color.trainSoftBlue)
                     }
                 }
             }
@@ -96,7 +92,7 @@ struct RouteSearchView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Label("出発駅", systemImage: "location.circle")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.textSecondary)
                     .onTapGesture {
                         focusedField = .departure
                     }
@@ -114,7 +110,12 @@ struct RouteSearchView: View {
                     } else {
                         // 入力フィールド
                         TextField("駅名を入力", text: $viewModel.departureStation)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .textFieldStyle(PlainTextFieldStyle())
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.backgroundCard)
+                            .cornerRadius(8)
+                            .foregroundColor(Color.textPrimary)
                             .autocapitalization(.none)
                             .disableAutocorrection(true)
                             .focused($focusedField, equals: .departure)
@@ -138,7 +139,7 @@ struct RouteSearchView: View {
                         }
                     }) {
                         Image(systemName: "location.fill")
-                            .foregroundColor(.accentColor)
+                            .foregroundColor(Color.trainSoftBlue)
                     }
                     .disabled(locationManager.authorizationStatus == .denied || 
                              locationManager.authorizationStatus == .restricted)
@@ -150,7 +151,7 @@ struct RouteSearchView: View {
                             .scaleEffect(0.8)
                         Text("駅を検索中...")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.textSecondary)
                     }
                     .padding(.vertical, 8)
                 } else if !viewModel.departureStationSuggestions.isEmpty {
@@ -167,7 +168,7 @@ struct RouteSearchView: View {
                 Button(action: swapStations) {
                     Image(systemName: "arrow.up.arrow.down.circle.fill")
                         .font(.title2)
-                        .foregroundColor(.accentColor)
+                        .foregroundColor(Color.trainSoftBlue)
                 }
                 Spacer()
             }
@@ -176,7 +177,7 @@ struct RouteSearchView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Label("到着駅", systemImage: "mappin.circle")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.textSecondary)
                 
                 HStack {
                     if viewModel.selectedArrivalStation != nil {
@@ -191,7 +192,12 @@ struct RouteSearchView: View {
                     } else {
                         // 入力フィールド
                         TextField("駅名を入力", text: $viewModel.arrivalStation)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .textFieldStyle(PlainTextFieldStyle())
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.backgroundCard)
+                            .cornerRadius(8)
+                            .foregroundColor(Color.textPrimary)
                             .autocapitalization(.none)
                             .disableAutocorrection(true)
                             .focused($focusedField, equals: .arrival)
@@ -212,7 +218,7 @@ struct RouteSearchView: View {
                         }
                     }) {
                         Image(systemName: "location.fill")
-                            .foregroundColor(.accentColor)
+                            .foregroundColor(Color.trainSoftBlue)
                     }
                     .disabled(locationManager.authorizationStatus == .denied || 
                              locationManager.authorizationStatus == .restricted)
@@ -224,7 +230,7 @@ struct RouteSearchView: View {
                             .scaleEffect(0.8)
                         Text("駅を検索中...")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.textSecondary)
                     }
                     .padding(.vertical, 8)
                 } else if !viewModel.arrivalStationSuggestions.isEmpty {
@@ -242,13 +248,13 @@ struct RouteSearchView: View {
                                     .foregroundColor(.orange)
                                 Text(constraintMessage)
                                     .font(.caption2)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(Color.textSecondary)
                             }
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .background(
                                 RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color.orange.opacity(0.1))
+                                    .fill(Color.orange.opacity(0.2))
                             )
                         }
                     }
@@ -259,14 +265,14 @@ struct RouteSearchView: View {
             HStack {
                 Label("出発時刻", systemImage: "clock")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.textSecondary)
                 
                 Spacer()
                 
                 Button(action: { showingDatePicker.toggle() }) {
                     Text(viewModel.formattedDepartureTime)
                         .font(.headline)
-                        .foregroundColor(.primary)
+                        .foregroundColor(Color.textPrimary)
                 }
             }
             
@@ -286,8 +292,8 @@ struct RouteSearchView: View {
                         .fill(
                             LinearGradient(
                                 gradient: Gradient(colors: [
-                                    Color(red: 79 / 255, green: 70 / 255, blue: 229 / 255),
-                                    Color(red: 99 / 255, green: 102 / 255, blue: 241 / 255)
+                                    Color.trainSoftBlue,
+                                    Color.trainSoftBlue.opacity(0.8)
                                 ]),
                                 startPoint: .leading,
                                 endPoint: .trailing
@@ -295,7 +301,7 @@ struct RouteSearchView: View {
                         )
                         .opacity(viewModel.canSearch && !viewModel.isSearching ? 1.0 : 0.5)
                 )
-                .shadow(color: Color(red: 79 / 255, green: 70 / 255, blue: 229 / 255).opacity(0.3), radius: 8, x: 0, y: 4)
+                .shadow(color: Color.trainSoftBlue.opacity(0.3), radius: 8, x: 0, y: 4)
             }
             .disabled(!viewModel.canSearch || viewModel.isSearching)
         }
@@ -327,8 +333,8 @@ struct RouteSearchView: View {
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white)
-                .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 4)
+                .fill(Color.backgroundCard)
+                .shadow(color: Color.black.opacity(0.1), radius: 12, x: 0, y: 4)
         )
     }
     
@@ -344,10 +350,10 @@ struct RouteSearchView: View {
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(Color(red: 247 / 255, green: 248 / 255, blue: 250 / 255))
+                    .fill(Color.backgroundSecondary)
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color(red: 230 / 255, green: 232 / 255, blue: 236 / 255), lineWidth: 0.5)
+                            .stroke(Color.trainLightGray.opacity(0.2), lineWidth: 0.5)
                     )
             )
         }
@@ -364,7 +370,7 @@ struct RouteSearchView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(station.stationTitle?.ja ?? station.title)
                 .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.primary)
+                .foregroundColor(Color.textPrimary)
             
             railwayInfo(station: station)
         }
@@ -374,17 +380,17 @@ struct RouteSearchView: View {
         HStack(spacing: 6) {
             Image(systemName: "tram.fill")
                 .font(.system(size: 11))
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.textSecondary)
             
             Text(station.railwayTitle?.ja ?? station.railway)
                 .font(.system(size: 13))
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.textSecondary)
                 .lineLimit(1)
             
             if let code = station.stationCode {
                 Text("[\(code)]")
                     .font(.system(size: 11))
-                    .foregroundColor(Color.secondary.opacity(0.6))
+                    .foregroundColor(Color.textSecondary.opacity(0.6))
             }
         }
     }
@@ -392,7 +398,7 @@ struct RouteSearchView: View {
     private var chevronIcon: some View {
         Image(systemName: "chevron.right")
             .font(.system(size: 12))
-            .foregroundColor(Color.secondary.opacity(0.6))
+            .foregroundColor(Color.textSecondary.opacity(0.6))
     }
     
     // MARK: - Selected Station View
@@ -408,11 +414,11 @@ struct RouteSearchView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(station.stationTitle?.ja ?? station.title)
                         .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(.primary)
+                        .foregroundColor(Color.textPrimary)
                     
                     Text(station.railwayTitle?.ja ?? station.railway)
                         .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.textSecondary)
                 }
                 
                 Spacer()
@@ -421,19 +427,19 @@ struct RouteSearchView: View {
                 Button(action: onClear) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 18))
-                        .foregroundColor(Color.secondary.opacity(0.6))
+                        .foregroundColor(Color.textSecondary.opacity(0.6))
                 }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.white)
+                    .fill(Color.backgroundCard)
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
                             .strokeBorder(getLineColor(for: station.railway).opacity(0.5), lineWidth: 1.5)
                     )
-                    .shadow(color: getLineColor(for: station.railway).opacity(0.1), radius: 4, x: 0, y: 2)
+                    .shadow(color: getLineColor(for: station.railway).opacity(0.2), radius: 4, x: 0, y: 2)
             )
         }
     }
@@ -461,10 +467,10 @@ struct RouteSearchView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(formatTime(route.departureTime))
                         .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundColor(Color(red: 17 / 255, green: 24 / 255, blue: 39 / 255))
+                        .foregroundColor(Color.textPrimary)
                     Text(route.departureStation)
                         .font(.system(size: 14))
-                        .foregroundColor(Color(red: 107 / 255, green: 114 / 255, blue: 128 / 255))
+                        .foregroundColor(Color.textSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 
@@ -472,15 +478,15 @@ struct RouteSearchView: View {
                 VStack(spacing: 2) {
                     Image(systemName: "arrow.forward")
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(Color(red: 79 / 255, green: 70 / 255, blue: 229 / 255))
+                        .foregroundColor(Color.trainSoftBlue)
                     VStack(spacing: 2) {
                         Text("\(calculateDuration(from: route.departureTime, to: route.arrivalTime))分")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(Color(red: 79 / 255, green: 70 / 255, blue: 229 / 255))
+                            .foregroundColor(Color.trainSoftBlue)
                         if !route.isActualArrivalTime {
                             Text("目安")
                                 .font(.system(size: 10))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(Color.textSecondary)
                         }
                     }
                 }
@@ -490,16 +496,16 @@ struct RouteSearchView: View {
                 VStack(alignment: .trailing, spacing: 4) {
                     Text(formatTime(route.arrivalTime))
                         .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundColor(Color(red: 17 / 255, green: 24 / 255, blue: 39 / 255))
+                        .foregroundColor(Color.textPrimary)
                     Text(route.arrivalStation)
                         .font(.system(size: 14))
-                        .foregroundColor(Color(red: 107 / 255, green: 114 / 255, blue: 128 / 255))
+                        .foregroundColor(Color.textSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
-            .background(Color.white)
+            .background(Color.backgroundCard)
             
             // 下部の追加情報
             if route.trainType != nil || route.transferCount > 0 {
@@ -507,7 +513,7 @@ struct RouteSearchView: View {
                     if let trainType = route.trainType {
                         Label(trainType, systemImage: "tram.fill")
                             .font(.system(size: 12))
-                            .foregroundColor(Color(red: 107 / 255, green: 114 / 255, blue: 128 / 255))
+                            .foregroundColor(Color.textSecondary)
                     }
                     
                     Spacer()
@@ -519,24 +525,24 @@ struct RouteSearchView: View {
                             Text("乗換\(route.transferCount)回")
                                 .font(.system(size: 12))
                         }
-                        .foregroundColor(Color(red: 239 / 255, green: 68 / 255, blue: 68 / 255))
+                        .foregroundColor(Color.warmOrange)
                     }
                     
                     if let trainNumber = route.trainNumber {
                         Text(trainNumber)
                             .font(.system(size: 12))
-                            .foregroundColor(Color(red: 107 / 255, green: 114 / 255, blue: 128 / 255))
+                            .foregroundColor(Color.textSecondary)
                     }
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)
-                .background(Color(red: 249 / 255, green: 250 / 255, blue: 251 / 255))
+                .background(Color.backgroundSecondary)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color(red: 229 / 255, green: 231 / 255, blue: 235 / 255), lineWidth: 1)
+                .stroke(Color.trainLightGray.opacity(0.3), lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
     }
@@ -547,25 +553,25 @@ struct RouteSearchView: View {
         VStack(spacing: 20) {
             Image(systemName: "tram.fill")
                 .font(.system(size: 60))
-                .foregroundColor(.gray)
+                .foregroundColor(Color.trainLightGray)
             
             if viewModel.selectedDepartureStation != nil || viewModel.selectedArrivalStation != nil {
                 Text("検索結果がありません")
                     .font(.headline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.textSecondary)
                 
                 Text("正確な到着時刻が取得できる列車が見つかりませんでした")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.textSecondary)
                     .multilineTextAlignment(.center)
             } else {
                 Text("経路を検索してください")
                     .font(.headline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.textSecondary)
                 
                 Text("出発駅と到着駅を入力して\n経路を検索できます")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.textSecondary)
                     .multilineTextAlignment(.center)
             }
         }
