@@ -373,7 +373,64 @@ final class CoreDataManager: ObservableObject {
             routeIsActive, routeCreatedAt, routeUpdatedAt
         ]
         
-        model.entities = [alertEntity, stationEntity, historyEntity, routeAlertEntity]
+        // FavoriteRoute Entity
+        let favoriteRouteEntity = NSEntityDescription()
+        favoriteRouteEntity.name = "FavoriteRoute"
+        favoriteRouteEntity.managedObjectClassName = "FavoriteRoute"
+        
+        // FavoriteRoute attributes
+        let favoriteRouteId = NSAttributeDescription()
+        favoriteRouteId.name = "routeId"
+        favoriteRouteId.attributeType = .UUIDAttributeType
+        favoriteRouteId.isOptional = true
+        
+        let favoriteDepartureStation = NSAttributeDescription()
+        favoriteDepartureStation.name = "departureStation"
+        favoriteDepartureStation.attributeType = .stringAttributeType
+        favoriteDepartureStation.isOptional = true
+        
+        let favoriteArrivalStation = NSAttributeDescription()
+        favoriteArrivalStation.name = "arrivalStation"
+        favoriteArrivalStation.attributeType = .stringAttributeType
+        favoriteArrivalStation.isOptional = true
+        
+        let favoriteDepartureTime = NSAttributeDescription()
+        favoriteDepartureTime.name = "departureTime"
+        favoriteDepartureTime.attributeType = .dateAttributeType
+        favoriteDepartureTime.isOptional = true
+        
+        let favoriteNickName = NSAttributeDescription()
+        favoriteNickName.name = "nickName"
+        favoriteNickName.attributeType = .stringAttributeType
+        favoriteNickName.isOptional = true
+        
+        let favoriteSortOrder = NSAttributeDescription()
+        favoriteSortOrder.name = "sortOrder"
+        favoriteSortOrder.attributeType = .integer16AttributeType
+        favoriteSortOrder.defaultValue = 0
+        
+        let favoriteCreatedAt = NSAttributeDescription()
+        favoriteCreatedAt.name = "createdAt"
+        favoriteCreatedAt.attributeType = .dateAttributeType
+        favoriteCreatedAt.isOptional = true
+        
+        let favoriteLastUsedAt = NSAttributeDescription()
+        favoriteLastUsedAt.name = "lastUsedAt"
+        favoriteLastUsedAt.attributeType = .dateAttributeType
+        favoriteLastUsedAt.isOptional = true
+        
+        let favoriteRouteData = NSAttributeDescription()
+        favoriteRouteData.name = "routeData"
+        favoriteRouteData.attributeType = .binaryDataAttributeType
+        favoriteRouteData.isOptional = true
+        
+        favoriteRouteEntity.properties = [
+            favoriteRouteId, favoriteDepartureStation, favoriteArrivalStation,
+            favoriteDepartureTime, favoriteNickName, favoriteSortOrder,
+            favoriteCreatedAt, favoriteLastUsedAt, favoriteRouteData
+        ]
+        
+        model.entities = [alertEntity, stationEntity, historyEntity, routeAlertEntity, favoriteRouteEntity]
         
         return model
     }

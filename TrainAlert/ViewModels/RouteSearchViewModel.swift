@@ -40,6 +40,7 @@ class RouteSearchViewModel: ObservableObject {
     private let apiClient = ODPTAPIClient.shared
     private let heartRailsClient = HeartRailsAPIClient.shared
     private let cacheManager = APICacheManager.shared
+    private let favoriteRouteManager = FavoriteRouteManager.shared
     private var searchTask: Task<Void, Never>?
     private var stationSearchTask: Task<Void, Never>?
     private var departureSearchWorkItem: DispatchWorkItem?
@@ -690,6 +691,43 @@ class RouteSearchViewModel: ObservableObject {
             errorMessage = "エラーが発生しました: \(error.localizedDescription)"
         }
         showError = true
+    }
+    
+    // MARK: - Favorite Route Methods
+    
+    /// お気に入りに経路を保存
+    /// - Parameter route: 保存する経路
+    /// - Returns: 保存成功の場合true、既に存在または上限に達している場合false
+    func saveFavoriteRoute(_ route: RouteSearchResult) -> Bool {
+        // RouteSearchResultをJSONエンコード
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        
+        guard let routeData = try? encoder.encode(route) else {
+            print("Failed to encode route data")
+            return false
+        }
+        
+        // お気に入りに保存
+        let favoriteRoute = favoriteRouteManager.createFavoriteRoute(
+            departureStation: route.departureStation,
+            arrivalStation: route.arrivalStation,
+            departureTime: route.departureTime,
+            nickName: nil,
+            routeData: routeData
+        )
+        
+        return favoriteRoute != nil
+    }
+    
+    /// お気に入りの空き容量を確認
+    var canAddFavorite: Bool {
+        !favoriteRouteManager.isAtMaxCapacity
+    }
+    
+    /// お気に入りの残り枠数
+    var remainingFavoriteCapacity: Int {
+        20 - favoriteRouteManager.favoriteCount
     }
     
     // MARK: - Nested Types

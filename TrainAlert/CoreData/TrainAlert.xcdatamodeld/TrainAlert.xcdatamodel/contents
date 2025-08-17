@@ -39,6 +39,19 @@
         <attribute name="trainType" optional="YES" attributeType="String"/>
         <attribute name="updatedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
+    <entity name="FavoriteRoute" representedClassName="FavoriteRoute" syncable="YES">
+        <attribute name="arrivalStation" optional="YES" attributeType="String"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="departureStation" optional="YES" attributeType="String"/>
+        <attribute name="departureTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lastUsedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="nickName" optional="YES" attributeType="String"/>
+        <attribute name="routeData" optional="YES" attributeType="Binary"/>
+        <attribute name="routeId" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="sortOrder" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <relationship name="arrivalStationEntity" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Station" inverseName="favoriteRoutesAsArrival" inverseEntity="Station"/>
+        <relationship name="departureStationEntity" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Station" inverseName="favoriteRoutesAsDeparture" inverseEntity="Station"/>
+    </entity>
     <entity name="Station" representedClassName="Station" syncable="YES">
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="isFavorite" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
@@ -49,5 +62,7 @@
         <attribute name="name" optional="YES" attributeType="String"/>
         <attribute name="stationId" optional="YES" attributeType="String"/>
         <relationship name="alerts" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Alert" inverseName="station" inverseEntity="Alert"/>
+        <relationship name="favoriteRoutesAsArrival" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="FavoriteRoute" inverseName="arrivalStationEntity" inverseEntity="FavoriteRoute"/>
+        <relationship name="favoriteRoutesAsDeparture" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="FavoriteRoute" inverseName="departureStationEntity" inverseEntity="FavoriteRoute"/>
     </entity>
 </model>

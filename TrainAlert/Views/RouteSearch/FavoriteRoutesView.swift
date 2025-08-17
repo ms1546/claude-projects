@@ -9,22 +9,14 @@ import CoreData
 import SwiftUI
 
 struct FavoriteRoutesView: View {
-    @Environment(\.managedObjectContext) private var viewContext
+    @StateObject private var viewModel = FavoriteRoutesViewModel()
     @Environment(\.dismiss) private var dismiss
-    
-    @FetchRequest(
-        entity: RouteAlert.entity(),
-        sortDescriptors: [
-            NSSortDescriptor(keyPath: \RouteAlert.createdAt, ascending: false)
-        ],
-        predicate: NSPredicate(format: "isActive == YES")
-    )
-    private var favoriteRoutes: FetchedResults<RouteAlert>
+    @State private var selectedRoute: FavoriteRoute?
     
     var body: some View {
         NavigationView {
             Group {
-                if favoriteRoutes.isEmpty {
+                if viewModel.filteredRoutes.isEmpty {
                     emptyStateView
                 } else {
                     routesList
@@ -46,19 +38,28 @@ struct FavoriteRoutesView: View {
     
     private var routesList: some View {
         List {
-            ForEach(favoriteRoutes) { route in
+            ForEach(viewModel.filteredRoutes) { route in
                 routeRow(route)
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
                     .padding(.vertical, 4)
+                    .onTapGesture {
+                        if let routeData = viewModel.useFavoriteRoute(route) {
+                            // 経路が選択されたら、検索画面を閉じて経路設定画面へ遷移
+                            dismiss()
+                            // NavigationLinkで遷移させる処理を追加
+                        }
+                    }
             }
-            .onDelete(perform: deleteRoutes)
+            .onDelete(perform: viewModel.deleteFavoriteRoutes)
+            .onMove(perform: viewModel.moveRoute)
         }
         .listStyle(PlainListStyle())
         .background(Color(red: 250 / 255, green: 251 / 255, blue: 252 / 255))
+        .environment(\.editMode, .constant(viewModel.isEditing ? .active : .inactive))
     }
     
-    private func routeRow(_ route: RouteAlert) -> some View {
+    private func routeRow(_ route: FavoriteRoute) -> some View {
         VStack(spacing: 0) {
             HStack {
                 // 出発駅
@@ -71,9 +72,11 @@ struct FavoriteRoutesView: View {
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(.primary)
                     }
-                    Text(route.departureTimeString)
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
+                    if let departureTime = route.departureTime {
+                        Text(formatTime(departureTime))
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                    }
                 }
                 
                 Spacer()
@@ -95,7 +98,7 @@ struct FavoriteRoutesView: View {
                             .font(.system(size: 14))
                             .foregroundColor(.red)
                     }
-                    Text(route.arrivalTimeString)
+                    Text("到着時刻")
                         .font(.system(size: 14))
                         .foregroundColor(.secondary)
                 }
@@ -105,19 +108,25 @@ struct FavoriteRoutesView: View {
             .cornerRadius(12)
             .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
             
-            // 通知設定
+            // ニックネームまたは追加情報
             HStack {
-                Image(systemName: "bell.fill")
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-                Text("\(route.notificationMinutes)分前に通知")
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
+                if let nickName = route.nickName {
+                    Label(nickName, systemImage: "tag.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                } else {
+                    Image(systemName: "bookmark.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                    Text("お気に入り")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
                 
                 Spacer()
                 
-                if let trainType = route.trainType {
-                    Text(trainType)
+                if let lastUsedAt = route.lastUsedAt {
+                    Text("最終利用: \(formatDate(lastUsedAt))")
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                 }
@@ -147,20 +156,20 @@ struct FavoriteRoutesView: View {
         .background(Color(red: 250 / 255, green: 251 / 255, blue: 252 / 255))
     }
     
-    // MARK: - Actions
+    // MARK: - Helper Methods
     
-    private func deleteRoutes(at offsets: IndexSet) {
-        withAnimation {
-            offsets.map { favoriteRoutes[$0] }.forEach { route in
-                route.isActive = false
-            }
-            
-            do {
-                try viewContext.save()
-            } catch {
-                print("Failed to delete route: \(error)")
-            }
-        }
+    private func formatTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        return formatter.string(from: date)
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM/dd"
+        formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        return formatter.string(from: date)
     }
 }
 
@@ -169,6 +178,5 @@ struct FavoriteRoutesView: View {
 struct FavoriteRoutesView_Previews: PreviewProvider {
     static var previews: some View {
         FavoriteRoutesView()
-            .environment(\.managedObjectContext, CoreDataManager.shared.viewContext)
     }
 }
