@@ -375,17 +375,16 @@ class RouteSearchViewModel: ObservableObject {
                         }
                         
                         for tryCalendarType in allCalendarTypes {
-                                print("Trying calendar type: \(tryCalendarType)")
-                                let tryTimetables = try await apiClient.getStationTimetable(
-                                    stationId: stationId,
-                                    railwayId: railwayId,
-                                    calendar: tryCalendarType
-                                )
-                                if !tryTimetables.isEmpty {
-                                    print("✅ Found \(tryTimetables.count) timetables with \(tryCalendarType)")
-                                    timetables = tryTimetables
-                                    break
-                                }
+                            print("Trying calendar type: \(tryCalendarType)")
+                            let tryTimetables = try await apiClient.getStationTimetable(
+                                stationId: stationId,
+                                railwayId: railwayId,
+                                calendar: tryCalendarType
+                            )
+                            if !tryTimetables.isEmpty {
+                                print("✅ Found \(tryTimetables.count) timetables with \(tryCalendarType)")
+                                timetables = tryTimetables
+                                break
                             }
                         }
                     }
