@@ -508,36 +508,48 @@ struct RouteSearchView: View {
             .background(Color.backgroundCard)
             
             // 下部の追加情報
-            if route.trainType != nil || route.transferCount > 0 {
-                HStack {
-                    if let trainType = route.trainType {
-                        Label(trainType, systemImage: "tram.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(Color.textSecondary)
-                    }
-                    
-                    Spacer()
-                    
-                    if route.transferCount > 0 {
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.triangle.turn.up.right.circle")
-                                .font(.system(size: 12))
-                            Text("乗換\(route.transferCount)回")
-                                .font(.system(size: 12))
-                        }
-                        .foregroundColor(Color.warmOrange)
-                    }
-                    
-                    if let trainNumber = route.trainNumber {
-                        Text(trainNumber)
-                            .font(.system(size: 12))
-                            .foregroundColor(Color.textSecondary)
-                    }
+            HStack {
+                if route.trainType != nil {
+                    Label(route.trainType!, systemImage: "tram.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color.textSecondary)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-                .background(Color.backgroundSecondary)
+                
+                Spacer()
+                
+                if route.transferCount > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.triangle.turn.up.right.circle")
+                            .font(.system(size: 12))
+                        Text("乗換\(route.transferCount)回")
+                            .font(.system(size: 12))
+                    }
+                    .foregroundColor(Color.warmOrange)
+                }
+                
+                
+                // お気に入り保存ボタン
+                Button(action: {
+                    if !viewModel.isFavoriteRoute(route) {
+                        let success = viewModel.saveFavoriteRoute(route)
+                        if success {
+                            // 保存成功のフィードバック
+                            print("お気に入りに保存しました")
+                        } else {
+                            // 保存失敗（上限）
+                            print("お気に入りに保存できませんでした（上限に達しています）")
+                        }
+                    }
+                }) {
+                    Image(systemName: viewModel.isFavoriteRoute(route) ? "bookmark.fill" : "bookmark")
+                        .font(.system(size: 16))
+                        .foregroundColor(viewModel.isFavoriteRoute(route) ? Color.warmOrange : Color.trainSoftBlue)
+                }
+                .disabled(viewModel.isFavoriteRoute(route) || !viewModel.canAddFavorite)
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            .background(Color.backgroundSecondary)
         }
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(

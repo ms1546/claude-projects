@@ -147,11 +147,6 @@ struct TimetableAlertSetupView: View {
                                 .padding(.leading, 11)
                             
                             VStack(alignment: .leading, spacing: 4) {
-                                if let trainType = route.trainType {
-                                    Text(trainType)
-                                        .font(.caption)
-                                        .foregroundColor(Color.textSecondary)
-                                }
                                 Text("約\(calculateDuration())分")
                                     .font(.caption)
                                     .foregroundColor(Color.textSecondary)
@@ -177,19 +172,6 @@ struct TimetableAlertSetupView: View {
                 }
                 
                 Spacer()
-                
-                // 列車番号
-                if let trainNumber = route.trainNumber {
-                    VStack(alignment: .trailing) {
-                        Text("列車番号")
-                            .font(.caption2)
-                            .foregroundColor(Color.textSecondary)
-                        Text(trainNumber)
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(Color.textPrimary)
-                    }
-                }
             }
         }
         .padding(20)

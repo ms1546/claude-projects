@@ -5,10 +5,11 @@
 //  Created by Claude on 2024/01/08.
 //
 
-import MapKit
 import SwiftUI
+import MapKit
 
 struct StationSearchView: View {
+    
     // MARK: - Properties
     
     @StateObject private var stationAPI = StationAPIClient()
@@ -26,10 +27,10 @@ struct StationSearchView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showMap = false
-    @State private var selectedSegment = 0 // 0: 近くの駅, 1: 検索結果
+    @State private var selectedSegment = 0 // 0: 近くの駅, 1: 検索結果, 2: お気に入り
     @State private var searchTask: Task<Void, Never>?
     
-    private let segments = ["近くの駅", "検索"]
+    private let segments = ["近くの駅", "検索", "お気に入り"]
     
     var body: some View {
         VStack(spacing: 0) {
@@ -61,55 +62,50 @@ struct StationSearchView: View {
         }
         .sheet(isPresented: $showMap) {
             StationMapView(
-                stations: currentStations
-            ) { station in
+                stations: currentStations,
+                onStationSelected: { station in
                     selectStation(station)
                     showMap = false
-            }
+                }
+            )
         }
     }
     
     // MARK: - Views
     
     private var searchBar: some View {
-        VStack(alignment: .leading) {
-            HStack {
+        HStack(spacing: 12) {
+            HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
-                    .foregroundColor(Color(UIColor.systemGray))
-                    .frame(width: 20, height: 20)
+                    .foregroundColor(.textSecondary)
                 
                 TextField("駅名で検索", text: $searchText)
+                    .textFieldStyle(PlainTextFieldStyle())
+                    .foregroundColor(.textPrimary)
+                    .keyboardType(.default)
                     .autocapitalization(.none)
                     .disableAutocorrection(true)
-                    .submitLabel(.search)
                 
                 if !searchText.isEmpty {
                     Button(action: { searchText = "" }) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(Color(UIColor.systemGray))
-                            .frame(width: 20, height: 20)
+                            .foregroundColor(.textSecondary)
                     }
                 }
             }
-            .padding(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
-            .background(Color(UIColor.systemGray6))
-            .cornerRadius(10)
-            .padding(.horizontal)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color.backgroundCard)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
             
             if isLoading {
-                HStack {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .trainSoftBlue))
-                        .scaleEffect(0.8)
-                    
-                    Text("検索中...")
-                        .font(.caption)
-                        .foregroundColor(Color(UIColor.systemGray))
-                }
-                .padding(.horizontal)
-                .padding(.top, 4)
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .trainSoftBlue))
+                    .scaleEffect(0.8)
             }
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
     }
     
     private var segmentControl: some View {
@@ -120,7 +116,8 @@ struct StationSearchView: View {
             }
         }
         .pickerStyle(SegmentedPickerStyle())
-        .padding()
+        .padding(.horizontal, 16)
+        .padding(.bottom, 16)
     }
     
     private var content: some View {
@@ -160,12 +157,9 @@ struct StationSearchView: View {
     
     private func errorView(message: String) -> some View {
         VStack(spacing: 16) {
-            let isOffline = message.contains("オフライン")
-            let isLocation = message.contains("位置情報")
-            
-            Image(systemName: isOffline ? "wifi.slash" : (isLocation ? "location.slash" : "exclamationmark.triangle"))
+            Image(systemName: message.contains("位置情報") ? "location.slash" : "exclamationmark.triangle")
                 .font(.system(size: 50))
-                .foregroundColor(isLocation ? .textSecondary : .error)
+                .foregroundColor(message.contains("位置情報") ? .textSecondary : .error)
             
             Text(message)
                 .font(.body)
@@ -173,15 +167,7 @@ struct StationSearchView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 20)
             
-            if isOffline {
-                Text("インターネット接続を確認してください")
-                    .font(.caption)
-                    .foregroundColor(.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20)
-            }
-            
-            if !isLocation {
+            if !message.contains("位置情報") {
                 PrimaryButton("再試行") {
                     loadInitialData()
                 }
@@ -199,6 +185,8 @@ struct StationSearchView: View {
             return nearbyStations
         case 1:
             return searchResults
+        case 2:
+            return favoriteStations
         default:
             return []
         }
@@ -208,29 +196,13 @@ struct StationSearchView: View {
     
     private func loadInitialData() {
         loadNearbyStations()
+        loadFavoriteStations()
     }
     
     private func loadNearbyStations() {
         guard let location = locationManager.location else {
-            // 権限を確認して位置情報の更新を開始
-            if locationManager.authorizationStatus == .authorizedWhenInUse || 
-               locationManager.authorizationStatus == .authorizedAlways {
-                locationManager.startUpdatingLocation()
-                
-                // 少し待ってから再試行
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                    if let location = self.locationManager.location {
-                        self.loadStationsForLocation(
-                            latitude: location.coordinate.latitude,
-                            longitude: location.coordinate.longitude
-                        )
-                    } else {
-                        self.errorMessage = "位置情報を取得できません"
-                    }
-                }
-            } else {
-                requestLocationPermission()
-            }
+            // Request location permission instead of using default
+            requestLocationPermission()
             return
         }
         
@@ -255,9 +227,9 @@ struct StationSearchView: View {
                 }
             } catch {
                 await MainActor.run {
-                    self.errorMessage = error.localizedDescription
+                    self.errorMessage = "駅情報の取得に失敗しました: \(error.localizedDescription)"
                     self.isLoading = false
-                    self.nearbyStations = []
+                    // Error loading stations
                 }
             }
         }
@@ -295,8 +267,7 @@ struct StationSearchView: View {
         // キャンセル処理
         searchTask?.cancel()
         
-        let trimmedQuery = query.trimmingCharacters(in: .whitespaces)
-        guard !trimmedQuery.isEmpty else {
+        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else {
             searchResults = []
             isLoading = false
             return
@@ -305,10 +276,10 @@ struct StationSearchView: View {
         isLoading = true
         errorMessage = nil
         
-        // デバウンス処理（0.5秒待機）
+        // デバウンス処理（0.3秒待機）
         searchTask = Task {
             do {
-                try await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
+                try await Task.sleep(nanoseconds: 300_000_000) // 0.3秒
                 
                 // タスクがキャンセルされていないかチェック
                 guard !Task.isCancelled else { return }
@@ -316,7 +287,7 @@ struct StationSearchView: View {
                 // Use current location if available, otherwise search without location
                 let location = locationManager.location?.coordinate
                 let stations = try await stationAPI.searchStations(
-                    query: trimmedQuery,
+                    query: query,
                     near: location
                 )
                 
@@ -335,7 +306,7 @@ struct StationSearchView: View {
                     self.searchResults = []
                     self.isLoading = false
                     if !(error is CancellationError) {
-                        self.errorMessage = error.localizedDescription
+                        // Search error occurred
                     }
                 }
             }
@@ -366,28 +337,6 @@ struct StationRowView: View {
     let isSelected: Bool
     let onTap: () -> Void
     
-    // Line color mapping
-    private func lineColor(for line: String) -> Color {
-        // JR Lines
-        if line.contains("JR") || line.contains("山手") {
-            return Color(red: 0.0, green: 0.7, blue: 0.3)
-        }
-        // Tokyo Metro
-        if line.contains("メトロ") || line.contains("丸ノ内") || line.contains("銀座") || line.contains("日比谷") {
-            return Color(red: 0.0, green: 0.4, blue: 0.8)
-        }
-        // Toei
-        if line.contains("都営") || line.contains("大江戸") || line.contains("新宿線") {
-            return Color(red: 0.8, green: 0.0, blue: 0.4)
-        }
-        // Private railways
-        if line.contains("京王") || line.contains("小田急") || line.contains("東急") || line.contains("京急") {
-            return Color(red: 0.5, green: 0.0, blue: 0.5)
-        }
-        // Default
-        return Color.gray
-    }
-    
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
@@ -406,22 +355,10 @@ struct StationRowView: View {
                     
                     // Lines (Below Station Name)
                     if !station.lines.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 6) {
-                                ForEach(station.lines, id: \.self) { line in
-                                    Text(line)
-                                        .font(.caption2)
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 2)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 4)
-                                                .fill(lineColor(for: line))
-                                        )
-                                }
-                            }
-                        }
-                        .frame(height: 20)
+                        Text(station.lines.joined(separator: " • "))
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
+                            .lineLimit(1)
                     }
                 }
                 
@@ -514,8 +451,9 @@ struct StationMapView: View {
 struct StationSearchView_Previews: PreviewProvider {
     static var previews: some View {
         StationSearchView(
-            setupData: AlertSetupData()
-        ) { _ in }
+            setupData: AlertSetupData(),
+            onStationSelected: { _ in }
+        )
         .environmentObject(LocationManager())
         .preferredColorScheme(.dark)
     }

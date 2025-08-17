@@ -121,12 +121,12 @@ persistentContainer.performBackgroundTask { context in
 func fetchStations(near location: CLLocation) async throws -> [Station] {
     let url = URL(string: "...")!
     let (data, response) = try await URLSession.shared.data(from: url)
-    
+
     guard let httpResponse = response as? HTTPURLResponse,
           httpResponse.statusCode == 200 else {
         throw APIError.invalidResponse
     }
-    
+
     return try JSONDecoder().decode([Station].self, from: data)
 }
 
@@ -154,12 +154,48 @@ let apiKey = KeychainWrapper.standard.string(forKey: "openai_api_key")
 - Use Instruments for profiling
 - Test on older devices
 
-### 9. Testing Commands
+### 9. ビルド検証フロー
+
+**重要**: コード変更を行った後は、必ずビルドチェックを実行してエラーがないことを確認してください。
+
+#### ビルド確認手順
+
+```bash
+# 1. シミュレータービルド（開発中の検証）
+cd /Users/maemotosatoshi/dev/js/dev/claude/TrainAlert
+xcodebuild -workspace TrainAlert.xcworkspace -scheme TrainAlert -sdk iphonesimulator -arch x86_64 build | tail -50
+
+# 2. ビルドが成功した場合の表示
+# ** BUILD SUCCEEDED **
+
+# 3. エラーが出た場合は詳細を確認
+xcodebuild -workspace TrainAlert.xcworkspace -scheme TrainAlert -sdk iphonesimulator -arch x86_64 build 2>&1 | grep -A 10 -B 10 "error:"
+```
+
+#### ビルドチェックのタイミング
+
+1. **機能追加・変更前**: 現在のコードがビルド可能か確認
+2. **コード変更後**: 新たなエラーを導入していないか確認
+3. **コミット前**: 必ずビルドが通ることを確認してからコミット
+4. **PR作成前**: 最終的にビルドが通ることを確認
+
+#### よくあるビルドエラーと対処法
+
+- **'buildExpression' is unavailable**: ViewBuilder内で非View型の式を使用している
+  - 解決: 計算プロパティやヘルパーメソッドに切り出す
+  
+- **Cannot find type 'XXX' in scope**: 型が見つからない
+  - 解決: import文の追加、ファイルの追加をプロジェクトに反映
+  
+- **Reference to property requires explicit use of 'self'**: クロージャ内でのself参照
+  - 解決: self.を明示的に追加
+
+### 10. Testing Commands
 ```bash
 # Unit tests
 xcodebuild test -scheme TrainAlert -destination 'platform=iOS Simulator,name=iPhone 15'
 
-# UI tests  
+# UI tests
 xcodebuild test -scheme TrainAlertUITests -destination 'platform=iOS Simulator,name=iPhone 15'
 
 # Build for TestFlight
@@ -193,7 +229,7 @@ xcodebuild -exportArchive -archivePath ./build/TrainAlert.xcarchive -exportPath 
    - Test build with `xcodebuild` if possible
    - Pay special attention to async/await syntax changes
    - When fixing compile errors, always check related code for similar issues
-7. **Mock Data Policy**: 
+7. **Mock Data Policy**:
    - Mock data should ONLY be used for development and testing purposes
    - NEVER use mock data as a fallback for production API failures
    - When API returns empty or error responses, display appropriate error messages to users
@@ -280,3 +316,41 @@ xcodebuild -exportArchive -archivePath ./build/TrainAlert.xcarchive -exportPath 
 - High: 基本機能の実装（#001-#009, #012）
 - Medium: 追加機能とテスト（#007, #010-#011, #013-#014）
 - Low: リリース準備（#015）
+
+### チケット020-031 実装状況（2025-08-17時点）
+
+#### 実装状況
+- **全チケット未実装**: #020〜#031（#021は存在しない）
+- **依存関係の起点**: #018（時刻表統合）と#004（位置情報サービス）は完了済み
+- **独立実装可能**: #020（目覚まし編集）、#030（お気に入り）
+
+#### 推奨実装順序
+1. **Phase 1 - 独立機能**（すぐに開始可能）
+   - #030 経路お気に入り機能（UI既存、バックエンドのみ、工数: 6h）
+   - #020 目覚まし編集機能（独立機能、工数: 未定）※最後に行うので残しておく
+
+2. **Phase 2 - 基盤機能**
+   - #022 時刻表連携アラーム機能（多くの機能の前提条件、工数: 16h）
+
+3. **Phase 3 - 拡張機能**（並列実装可能）
+   - #023 駅数ベース通知機能（工数: 12h）
+   - #024 繰り返し設定機能（工数: 8h）
+   - #025 遅延対応機能（工数: 12h）
+   - #029 出発日時の詳細設定（工数: 6h）
+
+4. **Phase 4 - システム統合**
+   - #026 乗り換え対応機能（工数: 16h）
+   - #027 位置情報連携機能（工数: 16h）
+
+5. **Phase 5 - 高度な機能**
+   - #028 スヌーズ機能（工数: 8h）
+   - #031 路線検索の拡充（工数: 24h）
+
+#### 実装時の注意点
+- #022は多くの機能の基盤となるため、早期実装が推奨される
+- #026と#031は乗り換え機能で関連（#031は拡張版）
+- 並列実装可能なグループを活用して効率化を図る
+
+#### 関連ドキュメント（チケット020-031）
+- `docs/tickets/summary_020_031.md` - 実装状況まとめ
+- `docs/tickets/dependency_graph_020_031.md` - 依存関係図
