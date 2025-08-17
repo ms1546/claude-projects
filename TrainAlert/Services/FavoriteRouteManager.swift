@@ -49,7 +49,7 @@ final class FavoriteRouteManager: ObservableObject {
         
         // 最大数チェック
         if favoriteRoutes.count >= maxFavorites {
-            logger.warning("Maximum favorite routes reached: \(maxFavorites)")
+            logger.warning("Maximum favorite routes reached: \(self.maxFavorites)")
             // 最も古いものを削除（オプション）
             if let oldestRoute = favoriteRoutes.min(by: { $0.lastUsedAt ?? Date.distantPast < $1.lastUsedAt ?? Date.distantPast }) {
                 delete(oldestRoute)
