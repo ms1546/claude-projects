@@ -351,13 +351,36 @@ class RouteSearchViewModel: ObservableObject {
                     let calendarType = getCalendarType()
                     print("Using calendar type: \(calendarType)")
                     
-                    let timetables = try await apiClient.getStationTimetable(
+                    var timetables = try await apiClient.getStationTimetable(
                         stationId: stationId,
                         railwayId: railwayId,
                         calendar: calendarType
                     )
                     
                     print("ODPT API: Received \(timetables.count) timetables")
+                    
+                    // もし時刻表が取得できなかった場合、他のカレンダータイプも試す
+                    if timetables.isEmpty {
+                        print("No timetables found for \(calendarType), trying other calendar types...")
+                        
+                        // 全てのカレンダータイプを試す（優先順位順）
+                        let allCalendarTypes = ["odpt.Calendar:Weekday", "odpt.Calendar:SaturdayHoliday", "odpt.Calendar:SundayHoliday"]
+                        for tryCalendarType in allCalendarTypes {
+                            if tryCalendarType != calendarType {
+                                print("Trying calendar type: \(tryCalendarType)")
+                                let tryTimetables = try await apiClient.getStationTimetable(
+                                    stationId: stationId,
+                                    railwayId: railwayId,
+                                    calendar: tryCalendarType
+                                )
+                                if !tryTimetables.isEmpty {
+                                    print("✅ Found \(tryTimetables.count) timetables with \(tryCalendarType)")
+                                    timetables = tryTimetables
+                                    break
+                                }
+                            }
+                        }
+                    }
                     
                     // 空の結果の場合はエラーとして扱う
                     if timetables.isEmpty {
