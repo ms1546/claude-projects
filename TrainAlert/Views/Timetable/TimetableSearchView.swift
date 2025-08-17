@@ -7,14 +7,30 @@
 
 import SwiftUI
 
+// 選択データを保持する構造体
+struct TrainSelectionData: Equatable {
+    let train: ODPTTrainTimetableObject
+    let station: ODPTStation
+    let railway: String
+    let direction: String?
+    
+    static func == (lhs: TrainSelectionData, rhs: TrainSelectionData) -> Bool {
+        lhs.train.departureTime == rhs.train.departureTime &&
+               lhs.station.sameAs == rhs.station.sameAs &&
+               lhs.railway == rhs.railway &&
+               lhs.direction == rhs.direction
+    }
+}
+
 struct TimetableSearchView: View {
     @StateObject private var viewModel = TimetableSearchViewModel()
     @Environment(\.dismiss) private var dismiss
     @State private var selectedStation: ODPTStation?
     @State private var selectedDirection: String?
     @State private var showingStationSearch = false
-    @State private var selectedTrainForAlert: ODPTTrainTimetableObject?
+    @State private var selectedTrainData: TrainSelectionData?
     @State private var showingTrainSelection = false
+    @State private var isDataPreparing = false
     
     var body: some View {
         NavigationView {
@@ -37,6 +53,25 @@ struct TimetableSearchView: View {
                             emptyStateView
                         } else {
                             timetableContent
+                                .overlay(
+                                    // ローディング中のオーバーレイ
+                                    (viewModel.isLoading || isDataPreparing) ? 
+                                    Color.black.opacity(0.3)
+                                        .overlay(
+                                            VStack(spacing: 10) {
+                                                ProgressView()
+                                                    .scaleEffect(1.2)
+                                                Text("データ更新中...")
+                                                    .font(.caption)
+                                                    .foregroundColor(.white)
+                                            }
+                                            .padding(20)
+                                            .background(Color.black.opacity(0.8))
+                                            .cornerRadius(10)
+                                        )
+                                        .ignoresSafeArea()
+                                    : nil
+                                )
                         }
                     } else {
                         instructionView
@@ -45,38 +80,80 @@ struct TimetableSearchView: View {
             }
             .navigationTitle("時刻表から設定")
             .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("閉じる") {
-                        dismiss()
-                    }
-                    .foregroundColor(Color.trainSoftBlue)
+            .navigationBarItems(trailing:
+                Button(action: {
+                    dismiss()
+                }) {
+                    Text("閉じる")
+                        .foregroundColor(Color.trainSoftBlue)
                 }
-            }
+            )
             .sheet(isPresented: $showingStationSearch) {
                 TimetableStationSearchView(
                     title: "出発駅を選択"
                 ) { station in
+                        // 駅が変更された場合のみ方向選択をクリア
+                        if selectedStation?.sameAs != station.sameAs {
+                            selectedDirection = nil
+                        }
                         selectedStation = station
                         showingStationSearch = false
+                        print("駅選択: \(station.stationTitle?.ja ?? station.title), railway = \(station.railway)")
+                        // データ準備中フラグを立てる
+                        isDataPreparing = true
                         Task {
                             await viewModel.loadTimetable(for: station)
+                            await MainActor.run {
+                                // 最初の方向を自動選択
+                                if selectedDirection == nil, let firstDirection = viewModel.directions.first {
+                                    selectedDirection = firstDirection
+                                }
+                                // データ準備完了
+                                isDataPreparing = false
+                            }
                         }
                 }
             }
-            .sheet(isPresented: $showingTrainSelection) {
-                if let train = selectedTrainForAlert,
-                   let station = selectedStation {
+            .sheet(isPresented: $showingTrainSelection, onDismiss: {
+                // シートが閉じられた後にクリア
+                selectedTrainData = nil
+            }) {
+                if let data = selectedTrainData {
                     TrainSelectionView(
-                        train: train,
-                        departureStation: station,
-                        railway: viewModel.selectedRailway ?? "",
-                        direction: selectedDirection
+                        train: data.train,
+                        departureStation: data.station,
+                        railway: data.railway,
+                        direction: data.direction
                     )
-                    .onDisappear {
-                        // シートが閉じられた後にクリア
-                        selectedTrainForAlert = nil
+                        .onAppear {
+                            print("Sheet displayed successfully with:")
+                            print("  Train: \(data.train.departureTime)")
+                            print("  Station: \(data.station.stationTitle?.ja ?? data.station.title)")
+                            print("  Railway: \(data.railway)")
+                            print("  Direction: \(data.direction ?? "nil")")
+                        }
+                } else {
+                    // エラー表示（通常は発生しないはず）
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 50))
+                            .foregroundColor(.orange)
+                        
+                        Text("エラー: 必要なデータが不足しています")
+                            .font(.headline)
+                        
+                        Button("閉じる") {
+                            showingTrainSelection = false
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
                     }
+                    .padding()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(.systemBackground))
                 }
             }
             .alert("エラー", isPresented: $viewModel.showError) {
@@ -88,6 +165,12 @@ struct TimetableSearchView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("DismissTimetableSearch"))) { _ in
                 dismiss()
+            }
+            .onChange(of: viewModel.directions) { newDirections in
+                // 方向が更新されたら自動選択
+                if selectedDirection == nil, let firstDirection = newDirections.first {
+                    selectedDirection = firstDirection
+                }
             }
         }
     }
@@ -151,6 +234,7 @@ struct TimetableSearchView: View {
                     }
                     .padding(.vertical)
                 }
+                .disabled(isDataPreparing || viewModel.isLoading)
                 .onAppear {
                     // 現在時刻に近い電車までスクロール
                     if let nearestTrain = viewModel.nearestTrain {
@@ -171,6 +255,10 @@ struct TimetableSearchView: View {
                         withAnimation {
                             selectedDirection = direction
                             viewModel.selectDirection(direction)
+                            // 方向が選択されたらデータ準備完了とみなす
+                            if isDataPreparing && !viewModel.isLoading {
+                                isDataPreparing = false
+                            }
                         }
                     }) {
                         Text(viewModel.getDirectionTitle(for: direction))
@@ -195,17 +283,60 @@ struct TimetableSearchView: View {
         }
         .padding(.vertical, 12)
         .background(Color.backgroundSecondary)
+        .onAppear {
+            // 初回表示時に最初の方向を選択
+            if selectedDirection == nil, let firstDirection = viewModel.directions.first {
+                selectedDirection = firstDirection
+            }
+        }
     }
     
     private func trainRow(_ train: ODPTTrainTimetableObject) -> some View {
         let isNearCurrent = viewModel.isNearCurrentTime(train)
         let isPastTime = viewModel.isPastTime(train)
+        let isDisabled = isPastTime || viewModel.isLoading || isDataPreparing
         
         return Button(action: {
-            // 先にtrainを設定してからsheetを表示
-            selectedTrainForAlert = train
-            DispatchQueue.main.async {
-                showingTrainSelection = true
+            // データのロード中は何もしない
+            guard !viewModel.isLoading && !isDataPreparing else {
+                print("Data is still loading/preparing, ignoring tap")
+                return
+            }
+            
+            // 駅が選択されていることを確認
+            guard let station = selectedStation else {
+                print("No station selected")
+                return
+            }
+            
+            // 必要なデータを構造体にまとめる
+            let railwayId = station.railway
+            let currentDirection = selectedDirection ?? viewModel.directions.first
+            
+            // デバッグ情報
+            print("Creating TrainSelectionData:")
+            print("  Train: \(train.departureTime)")
+            print("  Station: \(station.stationTitle?.ja ?? station.title)")
+            print("  Railway: \(railwayId)")
+            print("  Direction: \(currentDirection ?? "nil")")
+            print("  isNearCurrent: \(isNearCurrent)")
+            
+            // 選択データを設定
+            selectedTrainData = TrainSelectionData(
+                train: train,
+                station: station,
+                railway: railwayId,
+                direction: currentDirection
+            )
+            
+            // 少し遅延を入れてからsheetを表示（データ設定を確実にする）
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                // データが確実に設定されていることを再確認
+                if self.selectedTrainData != nil {
+                    showingTrainSelection = true
+                } else {
+                    print("ERROR: selectedTrainData is nil after setting")
+                }
             }
         }) {
             HStack(spacing: 16) {
@@ -262,10 +393,11 @@ struct TimetableSearchView: View {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(isNearCurrent ? Color.warmOrange.opacity(0.1) : Color.clear)
             )
-            .opacity(isPastTime ? 0.5 : 1.0)
+            .opacity(isDisabled ? 0.5 : 1.0)
         }
         .buttonStyle(PlainButtonStyle())
-        .disabled(isPastTime)
+        .disabled(isDisabled)
+        .opacity(isDisabled ? 0.6 : 1.0)
     }
     
     // MARK: - Empty States
@@ -431,14 +563,14 @@ private struct TimetableStationSearchView: View {
             }
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("キャンセル") {
-                        dismiss()
-                    }
-                    .foregroundColor(Color.trainSoftBlue)
+            .navigationBarItems(trailing:
+                Button(action: {
+                    dismiss()
+                }) {
+                    Text("キャンセル")
+                        .foregroundColor(Color.trainSoftBlue)
                 }
-            }
+            )
         }
     }
     

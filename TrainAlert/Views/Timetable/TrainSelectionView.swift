@@ -722,13 +722,28 @@ private struct ArrivalStationSearchView: View {
     
     private var emptyStateView: some View {
         VStack(spacing: 20) {
-            Image(systemName: "tram.circle.fill")
+            Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 60))
-                .foregroundColor(Color.trainLightGray)
+                .foregroundColor(Color.warmOrange)
             
             Text("到着駅情報を取得できませんでした")
                 .font(.headline)
+                .foregroundColor(Color.textPrimary)
+            
+            Text("ネットワーク接続を確認するか、\nしばらく経ってから再度お試しください")
+                .font(.caption)
                 .foregroundColor(Color.textSecondary)
+                .multilineTextAlignment(.center)
+            
+            Button(action: { dismiss() }) {
+                Text("閉じる")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(Color.trainSoftBlue)
+                    .cornerRadius(20)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
@@ -737,174 +752,91 @@ private struct ArrivalStationSearchView: View {
     private func loadPossibleArrivalStations() {
         Task {
             do {
-                // 同じ路線の全駅を取得
                 let apiClient = ODPTAPIClient.shared
                 
-                // 路線IDから事業者とラインを抽出
-                let components = railway.split(separator: ":").map { String($0) }
-                guard components.count >= 2 else {
-                    await MainActor.run {
-                        self.isLoading = false
+                print("Loading stations for railway: \(railway)")
+                
+                // 路線の全駅を順序付きで取得
+                let allStationsOnLine = try await apiClient.getStationsOnRailway(railwayId: railway)
+                
+                print("Received \(allStationsOnLine.count) stations")
+                
+                if allStationsOnLine.isEmpty {
+                    print("ERROR: No stations found for railway \(railway)")
+                    throw ODPTAPIError.invalidResponse
+                }
+                
+                // 出発駅のインデックスを見つける
+                let departureIndex = allStationsOnLine.firstIndex { station in
+                    station.sameAs == departureStation.sameAs
+                } ?? -1
+                
+                // 進行方向に基づいてフィルタリング
+                var arrivalStations: [ODPTStation] = []
+                
+                if departureIndex >= 0 {
+                    // 列車の行き先から進行方向を判定
+                    let destinationName = train.destinationStationTitle?.ja ?? ""
+                    let destinationIndex = allStationsOnLine.firstIndex { station in
+                        let stationName = station.stationTitle?.ja ?? station.title
+                        return destinationName.contains(stationName) || stationName == destinationName
                     }
-                    return
-                }
-                
-                let operatorAndLine = components[1].split(separator: ".").map { String($0) }
-                guard operatorAndLine.count >= 2 else {
-                    await MainActor.run {
-                        self.isLoading = false
+                    
+                    if let destIndex = destinationIndex {
+                        // 出発駅と行き先駅の位置関係から到着可能駅を決定
+                        if destIndex > departureIndex {
+                            // 行き先が後方：出発駅より後の駅
+                            arrivalStations = Array(allStationsOnLine[(departureIndex + 1)...min(destIndex, allStationsOnLine.count - 1)])
+                        } else if destIndex < departureIndex {
+                            // 行き先が前方：出発駅より前の駅
+                            arrivalStations = Array(allStationsOnLine[max(0, destIndex)...(departureIndex - 1)]).reversed()
+                        }
+                    } else {
+                        // 行き先が不明な場合は、direction情報から判定
+                        if let dir = direction {
+                            // 路線情報から方向を判定（実装はAPI仕様に依存）
+                            let isAscending = dir.contains("ascending") || dir.contains("上り")
+                            if isAscending {
+                                arrivalStations = Array(allStationsOnLine[0..<departureIndex]).reversed()
+                            } else {
+                                arrivalStations = Array(allStationsOnLine[(departureIndex + 1)...])
+                            }
+                        } else {
+                            // 方向が不明な場合は出発駅以外の全駅
+                            arrivalStations = allStationsOnLine.filter { $0.sameAs != departureStation.sameAs }
+                        }
                     }
-                    return
+                } else {
+                    // 出発駅が見つからない場合は全駅（出発駅以外）
+                    arrivalStations = allStationsOnLine.filter { $0.sameAs != departureStation.sameAs }
                 }
                 
-                // 全駅を検索（仮実装：路線名の一部で検索）
-                let lineNamePart = String(operatorAndLine[1].prefix(4)) // 例：Hanzomon -> Hanz
-                let searchResults = try await apiClient.searchStations(by: "")
-                
-                // 同じ路線の駅のみをフィルタリング
-                let sameLineStations = searchResults.filter { station in
-                    station.railway == railway && station.sameAs != departureStation.sameAs
-                }
-                
-                // 駅名でソート（仮）
-                let sortedStations = sameLineStations.sorted { s1, s2 in
-                    (s1.stationTitle?.ja ?? s1.title) < (s2.stationTitle?.ja ?? s2.title)
-                }
-                
-                // 到着時刻を推定（5分ごとに加算）
+                // 到着時刻を推定（駅間を3-5分で計算）
                 let baseTime = parseTime(train.departureTime) ?? Date()
                 var times: [String: Date] = [:]
-                for (index, station) in sortedStations.enumerated() {
-                    let arrivalTime = baseTime.addingTimeInterval(TimeInterval((index + 1) * 5 * 60))
+                for (index, station) in arrivalStations.enumerated() {
+                    let minutesPerStation = railway.contains("TokyoMetro") ? 3 : 4 // メトロは3分、JRは4分
+                    let arrivalTime = baseTime.addingTimeInterval(TimeInterval((index + 1) * minutesPerStation * 60))
                     times[station.sameAs] = arrivalTime
                 }
                 
                 await MainActor.run {
-                    self.stations = sortedStations
+                    self.stations = arrivalStations
                     self.estimatedTimes = times
                     self.isLoading = false
                 }
             } catch {
-                print("到着駅の取得に失敗: \(error)")
-                // エラー時はモックデータを使用
-                let mockStations = getMockArrivalStations()
+                print("APIから駅データの取得に失敗: \(error)")
+                // APIエラー時のフォールバック
                 await MainActor.run {
-                    self.stations = mockStations
                     self.isLoading = false
+                    // エラーメッセージを表示
+                    self.stations = []
                 }
             }
         }
     }
     
-    private func getMockArrivalStations() -> [ODPTStation] {
-        // 路線に応じたモック駅データを返す
-        var stationNames: [String] = []
-        var railwayTitle = ""
-        var operatorId = ""
-        var operatorTitle = ""
-        
-        // 路線IDから路線名を判定
-        if railway.contains("Hanzomon") {
-            stationNames = ["青山一丁目", "赤坂", "永田町", "半蔵門", "九段下", "神保町", "大手町", "三越前", "水天宮前", "清澄白河", "住吉", "錦糸町", "押上"]
-            railwayTitle = "東京メトロ半蔵門線"
-            operatorId = "odpt.Operator:TokyoMetro"
-            operatorTitle = "東京メトロ"
-        } else if railway.contains("Yamanote") {
-            stationNames = ["新宿", "渋谷", "原宿", "代々木", "品川", "田町", "浜松町", "新橋", "有楽町", "東京", "神田", "秋葉原", "御徒町", "上野", "鶯谷", "日暮里", "西日暮里", "田端", "駒込", "巣鴨", "大塚", "池袋", "目白", "高田馬場"]
-            railwayTitle = "JR山手線"
-            operatorId = "odpt.Operator:JR-East"
-            operatorTitle = "JR東日本"
-        } else if railway.contains("Ginza") {
-            stationNames = ["浅草", "田原町", "稲荷町", "上野", "上野広小路", "末広町", "神田", "三越前", "日本橋", "京橋", "銀座", "新橋", "虎ノ門", "溜池山王", "赤坂見附", "青山一丁目", "外苑前", "表参道", "渋谷"]
-            railwayTitle = "東京メトロ銀座線"
-            operatorId = "odpt.Operator:TokyoMetro"
-            operatorTitle = "東京メトロ"
-        } else if railway.contains("Marunouchi") {
-            stationNames = ["池袋", "新大塚", "茗荷谷", "後楽園", "本郷三丁目", "御茶ノ水", "淡路町", "大手町", "東京", "銀座", "霞ケ関", "国会議事堂前", "赤坂見附", "四ツ谷", "四谷三丁目", "新宿御苑前", "新宿三丁目", "新宿", "西新宿", "中野坂上", "新中野", "東高円寺", "新高円寺", "南阿佐ケ谷", "荻窪"]
-            railwayTitle = "東京メトロ丸ノ内線"
-            operatorId = "odpt.Operator:TokyoMetro"
-            operatorTitle = "東京メトロ"
-        } else {
-            // デフォルトは元の山手線の駅
-            stationNames = ["新宿", "渋谷", "原宿", "代々木", "品川", "田町", "浜松町"]
-            railwayTitle = "JR山手線"
-            operatorId = "odpt.Operator:JR-East"
-            operatorTitle = "JR東日本"
-        }
-        
-        // 進行方向に応じて駅リストを調整
-        let departureStationName = departureStation.stationTitle?.ja ?? departureStation.title
-        
-        // 全駅リストでの出発駅のインデックスを見つける
-        var filteredStationNames = stationNames
-        if let departureIndex = stationNames.firstIndex(of: departureStationName) {
-            // 進行方向または行き先から方向を判定
-            var destinationName = ""
-            if let dir = direction {
-                destinationName = dir
-            } else if let dest = train.destinationStationTitle?.ja {
-                destinationName = dest
-            }
-            
-            if !destinationName.isEmpty {
-                // 行き先駅のインデックスを見つける
-                if let destinationIndex = stationNames.firstIndex(where: { name in
-                    destinationName.contains(name) || name == destinationName
-                }) {
-                    // 出発駅と行き先駅の位置関係から進行方向を判定
-                    if destinationIndex < departureIndex {
-                        // 行き先が出発駅より前（配列の前方）
-                        filteredStationNames = Array(stationNames[0..<departureIndex])
-                    } else {
-                        // 行き先が出発駅より後（配列の後方）
-                        if departureIndex + 1 < stationNames.count {
-                            filteredStationNames = Array(stationNames[(departureIndex + 1)...])
-                        } else {
-                            filteredStationNames = []
-                        }
-                    }
-                } else {
-                    // 行き先が見つからない場合は出発駅を除外
-                    filteredStationNames = stationNames.filter { $0 != departureStationName }
-                }
-            } else {
-                // 方向が不明な場合は出発駅を除外
-                filteredStationNames = stationNames.filter { $0 != departureStationName }
-            }
-        } else {
-            // 出発駅が見つからない場合は全駅から出発駅を除外
-            filteredStationNames = stationNames.filter { $0 != departureStationName }
-        }
-        
-        stationNames = filteredStationNames
-        
-        var mockStations: [ODPTStation] = []
-        let baseTime = parseTime(train.departureTime) ?? Date()
-        
-        for (index, name) in stationNames.enumerated() {
-            let lineComponent = railway.split(separator: ".").last ?? ""
-            let station = ODPTStation(
-                id: "mock-\(name)",
-                sameAs: railway.replacingOccurrences(of: "Railway", with: "Station") + ".\(name)",
-                date: nil,
-                title: name,
-                stationTitle: ODPTMultilingualTitle(ja: name, en: name),
-                railway: railway,
-                railwayTitle: ODPTMultilingualTitle(ja: railwayTitle, en: railwayTitle),
-                operator: operatorId,
-                operatorTitle: ODPTMultilingualTitle(ja: operatorTitle, en: operatorTitle),
-                stationCode: nil,
-                connectingRailway: nil
-            )
-            mockStations.append(station)
-            
-            // 仮の到着時刻（5分ごと）
-            let arrivalTime = baseTime.addingTimeInterval(TimeInterval((index + 1) * 5 * 60))
-            estimatedTimes[station.sameAs] = arrivalTime
-        }
-        
-        return mockStations
-    }
     
     private func parseTime(_ timeString: String) -> Date? {
         // 時刻文字列から今日の日付でDateを作成
