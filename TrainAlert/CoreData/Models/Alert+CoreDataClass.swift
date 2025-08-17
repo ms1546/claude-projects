@@ -1,59 +1,23 @@
-import Foundation
 import CoreData
+import Foundation
 
 @objc(Alert)
 public class Alert: NSManagedObject {
+    // CharacterStyleはModels/CharacterStyle.swiftで定義されている
     
-    // MARK: - Enums
-    
-    /// キャラクタースタイルの定義
-    enum CharacterStyle: String, CaseIterable {
-        case friendly = "friendly"
-        case serious = "serious"
-        case funny = "funny"
-        case motivational = "motivational"
-        case polite = "polite"
-        
-        var displayName: String {
-            switch self {
-            case .friendly:
-                return "親しみやすい"
-            case .serious:
-                return "真面目"
-            case .funny:
-                return "ユーモア"
-            case .motivational:
-                return "やる気を出す"
-            case .polite:
-                return "丁寧"
-            }
-        }
-        
-        var description: String {
-            switch self {
-            case .friendly:
-                return "優しく親しみやすい口調で通知します"
-            case .serious:
-                return "落ち着いた真面目な口調で通知します"
-            case .funny:
-                return "楽しいユーモアのある口調で通知します"
-            case .motivational:
-                return "元気の出る応援的な口調で通知します"
-            case .polite:
-                return "敬語を使った丁寧な口調で通知します"
-            }
-        }
-    }
+    // MARK: - Core Data Properties (Additional)
+    @NSManaged public var departureStation: String?
+    @NSManaged public var arrivalTime: Date?
     
     // MARK: - Computed Properties
     
     /// キャラクタースタイルのEnum値
-    var characterStyleEnum: CharacterStyle {
+    var characterStyleEnum: TrainAlert.CharacterStyle {
         get {
             guard let styleString = characterStyle else {
-                return .friendly
+                return .healing
             }
-            return CharacterStyle(rawValue: styleString) ?? .friendly
+            return TrainAlert.CharacterStyle(rawValue: styleString) ?? .healing
         }
         set {
             characterStyle = newValue.rawValue
@@ -71,21 +35,21 @@ public class Alert: NSManagedObject {
     
     /// 通知距離の表示用文字列
     var notificationDistanceDisplayString: String {
-        if notificationDistance < 1000 {
+        if notificationDistance < 1_000 {
             return String(format: "%.0fm", notificationDistance)
         } else {
-            return String(format: "%.1fkm", notificationDistance / 1000)
+            return String(format: "%.1fkm", notificationDistance / 1_000)
         }
     }
     
     /// スヌーズ間隔の表示用文字列
     var snoozeIntervalDisplayString: String {
-        return "\(snoozeInterval)分"
+        "\(snoozeInterval)分"
     }
     
     /// アラートの状態表示用文字列
     var statusDisplayString: String {
-        return isActive ? "有効" : "無効"
+        isActive ? "有効" : "無効"
     }
     
     /// 作成日時の表示用文字列
@@ -103,7 +67,7 @@ public class Alert: NSManagedObject {
     
     /// 履歴の件数
     var historyCount: Int {
-        return (histories as? Set<History>)?.count ?? 0
+        (histories as? Set<History>)?.count ?? 0
     }
     
     /// 最新の履歴
@@ -111,12 +75,12 @@ public class Alert: NSManagedObject {
         guard let histories = histories as? Set<History> else {
             return nil
         }
-        return histories.max(by: { ($0.notifiedAt ?? Date.distantPast) < ($1.notifiedAt ?? Date.distantPast) })
+        return histories.max { ($0.notifiedAt ?? Date.distantPast) < ($1.notifiedAt ?? Date.distantPast) }
     }
     
     // MARK: - Core Data Methods
     
-    public override func awakeFromInsert() {
+    override public func awakeFromInsert() {
         super.awakeFromInsert()
         
         // デフォルト値の設定
@@ -133,17 +97,17 @@ public class Alert: NSManagedObject {
         notificationTime = 5  // 5分前
         notificationDistance = 500  // 500m
         snoozeInterval = 5  // 5分
-        characterStyle = CharacterStyle.friendly.rawValue
+        characterStyle = TrainAlert.CharacterStyle.healing.rawValue
     }
     
     // MARK: - Validation
     
-    public override func validateForInsert() throws {
+    override public func validateForInsert() throws {
         try super.validateForInsert()
         try validateAlert()
     }
     
-    public override func validateForUpdate() throws {
+    override public func validateForUpdate() throws {
         try super.validateForUpdate()
         try validateAlert()
     }
@@ -154,14 +118,25 @@ public class Alert: NSManagedObject {
             throw AlertValidationError.invalidAlertId
         }
         
-        // 通知時間の検証（0-60分）
-        guard notificationTime >= 0 && notificationTime <= 60 else {
-            throw AlertValidationError.invalidNotificationTime
-        }
-        
-        // 通知距離の検証（50m-10km）
-        guard notificationDistance >= 50 && notificationDistance <= 10000 else {
-            throw AlertValidationError.invalidNotificationDistance
+        // 通知タイプに応じた検証
+        if notificationType == "station" {
+            // 駅数ベースの場合
+            guard notificationStationsBefore >= 1 && notificationStationsBefore <= 10 else {
+                throw AlertValidationError.invalidNotificationStations
+            }
+        } else {
+            // 時間ベースまたは距離ベースの場合
+            // 通知時間の検証（0-60分）
+            guard notificationTime >= 0 && notificationTime <= 60 else {
+                throw AlertValidationError.invalidNotificationTime
+            }
+            
+            // 距離ベースの場合のみ距離を検証（駅から検索の場合）
+            if notificationDistance > 0 {
+                guard notificationDistance >= 50 && notificationDistance <= 10_000 else {
+                    throw AlertValidationError.invalidNotificationDistance
+                }
+            }
         }
         
         // スヌーズ間隔の検証（1-30分）
@@ -171,7 +146,7 @@ public class Alert: NSManagedObject {
         
         // キャラクタースタイルの検証
         if let characterStyle = characterStyle {
-            guard CharacterStyle(rawValue: characterStyle) != nil else {
+            guard TrainAlert.CharacterStyle(rawValue: characterStyle) != nil else {
                 throw AlertValidationError.invalidCharacterStyle
             }
         }
@@ -203,7 +178,7 @@ public class Alert: NSManagedObject {
     func updateNotificationSettings(time: Int16? = nil,
                                    distance: Double? = nil,
                                    snooze: Int16? = nil,
-                                   style: CharacterStyle? = nil) {
+                                   style: TrainAlert.CharacterStyle? = nil) {
         if let time = time {
             notificationTime = time
         }
@@ -258,9 +233,8 @@ public class Alert: NSManagedObject {
 // MARK: - Fetch Requests
 
 extension Alert {
-    
     @nonobjc public class func fetchRequest() -> NSFetchRequest<Alert> {
-        return NSFetchRequest<Alert>(entityName: "Alert")
+        NSFetchRequest<Alert>(entityName: "Alert")
     }
     
     /// アクティブなアラートを取得するFetch Request
@@ -306,7 +280,6 @@ extension Alert {
 // MARK: - Core Data Properties
 
 extension Alert {
-    
     @NSManaged public var alertId: UUID?
     @NSManaged public var notificationTime: Int16
     @NSManaged public var notificationDistance: Double
@@ -318,12 +291,13 @@ extension Alert {
     @NSManaged public var lineName: String?
     @NSManaged public var station: Station?
     @NSManaged public var histories: NSSet?
+    @NSManaged public var notificationStationsBefore: Int16
+    @NSManaged public var notificationType: String?
 }
 
 // MARK: - Generated accessors for histories
 
 extension Alert {
-    
     @objc(addHistoriesObject:)
     @NSManaged public func addToHistories(_ value: History)
     
@@ -341,7 +315,7 @@ extension Alert {
 
 extension Alert: Identifiable {
     public var id: UUID {
-        return alertId ?? UUID()
+        alertId ?? UUID()
     }
 }
 
@@ -353,6 +327,7 @@ enum AlertValidationError: LocalizedError {
     case invalidNotificationDistance
     case invalidSnoozeInterval
     case invalidCharacterStyle
+    case invalidNotificationStations
     
     var errorDescription: String? {
         switch self {
@@ -366,6 +341,8 @@ enum AlertValidationError: LocalizedError {
             return "スヌーズ間隔が無効です（1〜30分の範囲で入力してください）"
         case .invalidCharacterStyle:
             return "キャラクタースタイルが無効です"
+        case .invalidNotificationStations:
+            return "通知駅数が無効です（1〜10駅の範囲で入力してください）"
         }
     }
 }

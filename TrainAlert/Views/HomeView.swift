@@ -17,6 +17,7 @@ struct HomeView: View {
 
     // MARK: - State
     @State private var showingAlertSetup = false
+    @State private var showingRouteSearch = false
     @State private var selectedAlert: Alert?
     @State private var showingLocationPermission = false
     @State private var mapRegion = MKCoordinateRegion(
@@ -28,7 +29,7 @@ struct HomeView: View {
         NavigationView {
             ZStack {
                 // Background
-                Color(.systemBackground)
+                Color.backgroundPrimary
                     .ignoresSafeArea()
 
                 if viewModel.allAlerts.isEmpty {
@@ -63,14 +64,21 @@ struct HomeView: View {
                         }
                         .listStyle(PlainListStyle())
                         .scrollContentBackground(.hidden)
+                        .background(Color.backgroundPrimary)
                     }
                 }
             }
             .navigationBarHidden(true)
             .sheet(isPresented: $showingAlertSetup) {
-                AlertSetupCoordinator()
+                StationSearchForAlertView {
+                    // 目覚まし作成完了時にシートを閉じる
+                    showingAlertSetup = false
+                }
+                .environmentObject(locationManager)
+            }
+            .sheet(isPresented: $showingRouteSearch) {
+                RouteSearchView()
                     .environmentObject(locationManager)
-                    .environmentObject(appState)
             }
             .alert("位置情報の許可が必要です", isPresented: $showingLocationPermission) {
                 Button("設定を開く") {
@@ -116,13 +124,20 @@ struct HomeView: View {
                     
                     Spacer()
                     
-                    Button(action: { showingAlertSetup = true }) {
+                    Menu {
+                        Button(action: { showingAlertSetup = true }) {
+                            Label("駅から設定", systemImage: "location.circle")
+                        }
+                        Button(action: { showingRouteSearch = true }) {
+                            Label("時刻表から設定", systemImage: "tram.fill")
+                        }
+                    } label: {
                         Image(systemName: "plus")
                             .font(.title2)
                             .fontWeight(.medium)
                             .foregroundColor(.trainSoftBlue)
                             .frame(width: 44, height: 44)
-                            .background(Color.trainSoftBlue.opacity(0.1))
+                            .background(Color.trainSoftBlue.opacity(0.2))
                             .clipShape(Circle())
                     }
                 }
@@ -158,28 +173,63 @@ struct HomeView: View {
             .padding(.top, 20)
             .padding(.bottom, 32)
             
-            // 大きな作成ボタン
-            Button(action: { showingAlertSetup = true }) {
-                VStack(spacing: 16) {
-                    Image(systemName: "plus.circle")
-                        .font(.system(size: 48))
-                        .fontWeight(.light)
-                        .foregroundColor(.trainSoftBlue)
-                    
-                    Text("目覚ましを作成")
-                        .font(.headline)
-                        .foregroundColor(.textPrimary)
+            // 目覚まし作成オプション
+            VStack(spacing: 16) {
+                // 駅から設定
+                Button(action: { showingAlertSetup = true }) {
+                    HStack(spacing: 16) {
+                        Image(systemName: "location.circle.fill")
+                            .font(.system(size: 32))
+                            .foregroundColor(.trainSoftBlue)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("駅から設定")
+                                .font(.headline)
+                                .foregroundColor(.textPrimary)
+                            Text("降車駅を選んで通知設定")
+                                .font(.caption)
+                                .foregroundColor(.textSecondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14))
+                            .foregroundColor(.textSecondary)
+                    }
+                    .padding()
+                    .background(Color.backgroundCard)
+                    .cornerRadius(12)
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: 160)
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(Color.gray.opacity(0.05))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(Color.gray.opacity(0.1), lineWidth: 1)
-                        )
-                )
+                .buttonStyle(PlainButtonStyle())
+                
+                // 時刻表から設定
+                Button(action: { showingRouteSearch = true }) {
+                    HStack(spacing: 16) {
+                        Image(systemName: "tram.fill")
+                            .font(.system(size: 32))
+                            .foregroundColor(.trainSoftBlue)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("時刻表から設定")
+                                .font(.headline)
+                                .foregroundColor(.textPrimary)
+                            Text("経路を検索して通知設定")
+                                .font(.caption)
+                                .foregroundColor(.textSecondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14))
+                            .foregroundColor(.textSecondary)
+                    }
+                    .padding()
+                    .background(Color.backgroundCard)
+                    .cornerRadius(12)
+                }
+                .buttonStyle(PlainButtonStyle())
             }
             .padding(.horizontal, 20)
             
@@ -252,51 +302,114 @@ struct SubActionButton: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
-            .background(Color.gray.opacity(0.1))
+            .background(Color.trainLightGray.opacity(0.1))
             .cornerRadius(12)
         }
     }
 }
 
-// Custom AlertCard for HomeView
+// Custom 目覚ましCard for HomeView
 struct HomeAlertCard: View {
     let alert: Alert
     let onToggle: () -> Void
     let onDelete: () -> Void
+    
+    // Time formatter
+    private func formatTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        return formatter.string(from: date)
+    }
+    
+    // 通知設定のテキストを取得（距離ベース、時間ベース、駅数ベースの全対応）
+    private func notificationText(for alert: Alert) -> String {
+        // 通知タイプで判定
+        if let notificationType = alert.notificationType {
+            if notificationType == "station" && alert.notificationStationsBefore > 0 {
+                // 駅数ベース
+                return "\(alert.notificationStationsBefore)駅前"
+            }
+        }
+        
+        // notificationDistanceが0より大きければ距離ベース
+        if alert.notificationDistance > 0 {
+            if alert.notificationDistance >= 1_000 {
+                return String(format: "%.1fkm", alert.notificationDistance / 1_000)
+            } else {
+                return String(format: "%.0fm", alert.notificationDistance)
+            }
+        } else {
+            // 従来の時間ベース
+            return "\(alert.notificationTime)分前"
+        }
+    }
 
     var body: some View {
         HStack(spacing: 16) {
             // 左側のインジケーター
             RoundedRectangle(cornerRadius: 2)
-                .fill(alert.isActive ? Color.trainSoftBlue : Color.gray.opacity(0.3))
+                .fill(alert.isActive ? Color.trainSoftBlue : Color.trainLightGray.opacity(0.3))
                 .frame(width: 4)
             
             VStack(alignment: .leading, spacing: 8) {
-                // 駅名
-                Text(alert.station?.name ?? alert.stationName ?? "未設定")
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.textPrimary)
+                // 経路情報または駅名
+                if let departureStation = alert.departureStation {
+                    // 経路表示
+                    HStack(spacing: 8) {
+                        Text(departureStation)
+                            .font(.subheadline)
+                            .foregroundColor(.textSecondary)
+                        
+                        Image(systemName: "arrow.right")
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
+                        
+                        Text(alert.station?.name ?? alert.stationName ?? "未設定")
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.textPrimary)
+                    }
+                } else {
+                    // 駅名のみ
+                    Text(alert.station?.name ?? alert.stationName ?? "未設定")
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.textPrimary)
+                }
                 
-                // 路線情報
-                if let lines = alert.station?.lines {
-                    Text(lines)
-                        .font(.footnote)
-                        .foregroundColor(.textSecondary)
-                        .lineLimit(1)
-                } else if let lineName = alert.lineName {
-                    Text(lineName)
-                        .font(.footnote)
-                        .foregroundColor(.textSecondary)
+                // 到着時刻と路線情報
+                HStack(spacing: 16) {
+                    if let arrivalTime = alert.arrivalTime {
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock.fill")
+                                .font(.caption2)
+                                .foregroundColor(.textSecondary)
+                            Text(formatTime(arrivalTime))
+                                .font(.footnote)
+                                .fontWeight(.medium)
+                                .foregroundColor(.textSecondary)
+                            Text("到着")
+                                .font(.caption2)
+                                .foregroundColor(.textSecondary)
+                        }
+                    }
+                    
+                    if let lines = alert.station?.lines, !lines.isEmpty {
+                        Text(lines.joined(separator: " • "))
+                            .font(.footnote)
+                            .foregroundColor(.textSecondary)
+                            .lineLimit(1)
+                    } else if let lineName = alert.lineName {
+                        Text(lineName)
+                            .font(.footnote)
+                            .foregroundColor(.textSecondary)
+                    }
                 }
                 
                 // 設定情報
                 HStack(spacing: 16) {
-                    Label("\(alert.notificationTime)分前", systemImage: "clock")
-                        .font(.caption)
-                        .foregroundColor(.textSecondary)
-                    
-                    Label(String(format: "%.1fkm", alert.notificationDistance / 1_000), systemImage: "location")
+                    Label(notificationText(for: alert), systemImage: "bell")
                         .font(.caption)
                         .foregroundColor(.textSecondary)
                 }
@@ -316,12 +429,12 @@ struct HomeAlertCard: View {
         .padding(.horizontal, 16)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
-                .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+                .fill(Color.backgroundCard)
+                .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.gray.opacity(0.1), lineWidth: 1)
+                .stroke(Color.trainLightGray.opacity(0.2), lineWidth: 1)
         )
         .contextMenu {
             Button(role: .destructive) {
@@ -345,4 +458,3 @@ struct HomeView_Previews: PreviewProvider {
     }
 }
 #endif
-

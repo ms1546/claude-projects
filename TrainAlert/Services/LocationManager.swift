@@ -36,6 +36,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var settingsObserver: NSObjectProtocol?
     
     @Published var location: CLLocation?
+    
+    // currentLocationプロパティを追加（互換性のため）
+    var currentLocation: CLLocation? {
+        location
+    }
     @Published var authorizationStatus: CLAuthorizationStatus
     @Published var isUpdatingLocation = false
     @Published var lastError: LocationError?

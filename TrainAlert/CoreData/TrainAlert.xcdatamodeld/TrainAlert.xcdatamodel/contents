@@ -24,6 +24,21 @@
         <attribute name="stationName" optional="YES" attributeType="String"/>
         <relationship name="alert" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Alert" inverseName="histories" inverseEntity="Alert"/>
     </entity>
+    <entity name="RouteAlert" representedClassName="RouteAlert" syncable="YES">
+        <attribute name="arrivalStation" optional="YES" attributeType="String"/>
+        <attribute name="arrivalTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="departureStation" optional="YES" attributeType="String"/>
+        <attribute name="departureTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="isActive" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="notificationMinutes" optional="YES" attributeType="Integer 16" defaultValueString="5" usesScalarValueType="YES"/>
+        <attribute name="railway" optional="YES" attributeType="String"/>
+        <attribute name="routeData" optional="YES" attributeType="Binary"/>
+        <attribute name="routeId" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="trainNumber" optional="YES" attributeType="String"/>
+        <attribute name="trainType" optional="YES" attributeType="String"/>
+        <attribute name="updatedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
     <entity name="Station" representedClassName="Station" syncable="YES">
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="isFavorite" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>

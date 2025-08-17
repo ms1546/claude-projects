@@ -26,10 +26,10 @@ struct StationSearchView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showMap = false
-    @State private var selectedSegment = 0 // 0: 近くの駅, 1: 検索結果, 2: お気に入り
+    @State private var selectedSegment = 0 // 0: 近くの駅, 1: 検索結果
     @State private var searchTask: Task<Void, Never>?
     
-    private let segments = ["近くの駅", "検索", "お気に入り"]
+    private let segments = ["近くの駅", "検索"]
     
     var body: some View {
         VStack(spacing: 0) {
@@ -199,8 +199,6 @@ struct StationSearchView: View {
             return nearbyStations
         case 1:
             return searchResults
-        case 2:
-            return favoriteStations
         default:
             return []
         }
@@ -210,7 +208,6 @@ struct StationSearchView: View {
     
     private func loadInitialData() {
         loadNearbyStations()
-        loadFavoriteStations()
     }
     
     private func loadNearbyStations() {

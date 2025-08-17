@@ -5,14 +5,13 @@
 //  Created by Claude on 2024/01/08.
 //
 
-import Foundation
-import CoreData
 import Combine
+import CoreData
 import CoreLocation
+import Foundation
 
 @MainActor
 class AlertSetupViewModel: ObservableObject {
-    
     // MARK: - Properties
     
     @Published var setupData = AlertSetupData()
@@ -47,7 +46,7 @@ class AlertSetupViewModel: ObservableObject {
         }
         
         var progress: Double {
-            return Double(rawValue + 1) / Double(AlertSetupStep.allCases.count)
+            Double(rawValue + 1) / Double(AlertSetupStep.allCases.count)
         }
     }
     
@@ -70,12 +69,12 @@ class AlertSetupViewModel: ObservableObject {
                 setupData.$snoozeInterval
             )
             .map { station, time, distance, snooze in
-                return station != nil &&
+                station != nil &&
                        time >= 0 && time <= 60 &&
-                       distance >= 50 && distance <= 10000 &&
+                       distance >= 50 && distance <= 10_000 &&
                        snooze >= 1 && snooze <= 30
             }
-            .sink { [weak self] isValid in
+            .sink { [weak self] _ in
                 // Could be used for additional validation logic
             }
             .store(in: &cancellables)
@@ -140,7 +139,6 @@ class AlertSetupViewModel: ObservableObject {
             isLoading = false
             
             return true
-            
         } catch {
             errorMessage = error.localizedDescription
             isLoading = false
@@ -149,7 +147,7 @@ class AlertSetupViewModel: ObservableObject {
     }
     
     private func createAlertInCoreData() async throws -> Alert {
-        return try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { continuation in
             coreDataManager.persistentContainer.performBackgroundTask { context in
                 do {
                     // Create alert
@@ -206,7 +204,6 @@ class AlertSetupViewModel: ObservableObject {
                             continuation.resume(throwing: error)
                         }
                     }
-                    
                 } catch {
                     continuation.resume(throwing: error)
                 }
@@ -230,8 +227,8 @@ class AlertSetupViewModel: ObservableObject {
         newStation.name = station.name
         newStation.latitude = station.latitude
         newStation.longitude = station.longitude
-        // Convert array to comma-separated string for Core Data storage
-        newStation.lines = station.lines.joined(separator: ",")
+        // Set lines array directly (Transformable type)
+        newStation.lines = station.lines
         
         return newStation
     }
@@ -270,7 +267,7 @@ class AlertSetupViewModel: ObservableObject {
     }
     
     func validateCurrentStep() -> Bool {
-        return canProceedToNext()
+        canProceedToNext()
     }
     
     // MARK: - Error Handling
@@ -345,7 +342,6 @@ enum AlertSetupError: LocalizedError {
 // MARK: - Extensions
 
 extension AlertSetupViewModel {
-    
     /// テスト用のプレビューデータを設定
     func setupPreviewData() {
         let previewStation = StationModel(

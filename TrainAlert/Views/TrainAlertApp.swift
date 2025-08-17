@@ -5,12 +5,11 @@
 //  Created by Claude on 2024/01/08.
 //
 
-import SwiftUI
 import OSLog
+import SwiftUI
 
 @main
 struct TrainAlertApp: App {
-    
     // MARK: - Properties
     
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -23,6 +22,7 @@ struct TrainAlertApp: App {
             Group {
                 if appState.isAppReady {
                     ContentView()
+                        .environment(\.managedObjectContext, appState.coreDataManager.viewContext)
                         .environmentObject(appState.locationManager)
                         .environmentObject(appState.notificationManager)
                         .environmentObject(appState)
@@ -43,7 +43,6 @@ struct TrainAlertApp: App {
 
 @MainActor
 class AppState: ObservableObject {
-    
     // MARK: - Properties
     
     @Published var isAppReady = false
@@ -56,6 +55,7 @@ class AppState: ObservableObject {
     let locationManager = LocationManager()
     let notificationManager = NotificationManager.shared
     let coreDataManager = CoreDataManager.shared
+    let alertMonitoringService = AlertMonitoringService.shared
     
     // MARK: - Initialization
     
@@ -101,6 +101,9 @@ class AppState: ObservableObject {
            locationManager.authorizationStatus == .authorizedAlways {
             locationManager.startSignificantLocationUpdates()
         }
+        
+        // Start alert monitoring service
+        alertMonitoringService.startMonitoring()
     }
     
     private func prepareUI() async {

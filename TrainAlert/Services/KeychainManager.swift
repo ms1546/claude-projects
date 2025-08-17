@@ -10,7 +10,6 @@ import Security
 
 /// Keychainを使用してセキュアにデータを保存・取得するマネージャー
 final class KeychainManager {
-    
     // MARK: - Singleton
     
     static let shared = KeychainManager()
@@ -23,6 +22,7 @@ final class KeychainManager {
     
     enum KeychainKey: String {
         case openAIAPIKey = "openai_api_key"
+        case odptAPIKey = "odpt_api_key"
         case userAuthToken = "user_auth_token"
     }
     
@@ -158,7 +158,6 @@ extension KeychainManager.KeychainKey: CaseIterable {}
 // MARK: - Convenience Methods
 
 extension KeychainManager {
-    
     /// OpenAI APIキーを保存
     /// - Parameter apiKey: APIキー
     /// - Throws: KeychainError
@@ -170,7 +169,7 @@ extension KeychainManager {
     /// - Returns: APIキー（存在しない場合はnil）
     /// - Throws: KeychainError
     func getOpenAIAPIKey() throws -> String? {
-        return try getString(for: .openAIAPIKey)
+        try getString(for: .openAIAPIKey)
     }
     
     /// OpenAI APIキーを削除
@@ -182,6 +181,32 @@ extension KeychainManager {
     /// OpenAI APIキーが存在するかチェック
     /// - Returns: 存在する場合true
     var hasOpenAIAPIKey: Bool {
-        return exists(for: .openAIAPIKey)
+        exists(for: .openAIAPIKey)
+    }
+    
+    /// ODPT APIキーを保存
+    /// - Parameter apiKey: APIキー
+    /// - Throws: KeychainError
+    func saveODPTAPIKey(_ apiKey: String) throws {
+        try save(apiKey, for: .odptAPIKey)
+    }
+    
+    /// ODPT APIキーを取得
+    /// - Returns: APIキー（存在しない場合はnil）
+    /// - Throws: KeychainError
+    func getODPTAPIKey() throws -> String? {
+        try getString(for: .odptAPIKey)
+    }
+    
+    /// ODPT APIキーを削除
+    /// - Throws: KeychainError
+    func deleteODPTAPIKey() throws {
+        try delete(for: .odptAPIKey)
+    }
+    
+    /// ODPT APIキーが存在するかチェック
+    /// - Returns: 存在する場合true
+    var hasODPTAPIKey: Bool {
+        exists(for: .odptAPIKey)
     }
 }

@@ -243,7 +243,7 @@ final class BackgroundProcessingIntegrationTests: XCTestCase {
                             name: station.name,
                             latitude: station.latitude,
                             longitude: station.longitude,
-                            lines: station.lines.joined(separator: \",\")
+                            lines: station.lines
                         )
                         XCTAssertNotNil(newStation)
                     }

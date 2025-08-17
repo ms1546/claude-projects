@@ -1,71 +1,62 @@
-# チケット #022: 時刻表連携アラーム機能（基本実装）
+# Ticket #022: 時刻表連携アラーム機能（基本実装）
 
 ## 概要
 時刻表から具体的な電車を選択して、到着時刻の○分前に通知する基本機能を実装する。
 
-## 背景
-現在の実装（チケット#018）は経路検索ベースだが、ユーザーは具体的な電車（何時何分発）を選んで通知を設定したい。
+## 優先度: High
+## 見積もり: 16h
+## ステータス: [ ] Not Started / [ ] In Progress / [ ] Completed
 
-## 要件
-### 基本機能
-1. **電車選択フロー**
-   - 出発駅を選択
-   - 時刻表から電車を選択（発車時刻、種別、行き先）
-   - 到着駅を選択
-   - 通知タイミング設定（到着○分前）
-
-2. **時刻表表示**
-   - 始発〜終電まで表示
-   - 現在時刻周辺を優先表示
-   - 時間帯での絞り込み
-
-3. **通知機能**
-   - 到着予定時刻の○分前に通知
-   - プッシュ通知、アラーム音、バイブ
-
-## 技術仕様
-### 新規画面
-- `TimetableSearchView`: 時刻表から電車を選択
-- `TrainSelectionView`: 電車の詳細選択
-- `TimetableAlarmSetupView`: 通知設定（修正版）
-
-### APIエンドポイント
-```
-GET /api/v4/odpt:StationTimetable
-?acl:consumerKey={API_KEY}
-&odpt:station={駅ID}
-&odpt:railDirection={方向}
-&odpt:calendar={平日/土休日}
-```
-
-### データモデル
-```swift
-// 時刻表データ
-struct StationTimetable {
-    let station: String
-    let railway: String
-    let trainTimetables: [TrainDeparture]
-}
-
-struct TrainDeparture {
-    let departureTime: String // "HH:mm"
-    let trainType: String // "各停", "快速", etc
-    let destinationStation: String
-    let trainNumber: String
-}
-```
-
-## 実装タスク
+## タスク
+### API実装
 - [ ] ODPT StationTimetable APIクライアント実装
+  - [ ] エンドポイント定義
+  - [ ] リクエスト/レスポンスモデル
+  - [ ] エラーハンドリング
 - [ ] 時刻表データモデル定義
-- [ ] 時刻表表示UI（TimetableSearchView）
-- [ ] 電車選択UI（TrainSelectionView）
-- [ ] Core Dataモデル拡張（TimetableAlert）
-- [ ] 通知スケジューリング機能
-- [ ] 現在時刻周辺の優先表示ロジック
-- [ ] 時間帯フィルタリング機能
+  - [ ] StationTimetable構造体
+  - [ ] TrainDeparture構造体
+  - [ ] データ変換ロジック
 
-## 受け入れ条件
+### UI実装
+- [ ] 時刻表表示UI（TimetableSearchView）
+  - [ ] 駅選択インターフェース
+  - [ ] 時刻表リスト表示
+  - [ ] 現在時刻ハイライト機能
+  - [ ] 時間帯フィルタリング
+- [ ] 電車選択UI（TrainSelectionView）
+  - [ ] 電車詳細表示
+  - [ ] 到着駅選択
+  - [ ] 通知タイミング設定
+- [ ] アラート設定画面（TimetableAlarmSetupView）修正
+  - [ ] 既存画面の拡張
+  - [ ] 時刻表ベース設定追加
+
+### データ層実装
+- [ ] Core Dataモデル拡張（TimetableAlert）
+  - [ ] 新規エンティティ定義
+  - [ ] リレーションシップ設定
+  - [ ] マイグレーション対応
+- [ ] 通知スケジューリング機能
+  - [ ] 時刻ベース通知設定
+  - [ ] バックグラウンドタスク登録
+  - [ ] 通知内容生成
+
+### ビジネスロジック
+- [ ] 現在時刻周辺の優先表示ロジック
+  - [ ] 時刻比較アルゴリズム
+  - [ ] スクロール位置調整
+- [ ] 時間帯フィルタリング機能
+  - [ ] 朝/昼/夜の区分
+  - [ ] カスタム時間帯設定
+
+## 実装ガイドライン
+- ODPT APIの仕様に準拠した実装
+- 現在時刻から前後2時間を優先的に表示
+- 通知タイミングは1分〜30分の範囲で設定可能
+- UIは既存のデザインシステムに準拠
+
+## 完了条件（Definition of Done）
 - [ ] 出発駅の時刻表が表示される
 - [ ] 電車を選択できる（時刻、種別、行き先）
 - [ ] 到着駅を選択できる
@@ -73,10 +64,22 @@ struct TrainDeparture {
 - [ ] 設定した時刻に通知が来る
 - [ ] 現在時刻に近い電車が上部に表示される
 
-## ステータス: [ ] Not Started / [ ] In Progress / [ ] Completed
-
-## 見積もり工数
-16時間
+## テスト方法
+1. 実際の駅で時刻表を表示
+2. 電車を選択して通知設定
+3. 設定時刻に通知が来ることを確認
+4. 異なる時間帯でのフィルタリング動作確認
 
 ## 依存関係
 - チケット#018（時刻表連携機能の実装）- 完了済み
+
+## 成果物
+- TimetableSearchView.swift
+- TrainSelectionView.swift
+- TimetableAlarmSetupView.swift（修正版）
+- StationTimetableAPIClient.swift
+- TimetableAlert+CoreDataClass.swift
+
+## 備考
+- ユーザーは具体的な電車（何時何分発）を選んで通知を設定したいというニーズに対応
+- 将来的には遅延情報の反映も検討

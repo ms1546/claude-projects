@@ -5,16 +5,15 @@
 //  Created by Claude on 2024/01/08.
 //
 
-import Foundation
-import UIKit
 import Combine
 import CoreData
 import CoreLocation
+import Foundation
 import OSLog
+import UIKit
 
 @MainActor
 class HomeViewModel: ObservableObject {
-    
     // MARK: - Dependencies
     
     private let coreDataManager: CoreDataManager
@@ -183,6 +182,10 @@ class HomeViewModel: ObservableObject {
                 await loadActiveAlerts()
                 logger.info("Alert toggled successfully")
                 
+                // アラート監視サービスを更新
+                await MainActor.run {
+                    AlertMonitoringService.shared.reloadAlerts()
+                }
             } catch {
                 await MainActor.run {
                     errorMessage = "アラートの状態を変更できませんでした"
@@ -208,6 +211,10 @@ class HomeViewModel: ObservableObject {
                 await loadActiveAlerts()
                 logger.info("Alert deleted successfully")
                 
+                // アラート監視サービスを更新
+                await MainActor.run {
+                    AlertMonitoringService.shared.reloadAlerts()
+                }
             } catch {
                 await MainActor.run {
                     errorMessage = "アラートを削除できませんでした"
@@ -323,7 +330,6 @@ class HomeViewModel: ObservableObject {
             
             performanceMonitor.endTimer(for: "Load Active Alerts")
             logger.debug("Loaded \(self.allAlerts.count) total alerts, \(self.activeAlerts.count) active")
-            
         } catch {
             errorMessage = "アラートを読み込めませんでした"
             logger.error("Failed to load alerts: \(error.localizedDescription)")
@@ -361,7 +367,6 @@ class HomeViewModel: ObservableObject {
             
             performanceMonitor.endTimer(for: "Load Recent Stations")
             logger.debug("Loaded \(self.recentStations.count) recent stations")
-            
         } catch {
             errorMessage = "最近使用した駅を読み込めませんでした"
             logger.error("Failed to load recent stations: \(error.localizedDescription)")
@@ -402,7 +407,6 @@ class HomeViewModel: ObservableObject {
 // MARK: - Memory Management
 
 extension HomeViewModel {
-    
     /// Check for memory leaks and excessive usage
     func checkMemoryUsage() {
         performanceMonitor.logMemoryUsage(context: "HomeViewModel")
@@ -476,4 +480,3 @@ struct StationData: Identifiable, Equatable, Hashable {
         hasher.combine(id)
     }
 }
-

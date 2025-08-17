@@ -5,15 +5,14 @@
 //  Created by Claude on 2024/01/08.
 //
 
-import UIKit
-import CoreData
 import BackgroundTasks
-import UserNotifications
+import CoreData
 import CoreLocation
 import OSLog
+import UIKit
+import UserNotifications
 
 class AppDelegate: NSObject, UIApplicationDelegate {
-    
     // MARK: - Properties
     
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "TrainAlert", category: "AppDelegate")
@@ -34,13 +33,13 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         return manager
     }()
     
+    
     // MARK: - App Lifecycle
     
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
-        
         // Set up global exception handler for debugging
         NSSetUncaughtExceptionHandler { exception in
             print("🔴 Uncaught exception: \(exception)")
@@ -202,7 +201,6 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         
         // Setup services in parallel where possible
         await withTaskGroup(of: Void.self) { group in
-            
             group.addTask { [weak self] in
                 await self?.setupNotifications()
             }
@@ -243,7 +241,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     
     private func refreshLocationData() async {
         // Location updates disabled temporarily until Core Data is fixed
-        return
+        
     }
     
     private func performDataMaintenance() {
@@ -264,7 +262,7 @@ extension CoreDataManager {
     
     func fetchActiveAlerts() -> [Alert] {
         // Return empty array until Core Data is fixed
-        return []
+        []
     }
 }
 
