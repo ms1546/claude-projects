@@ -28,3 +28,10 @@ extension FavoriteRoute {
     @NSManaged public var departureStationEntity: Station?
     @NSManaged public var arrivalStationEntity: Station?
 }
+
+// MARK: - Identifiable
+extension FavoriteRoute: Identifiable {
+    public var id: UUID {
+        routeId ?? UUID()
+    }
+}
