@@ -16,11 +16,17 @@ struct FavoriteRoutesView: View {
     
     var body: some View {
         NavigationView {
-            Group {
-                if viewModel.filteredRoutes.isEmpty {
-                    emptyStateView
-                } else {
-                    routesList
+            ZStack {
+                // 背景色をHomeViewと統一
+                Color.backgroundPrimary
+                    .ignoresSafeArea()
+                
+                Group {
+                    if viewModel.filteredRoutes.isEmpty {
+                        emptyStateView
+                    } else {
+                        routesList
+                    }
                 }
             }
             .navigationTitle("よく使う経路")
@@ -30,6 +36,7 @@ struct FavoriteRoutesView: View {
                     Button("完了") {
                         dismiss()
                     }
+                    .foregroundColor(Color.trainSoftBlue)
                 }
             }
         }
@@ -65,7 +72,8 @@ struct FavoriteRoutesView: View {
             }
         }
         .listStyle(PlainListStyle())
-        .background(Color(red: 250 / 255, green: 251 / 255, blue: 252 / 255))
+        .scrollContentBackground(.hidden)
+        .background(Color.backgroundPrimary)
     }
     
     private func routeRow(_ route: FavoriteRoute) -> some View {
@@ -76,15 +84,15 @@ struct FavoriteRoutesView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "location.circle.fill")
                             .font(.system(size: 14))
-                            .foregroundColor(Color(red: 79 / 255, green: 70 / 255, blue: 229 / 255))
+                            .foregroundColor(Color.trainSoftBlue)
                         Text(route.departureStation ?? "")
                             .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.primary)
+                            .foregroundColor(Color.textPrimary)
                     }
                     if let departureTime = route.departureTime {
                         Text(formatTime(departureTime))
                             .font(.system(size: 14))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.textSecondary)
                     }
                 }
                 
@@ -93,7 +101,7 @@ struct FavoriteRoutesView: View {
                 // 矢印
                 Image(systemName: "arrow.forward")
                     .font(.system(size: 16))
-                    .foregroundColor(Color(red: 79 / 255, green: 70 / 255, blue: 229 / 255))
+                    .foregroundColor(Color.trainSoftBlue)
                 
                 Spacer()
                 
@@ -102,40 +110,40 @@ struct FavoriteRoutesView: View {
                     HStack(spacing: 6) {
                         Text(route.arrivalStation ?? "")
                             .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.primary)
+                            .foregroundColor(Color.textPrimary)
                         Image(systemName: "mappin.circle.fill")
                             .font(.system(size: 14))
-                            .foregroundColor(.red)
+                            .foregroundColor(Color.warmOrange)
                     }
                     if let arrivalTime = getArrivalTime(from: route) {
                         Text(formatTime(arrivalTime))
                             .font(.system(size: 14))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.textSecondary)
                     } else {
                         Text("到着時刻")
                             .font(.system(size: 14))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.textSecondary)
                     }
                 }
             }
             .padding(16)
-            .background(Color.white)
+            .background(Color.backgroundCard)
             .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+            .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
             
             // ニックネームまたは追加情報
             HStack {
                 if let nickName = route.nickName {
                     Label(nickName, systemImage: "tag.fill")
                         .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.textSecondary)
                 } else {
                     Image(systemName: "bookmark.fill")
                         .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.textSecondary)
                     Text("お気に入り")
                         .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.textSecondary)
                 }
                 
                 Spacer()
@@ -143,7 +151,7 @@ struct FavoriteRoutesView: View {
                 if let lastUsedAt = route.lastUsedAt {
                     Text("最終利用: \(formatDate(lastUsedAt))")
                         .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.textSecondary)
                 }
             }
             .padding(.horizontal, 16)
@@ -157,18 +165,18 @@ struct FavoriteRoutesView: View {
         VStack(spacing: 20) {
             Image(systemName: "bookmark")
                 .font(.system(size: 60))
-                .foregroundColor(.gray.opacity(0.5))
+                .foregroundColor(Color.trainLightGray.opacity(0.5))
             
             Text("よく使う経路がありません")
                 .font(.headline)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.textPrimary)
             
             Text("経路検索から保存できます")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.textSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(red: 250 / 255, green: 251 / 255, blue: 252 / 255))
+        .background(Color.backgroundPrimary)
     }
     
     // MARK: - Helper Methods
