@@ -154,7 +154,43 @@ let apiKey = KeychainWrapper.standard.string(forKey: "openai_api_key")
 - Use Instruments for profiling
 - Test on older devices
 
-### 9. Testing Commands
+### 9. ビルド検証フロー
+
+**重要**: コード変更を行った後は、必ずビルドチェックを実行してエラーがないことを確認してください。
+
+#### ビルド確認手順
+
+```bash
+# 1. シミュレータービルド（開発中の検証）
+cd /Users/maemotosatoshi/dev/js/dev/claude/TrainAlert
+xcodebuild -workspace TrainAlert.xcworkspace -scheme TrainAlert -sdk iphonesimulator -arch x86_64 build | tail -50
+
+# 2. ビルドが成功した場合の表示
+# ** BUILD SUCCEEDED **
+
+# 3. エラーが出た場合は詳細を確認
+xcodebuild -workspace TrainAlert.xcworkspace -scheme TrainAlert -sdk iphonesimulator -arch x86_64 build 2>&1 | grep -A 10 -B 10 "error:"
+```
+
+#### ビルドチェックのタイミング
+
+1. **機能追加・変更前**: 現在のコードがビルド可能か確認
+2. **コード変更後**: 新たなエラーを導入していないか確認
+3. **コミット前**: 必ずビルドが通ることを確認してからコミット
+4. **PR作成前**: 最終的にビルドが通ることを確認
+
+#### よくあるビルドエラーと対処法
+
+- **'buildExpression' is unavailable**: ViewBuilder内で非View型の式を使用している
+  - 解決: 計算プロパティやヘルパーメソッドに切り出す
+  
+- **Cannot find type 'XXX' in scope**: 型が見つからない
+  - 解決: import文の追加、ファイルの追加をプロジェクトに反映
+  
+- **Reference to property requires explicit use of 'self'**: クロージャ内でのself参照
+  - 解決: self.を明示的に追加
+
+### 10. Testing Commands
 ```bash
 # Unit tests
 xcodebuild test -scheme TrainAlert -destination 'platform=iOS Simulator,name=iPhone 15'

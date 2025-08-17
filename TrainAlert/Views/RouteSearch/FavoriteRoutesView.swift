@@ -39,38 +39,34 @@ struct FavoriteRoutesView: View {
     // MARK: - Routes List
     
     private var routesList: some View {
-        ZStack {
-            List {
-                ForEach(viewModel.filteredRoutes) { route in
-                    routeRow(route)
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .padding(.vertical, 4)
-                        .onTapGesture {
-                            if let routeData = viewModel.useFavoriteRoute(route) {
-                                selectedRouteData = routeData
-                                navigateToAlertSetup = true
-                            }
+        List {
+            ForEach(viewModel.filteredRoutes) { route in
+                routeRow(route)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .padding(.vertical, 4)
+                    .onTapGesture {
+                        if let routeData = viewModel.useFavoriteRoute(route) {
+                            selectedRouteData = routeData
+                            navigateToAlertSetup = true
                         }
-                }
-                .onDelete(perform: viewModel.deleteFavoriteRoutes)
-                .onMove(perform: viewModel.moveRoute)
+                    }
             }
-            .listStyle(PlainListStyle())
-            .background(Color(red: 250 / 255, green: 251 / 255, blue: 252 / 255))
-            .environment(\.editMode, .constant(viewModel.isEditing ? .active : .inactive))
-            
-            // Hidden NavigationLink
-            if let routeData = selectedRouteData {
-                NavigationLink(
-                    destination: TimetableAlertSetupView(route: routeData),
-                    isActive: $navigateToAlertSetup
-                ) {
-                    EmptyView()
-                }
-                .hidden()
-            }
+            .onDelete(perform: viewModel.deleteFavoriteRoutes)
+            .onMove(perform: viewModel.moveRoute)
         }
+        .listStyle(PlainListStyle())
+        .background(Color(red: 250 / 255, green: 251 / 255, blue: 252 / 255))
+        .environment(\.editMode, .constant(viewModel.isEditing ? .active : .inactive))
+        .background(
+            NavigationLink(
+                destination: selectedRouteData.map { TimetableAlertSetupView(route: $0) },
+                isActive: $navigateToAlertSetup
+            ) {
+                EmptyView()
+            }
+            .hidden()
+        )
     }
     
     private func routeRow(_ route: FavoriteRoute) -> some View {
@@ -112,18 +108,10 @@ struct FavoriteRoutesView: View {
                             .font(.system(size: 14))
                             .foregroundColor(.red)
                     }
-                    if let routeData = route.routeData {
-                        let decoder = JSONDecoder()
-                        decoder.dateDecodingStrategy = .iso8601
-                        if let decodedRoute = try? decoder.decode(RouteSearchResult.self, from: routeData) {
-                            Text(formatTime(decodedRoute.arrivalTime))
-                                .font(.system(size: 14))
-                                .foregroundColor(.secondary)
-                        } else {
-                            Text("到着時刻")
-                                .font(.system(size: 14))
-                                .foregroundColor(.secondary)
-                        }
+                    if let arrivalTime = getArrivalTime(from: route) {
+                        Text(formatTime(arrivalTime))
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
                     } else {
                         Text("到着時刻")
                             .font(.system(size: 14))
@@ -199,6 +187,19 @@ struct FavoriteRoutesView: View {
         formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
         return formatter.string(from: date)
     }
+    
+    private func getArrivalTime(from route: FavoriteRoute) -> Date? {
+        guard let routeData = route.routeData else { return nil }
+        
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        
+        if let decodedRoute = try? decoder.decode(RouteSearchResult.self, from: routeData) {
+            return decodedRoute.arrivalTime
+        }
+        
+        return nil
+    }
 }
 
 // MARK: - Preview
@@ -208,3 +209,4 @@ struct FavoriteRoutesView_Previews: PreviewProvider {
         FavoriteRoutesView()
     }
 }
+
