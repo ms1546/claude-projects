@@ -5,6 +5,7 @@
 //  お気に入り経路画面のViewModel
 //
 
+import Combine
 import CoreData
 import Foundation
 import SwiftUI
@@ -24,6 +25,7 @@ class FavoriteRoutesViewModel: ObservableObject {
     // MARK: - Properties
     
     private let favoriteRouteManager = FavoriteRouteManager.shared
+    private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Computed Properties
     
@@ -69,6 +71,13 @@ class FavoriteRoutesViewModel: ObservableObject {
     
     init() {
         loadFavoriteRoutes()
+        
+        // FavoriteRouteManagerの変更を監視
+        favoriteRouteManager.$favoriteRoutes
+            .sink { [weak self] routes in
+                self?.favoriteRoutes = routes
+            }
+            .store(in: &cancellables)
     }
     
     // MARK: - Public Methods
@@ -110,10 +119,17 @@ class FavoriteRoutesViewModel: ObservableObject {
     /// - Parameter offsets: 削除するインデックス
     func deleteFavoriteRoutes(at offsets: IndexSet) {
         let routesToDelete = offsets.map { filteredRoutes[$0] }
+        
+        // Core Dataから削除
         routesToDelete.forEach { route in
             favoriteRouteManager.delete(route)
         }
-        loadFavoriteRoutes()
+        
+        // 削除後すぐにリストを更新
+        withAnimation {
+            favoriteRouteManager.fetchFavoriteRoutes()
+            favoriteRoutes = favoriteRouteManager.favoriteRoutes
+        }
     }
     
     /// ニックネームを編集

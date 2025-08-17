@@ -5,6 +5,7 @@
 //  経路検索画面のViewModel
 //
 
+import Combine
 import CoreLocation
 import Foundation
 import SwiftUI
@@ -35,6 +36,9 @@ class RouteSearchViewModel: ObservableObject {
     @Published var selectedDepartureStation: ODPTStation?
     @Published var selectedArrivalStation: ODPTStation?
     
+    // お気に入り状態の監視用
+    @Published var favoriteRoutes: [FavoriteRoute] = []
+    
     // MARK: - Private Properties
     
     private let apiClient = ODPTAPIClient.shared
@@ -45,6 +49,22 @@ class RouteSearchViewModel: ObservableObject {
     private var stationSearchTask: Task<Void, Never>?
     private var departureSearchWorkItem: DispatchWorkItem?
     private var arrivalSearchWorkItem: DispatchWorkItem?
+    private var cancellables = Set<AnyCancellable>()
+    
+    // MARK: - Initializer
+    
+    init() {
+        // お気に入りリストを初期化
+        loadFavoriteRoutes()
+        
+        // FavoriteRouteManagerの変更を監視
+        favoriteRouteManager.$favoriteRoutes
+            .sink { [weak self] routes in
+                print("FavoriteRouteManager updated: \(routes.count) routes")
+                self?.favoriteRoutes = routes
+            }
+            .store(in: &cancellables)
+    }
     
     // MARK: - Computed Properties
     
@@ -699,6 +719,8 @@ class RouteSearchViewModel: ObservableObject {
     /// - Parameter route: 保存する経路
     /// - Returns: 保存成功の場合true、既に存在または上限に達している場合false
     func saveFavoriteRoute(_ route: RouteSearchResult) -> Bool {
+        print("saveFavoriteRoute called for: \(route.departureStation) -> \(route.arrivalStation)")
+        
         // RouteSearchResultをJSONエンコード
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -718,8 +740,11 @@ class RouteSearchViewModel: ObservableObject {
         )
         
         if favoriteRoute != nil {
+            print("Favorite route saved successfully")
             // 保存成功後、お気に入りリストを更新
-            favoriteRouteManager.fetchFavoriteRoutes()
+            loadFavoriteRoutes()
+        } else {
+            print("Failed to save favorite route")
         }
         
         return favoriteRoute != nil
@@ -739,10 +764,27 @@ class RouteSearchViewModel: ObservableObject {
     /// - Parameter route: チェックする経路
     /// - Returns: 登録済みの場合true
     func isFavoriteRoute(_ route: RouteSearchResult) -> Bool {
-        favoriteRouteManager.favoriteRoutes.contains { favorite in
-            favorite.departureStation == route.departureStation &&
-            favorite.arrivalStation == route.arrivalStation
+        // 時刻を分単位で比較するためのフォーマッタ
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        
+        let routeTimeString = formatter.string(from: route.departureTime)
+        
+        return favoriteRoutes.contains { favorite in
+            guard let favoriteDepartureTime = favorite.departureTime else { return false }
+            let favoriteTimeString = formatter.string(from: favoriteDepartureTime)
+            
+            return favorite.departureStation == route.departureStation &&
+                   favorite.arrivalStation == route.arrivalStation &&
+                   favoriteTimeString == routeTimeString
         }
+    }
+    
+    /// お気に入りリストを読み込む
+    private func loadFavoriteRoutes() {
+        favoriteRouteManager.fetchFavoriteRoutes()
+        // favoriteRoutesはFavoriteRouteManagerの監視で自動更新される
     }
     
     // MARK: - Nested Types

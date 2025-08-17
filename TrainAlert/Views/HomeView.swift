@@ -61,6 +61,7 @@ struct HomeView: View {
                                     }
                                 }
                             }
+                            .animation(.default, value: viewModel.allAlerts)
                         }
                         .listStyle(PlainListStyle())
                         .scrollContentBackground(.hidden)

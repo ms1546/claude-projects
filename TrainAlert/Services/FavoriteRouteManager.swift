@@ -42,8 +42,8 @@ final class FavoriteRouteManager: ObservableObject {
         routeData: Data? = nil
     ) -> FavoriteRoute? {
         // 重複チェック
-        if isDuplicate(departureStation: departureStation, arrivalStation: arrivalStation) {
-            logger.info("Route already exists in favorites: \(departureStation) to \(arrivalStation)")
+        if isDuplicate(departureStation: departureStation, arrivalStation: arrivalStation, departureTime: departureTime) {
+            logger.info("Route already exists in favorites: \(departureStation) to \(arrivalStation) at \(departureTime?.description ?? "nil")")
             return nil
         }
         
@@ -190,11 +190,31 @@ final class FavoriteRouteManager: ObservableObject {
     /// - Parameters:
     ///   - departureStation: 出発駅名
     ///   - arrivalStation: 到着駅名
+    ///   - departureTime: 出発時刻
     /// - Returns: 重複している場合true
-    private func isDuplicate(departureStation: String, arrivalStation: String) -> Bool {
-        favoriteRoutes.contains { route in
-            route.departureStation == departureStation &&
-            route.arrivalStation == arrivalStation
+    private func isDuplicate(departureStation: String, arrivalStation: String, departureTime: Date?) -> Bool {
+        guard let newDepartureTime = departureTime else {
+            // 時刻が指定されていない場合は、駅名のみで判定
+            return favoriteRoutes.contains { route in
+                route.departureStation == departureStation &&
+                route.arrivalStation == arrivalStation &&
+                route.departureTime == nil
+            }
+        }
+        
+        // 時刻を分単位で比較するためのフォーマッタ
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        let newTimeString = formatter.string(from: newDepartureTime)
+        
+        return favoriteRoutes.contains { route in
+            guard let routeDepartureTime = route.departureTime else { return false }
+            let routeTimeString = formatter.string(from: routeDepartureTime)
+            
+            return route.departureStation == departureStation &&
+                   route.arrivalStation == arrivalStation &&
+                   routeTimeString == newTimeString
         }
     }
     

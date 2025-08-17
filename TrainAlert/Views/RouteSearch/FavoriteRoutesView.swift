@@ -11,7 +11,6 @@ import SwiftUI
 struct FavoriteRoutesView: View {
     @StateObject private var viewModel = FavoriteRoutesViewModel()
     @Environment(\.dismiss) private var dismiss
-    @State private var selectedRoute: FavoriteRoute?
     @State private var navigateToAlertSetup = false
     @State private var selectedRouteData: RouteSearchResult?
     
@@ -41,32 +40,32 @@ struct FavoriteRoutesView: View {
     private var routesList: some View {
         List {
             ForEach(viewModel.filteredRoutes) { route in
-                routeRow(route)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .padding(.vertical, 4)
-                    .onTapGesture {
-                        if let routeData = viewModel.useFavoriteRoute(route) {
-                            selectedRouteData = routeData
-                            navigateToAlertSetup = true
+                ZStack {
+                    if let routeData = viewModel.useFavoriteRoute(route) {
+                        NavigationLink(destination: TimetableAlertSetupView(route: routeData)) {
+                            EmptyView()
                         }
+                        .opacity(0)
                     }
+                    
+                    routeRow(route)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .padding(.vertical, 4)
+                }
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button(role: .destructive) {
+                        withAnimation {
+                            viewModel.deleteFavoriteRoute(route)
+                        }
+                    } label: {
+                        Label("削除", systemImage: "trash")
+                    }
+                }
             }
-            .onDelete(perform: viewModel.deleteFavoriteRoutes)
-            .onMove(perform: viewModel.moveRoute)
         }
         .listStyle(PlainListStyle())
         .background(Color(red: 250 / 255, green: 251 / 255, blue: 252 / 255))
-        .environment(\.editMode, .constant(viewModel.isEditing ? .active : .inactive))
-        .background(
-            NavigationLink(
-                destination: selectedRouteData.map { TimetableAlertSetupView(route: $0) },
-                isActive: $navigateToAlertSetup
-            ) {
-                EmptyView()
-            }
-            .hidden()
-        )
     }
     
     private func routeRow(_ route: FavoriteRoute) -> some View {
@@ -209,4 +208,3 @@ struct FavoriteRoutesView_Previews: PreviewProvider {
         FavoriteRoutesView()
     }
 }
-
