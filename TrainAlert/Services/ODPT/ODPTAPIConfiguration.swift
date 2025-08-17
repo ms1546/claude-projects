@@ -16,15 +16,25 @@ final class ODPTAPIConfiguration {
     
     /// APIキー
     var apiKey: String {
-        // 環境変数から取得
-        if let envKey = ProcessInfo.processInfo.environment["ODPT_API_KEY"] {
+        // 1. 環境変数から取得（開発時）
+        if let envKey = ProcessInfo.processInfo.environment["ODPT_API_KEY"], !envKey.isEmpty {
             return envKey
         }
         
-        // デバッグビルドの場合はKeychainからも取得を試みる
-        #if DEBUG
-        // TODO: KeychainManagerの拡張が必要な場合は後で実装
-        #endif
+        // 2. Configuration.plistから取得（実機時）
+        if let path = Bundle.main.path(forResource: "Configuration", ofType: "plist"),
+           let config = NSDictionary(contentsOfFile: path),
+           let plistKey = config["ODPT_API_KEY"] as? String,
+           !plistKey.isEmpty,
+           plistKey != "YOUR_ODPT_API_KEY_HERE" {
+            return plistKey
+        }
+        
+        // 3. Keychainから取得（ユーザー設定）
+        if let keychainKey = try? KeychainManager.shared.getODPTAPIKey(),
+           !keychainKey.isEmpty {
+            return keychainKey
+        }
         
         return ""
     }

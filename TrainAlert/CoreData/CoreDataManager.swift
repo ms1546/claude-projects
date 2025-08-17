@@ -48,11 +48,17 @@ final class CoreDataManager: ObservableObject {
         let model = createManagedObjectModel()
         let container = NSPersistentContainer(name: "TrainAlert", managedObjectModel: model)
         
-        // Use in-memory store for now (can be changed to SQLite later)
-        let description = NSPersistentStoreDescription()
-        description.type = NSInMemoryStoreType
+        // Use SQLite store for data persistence
+        let storeURL = URL.documentsDirectory.appending(path: "TrainAlert.sqlite")
+        let description = NSPersistentStoreDescription(url: storeURL)
+        description.type = NSSQLiteStoreType
         description.shouldInferMappingModelAutomatically = true
         description.shouldMigrateStoreAutomatically = true
+        
+        // Enable persistent history tracking for CloudKit sync (future feature)
+        description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+        description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+        
         container.persistentStoreDescriptions = [description]
         
         container.loadPersistentStores { [weak self] _, error in
@@ -61,7 +67,7 @@ final class CoreDataManager: ObservableObject {
                 print("🔴 Core Data Error: \(error)")
             } else {
                 self?.logger.info("Core Data loaded successfully")
-                print("✅ Core Data loaded with in-memory store")
+                print("✅ Core Data loaded with SQLite store at: \(storeURL.path)")
             }
         }
         

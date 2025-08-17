@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>ODPT_API_KEY</key>
+	<string>YOUR_ODPT_API_KEY_HERE</string>
+	<key>OPENAI_API_KEY</key>
+	<string>YOUR_OPENAI_API_KEY_HERE</string>
+	<!-- 
+	使い方:
+	1. このファイルをConfiguration.plistにコピー
+	2. YOUR_ODPT_API_KEY_HEREを実際のODPT APIキーに置き換え
+	3. YOUR_OPENAI_API_KEY_HEREを実際のOpenAI APIキーに置き換え（オプション）
+	
+	ODPT APIキーの取得方法:
+	- https://developer.odpt.org/ から無料で取得可能
+	-->
+</dict>
+</plist>

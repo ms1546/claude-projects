@@ -136,3 +136,6 @@ iOSInjectionProject/
 # End of https://www.toptal.com/developers/gitignore/api/swift,xcode,macos
 .swiftlint-cache
 .worktrees/
+
+# Configuration files with API keys
+Configuration.plist
