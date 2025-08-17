@@ -363,10 +363,18 @@ class RouteSearchViewModel: ObservableObject {
                     if timetables.isEmpty {
                         print("No timetables found for \(calendarType), trying other calendar types...")
                         
-                        // 全てのカレンダータイプを試す（優先順位順）
-                        let allCalendarTypes = ["odpt.Calendar:Weekday", "odpt.Calendar:SaturdayHoliday", "odpt.Calendar:SundayHoliday"]
+                        // 全てのカレンダータイプを試す（最も可能性の高い順）
+                        let allCalendarTypes: [String]
+                        if calendarType == "odpt.Calendar:SundayHoliday" {
+                            // 日曜日の場合、まずWeekdayを試す（多くの事業者が日曜もWeekdayデータを使用）
+                            allCalendarTypes = ["odpt.Calendar:Weekday", "odpt.Calendar:SaturdayHoliday"]
+                        } else {
+                            // その他の曜日の場合
+                            allCalendarTypes = ["odpt.Calendar:Weekday", "odpt.Calendar:SaturdayHoliday", "odpt.Calendar:SundayHoliday"]
+                                .filter { $0 != calendarType }
+                        }
+                        
                         for tryCalendarType in allCalendarTypes {
-                            if tryCalendarType != calendarType {
                                 print("Trying calendar type: \(tryCalendarType)")
                                 let tryTimetables = try await apiClient.getStationTimetable(
                                     stationId: stationId,
