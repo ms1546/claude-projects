@@ -475,7 +475,9 @@ struct TrainSelectionView: View {
                     station.name = stationName
                     station.latitude = 35.6812  // TODO: 実際の座標を取得
                     station.longitude = 139.7671
-                    station.lines = [departureStation.railwayTitle?.ja ?? departureStation.railway.railwayDisplayName]
+                    // 路線名を適切に設定（日本語タイトルがなければIDをそのまま使用）
+                    let railwayName = departureStation.railwayTitle?.ja ?? getRailwayJapaneseName(from: departureStation.railway)
+                    station.lines = [railwayName]
                     station.isFavorite = false
                     station.createdAt = Date()
                 }
@@ -560,6 +562,78 @@ struct TrainSelectionView: View {
                 hasValidAPIKey = false
             }
         }
+    }
+    
+    // 路線IDから日本語名を取得するヘルパーメソッド
+    private func getRailwayJapaneseName(from railwayId: String) -> String {
+        let components = railwayId.split(separator: ":").map { String($0) }
+        guard components.count >= 2 else { return railwayId }
+        
+        let operatorAndLine = components[1].split(separator: ".").map { String($0) }
+        guard operatorAndLine.count >= 2 else { return railwayId }
+        
+        let operatorName = operatorAndLine[0]
+        let lineName = operatorAndLine[1]
+        
+        // オペレーター名の日本語化
+        let operatorJa: String
+        switch operatorName {
+        case "TokyoMetro":
+            operatorJa = "東京メトロ"
+        case "JR-East":
+            operatorJa = "JR東日本"
+        case "Toei":
+            operatorJa = "都営"
+        case "Tokyu":
+            operatorJa = "東急"
+        case "Keio":
+            operatorJa = "京王"
+        case "Odakyu":
+            operatorJa = "小田急"
+        case "Seibu":
+            operatorJa = "西武"
+        case "Tobu":
+            operatorJa = "東武"
+        default:
+            operatorJa = operatorName
+        }
+        
+        // 路線名の日本語化
+        let lineJa: String
+        switch lineName {
+        case "Hanzomon":
+            lineJa = "半蔵門線"
+        case "Ginza":
+            lineJa = "銀座線"
+        case "Marunouchi":
+            lineJa = "丸ノ内線"
+        case "Hibiya":
+            lineJa = "日比谷線"
+        case "Tozai":
+            lineJa = "東西線"
+        case "Chiyoda":
+            lineJa = "千代田線"
+        case "Yurakucho":
+            lineJa = "有楽町線"
+        case "Namboku":
+            lineJa = "南北線"
+        case "Fukutoshin":
+            lineJa = "副都心線"
+        case "Yamanote":
+            lineJa = "山手線"
+        case "Chuo", "ChuoRapid":
+            lineJa = "中央線"
+        case "Keihin-TohokuNegishi":
+            lineJa = "京浜東北線"
+        case "Sobu":
+            lineJa = "総武線"
+        case "Saikyo":
+            lineJa = "埼京線"
+        default:
+            lineJa = lineName + "線"
+        }
+        
+        return operatorJa + lineJa
     }
 }
 

@@ -74,25 +74,8 @@ struct TimetableSearchView: View {
                         direction: selectedDirection
                     )
                     .onDisappear {
+                        // シートが閉じられた後にクリア
                         selectedTrainForAlert = nil
-                    }
-                } else {
-                    // エラーフォールバック画面
-                    NavigationView {
-                        VStack {
-                            Image(systemName: "exclamationmark.triangle")
-                                .font(.system(size: 60))
-                                .foregroundColor(.red)
-                            Text("列車情報の読み込みに失敗しました")
-                                .font(.headline)
-                            Button("閉じる") {
-                                showingTrainSelection = false
-                                selectedTrainForAlert = nil
-                            }
-                            .padding()
-                        }
-                        .navigationTitle("エラー")
-                        .navigationBarTitleDisplayMode(.inline)
                     }
                 }
             }
@@ -124,7 +107,7 @@ struct TimetableSearchView: View {
                             Text(station.stationTitle?.ja ?? station.title)
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(Color.textPrimary)
-                            Text(station.railwayTitle?.ja ?? station.railway.railwayDisplayName)
+                            Text(station.railwayTitle?.ja ?? getRailwayDisplayName(station.railway))
                                 .font(.system(size: 12))
                                 .foregroundColor(Color.textSecondary)
                         }
@@ -219,8 +202,11 @@ struct TimetableSearchView: View {
         let isPastTime = viewModel.isPastTime(train)
         
         return Button(action: {
+            // 先にtrainを設定してからsheetを表示
             selectedTrainForAlert = train
-            showingTrainSelection = true
+            DispatchQueue.main.async {
+                showingTrainSelection = true
+            }
         }) {
             HStack(spacing: 16) {
                 // 時刻
@@ -324,6 +310,76 @@ struct TimetableSearchView: View {
     
     // MARK: - Helper Methods
     
+    private func getRailwayDisplayName(_ railway: String) -> String {
+        let components = railway.split(separator: ":").map { String($0) }
+        guard components.count >= 2 else { return railway }
+        
+        let operatorAndLine = components[1].split(separator: ".").map { String($0) }
+        guard operatorAndLine.count >= 2 else { return railway }
+        
+        let operatorName = operatorAndLine[0]
+        let lineName = operatorAndLine[1]
+        
+        // オペレーター名の日本語化
+        let operatorJa: String
+        switch operatorName {
+        case "TokyoMetro":
+            operatorJa = "東京メトロ"
+        case "JR-East":
+            operatorJa = "JR東日本"
+        case "Toei":
+            operatorJa = "都営"
+        case "Tokyu":
+            operatorJa = "東急"
+        case "Keio":
+            operatorJa = "京王"
+        case "Odakyu":
+            operatorJa = "小田急"
+        case "Seibu":
+            operatorJa = "西武"
+        case "Tobu":
+            operatorJa = "東武"
+        default:
+            operatorJa = operatorName
+        }
+        
+        // 路線名の日本語化
+        let lineJa: String
+        switch lineName {
+        case "Hanzomon":
+            lineJa = "半蔵門線"
+        case "Ginza":
+            lineJa = "銀座線"
+        case "Marunouchi":
+            lineJa = "丸ノ内線"
+        case "Hibiya":
+            lineJa = "日比谷線"
+        case "Tozai":
+            lineJa = "東西線"
+        case "Chiyoda":
+            lineJa = "千代田線"
+        case "Yurakucho":
+            lineJa = "有楽町線"
+        case "Namboku":
+            lineJa = "南北線"
+        case "Fukutoshin":
+            lineJa = "副都心線"
+        case "Yamanote":
+            lineJa = "山手線"
+        case "Chuo", "ChuoRapid":
+            lineJa = "中央線"
+        case "Keihin-TohokuNegishi":
+            lineJa = "京浜東北線"
+        case "Sobu":
+            lineJa = "総武線"
+        case "Saikyo":
+            lineJa = "埼京線"
+        default:
+            lineJa = lineName + "線"
+        }
+        
+        return operatorJa + lineJa
+    }
     
     private func getTrainTypeColor(_ trainType: String?) -> Color {
         guard let type = trainType?.lowercased() else { return Color.textPrimary }
@@ -415,7 +471,7 @@ private struct TimetableStationSearchView: View {
                                     .font(.system(size: 16, weight: .medium))
                                     .foregroundColor(Color.textPrimary)
                                 
-                                Text(station.railwayTitle?.ja ?? station.railway.railwayDisplayName)
+                                Text(station.railwayTitle?.ja ?? getRailwayDisplayName(station.railway))
                                     .font(.system(size: 12))
                                     .foregroundColor(Color.textSecondary)
                             }
@@ -456,7 +512,77 @@ private struct TimetableStationSearchView: View {
         .padding()
     }
     
-    // 親ビューのヘルパーメソッドと同じ実装
+    // ヘルパーメソッド
+    private func getRailwayDisplayName(_ railway: String) -> String {
+        let components = railway.split(separator: ":").map { String($0) }
+        guard components.count >= 2 else { return railway }
+        
+        let operatorAndLine = components[1].split(separator: ".").map { String($0) }
+        guard operatorAndLine.count >= 2 else { return railway }
+        
+        let operatorName = operatorAndLine[0]
+        let lineName = operatorAndLine[1]
+        
+        // オペレーター名の日本語化
+        let operatorJa: String
+        switch operatorName {
+        case "TokyoMetro":
+            operatorJa = "東京メトロ"
+        case "JR-East":
+            operatorJa = "JR東日本"
+        case "Toei":
+            operatorJa = "都営"
+        case "Tokyu":
+            operatorJa = "東急"
+        case "Keio":
+            operatorJa = "京王"
+        case "Odakyu":
+            operatorJa = "小田急"
+        case "Seibu":
+            operatorJa = "西武"
+        case "Tobu":
+            operatorJa = "東武"
+        default:
+            operatorJa = operatorName
+        }
+        
+        // 路線名の日本語化
+        let lineJa: String
+        switch lineName {
+        case "Hanzomon":
+            lineJa = "半蔵門線"
+        case "Ginza":
+            lineJa = "銀座線"
+        case "Marunouchi":
+            lineJa = "丸ノ内線"
+        case "Hibiya":
+            lineJa = "日比谷線"
+        case "Tozai":
+            lineJa = "東西線"
+        case "Chiyoda":
+            lineJa = "千代田線"
+        case "Yurakucho":
+            lineJa = "有楽町線"
+        case "Namboku":
+            lineJa = "南北線"
+        case "Fukutoshin":
+            lineJa = "副都心線"
+        case "Yamanote":
+            lineJa = "山手線"
+        case "Chuo", "ChuoRapid":
+            lineJa = "中央線"
+        case "Keihin-TohokuNegishi":
+            lineJa = "京浜東北線"
+        case "Sobu":
+            lineJa = "総武線"
+        case "Saikyo":
+            lineJa = "埼京線"
+        default:
+            lineJa = lineName + "線"
+        }
+        
+        return operatorJa + lineJa
+    }
 }
 
 // MARK: - Preview
