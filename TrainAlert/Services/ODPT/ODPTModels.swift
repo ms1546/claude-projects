@@ -210,3 +210,47 @@ struct ODPTGeoLocation: Codable {
     let lat: Double
     let long: Double
 }
+
+// MARK: - 路線情報
+
+/// 路線情報
+struct ODPTRailway: Codable {
+    let id: String
+    let sameAs: String
+    let date: String?
+    let title: String
+    let railwayTitle: ODPTMultilingualTitle?
+    let `operator`: String
+    let operatorTitle: ODPTMultilingualTitle?
+    let lineCode: String?
+    let stationOrder: [ODPTStationOrder]?
+    let ascendingRailDirection: String?
+    let descendingRailDirection: String?
+    
+    private enum CodingKeys: String, CodingKey {
+        case id = "@id"
+        case sameAs = "owl:sameAs"
+        case date = "dc:date"
+        case title = "dc:title"
+        case railwayTitle = "odpt:railwayTitle"
+        case `operator` = "odpt:operator"
+        case operatorTitle = "odpt:operatorTitle"
+        case lineCode = "odpt:lineCode"
+        case stationOrder = "odpt:stationOrder"
+        case ascendingRailDirection = "odpt:ascendingRailDirection"
+        case descendingRailDirection = "odpt:descendingRailDirection"
+    }
+}
+
+/// 駅順序情報
+struct ODPTStationOrder: Codable {
+    let station: String
+    let stationTitle: ODPTMultilingualTitle?
+    let index: Int
+    
+    private enum CodingKeys: String, CodingKey {
+        case station = "odpt:station"
+        case stationTitle = "odpt:stationTitle"
+        case index = "odpt:index"
+    }
+}

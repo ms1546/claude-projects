@@ -18,6 +18,7 @@ struct HomeView: View {
     // MARK: - State
     @State private var showingAlertSetup = false
     @State private var showingRouteSearch = false
+    @State private var showingTimetableSearch = false
     @State private var selectedAlert: Alert?
     @State private var showingLocationPermission = false
     @State private var mapRegion = MKCoordinateRegion(
@@ -81,6 +82,10 @@ struct HomeView: View {
                 RouteSearchView()
                     .environmentObject(locationManager)
             }
+            .sheet(isPresented: $showingTimetableSearch) {
+                TimetableSearchView()
+                    .environmentObject(locationManager)
+            }
             .alert("位置情報の許可が必要です", isPresented: $showingLocationPermission) {
                 Button("設定を開く") {
                     if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -130,6 +135,9 @@ struct HomeView: View {
                             Label("駅から設定", systemImage: "location.circle")
                         }
                         Button(action: { showingRouteSearch = true }) {
+                            Label("経路から設定", systemImage: "arrow.triangle.turn.up.right.circle")
+                        }
+                        Button(action: { showingTimetableSearch = true }) {
                             Label("時刻表から設定", systemImage: "tram.fill")
                         }
                     } label: {
@@ -204,8 +212,36 @@ struct HomeView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
                 
-                // 時刻表から設定
+                // 経路から設定
                 Button(action: { showingRouteSearch = true }) {
+                    HStack(spacing: 16) {
+                        Image(systemName: "arrow.triangle.turn.up.right.circle")
+                            .font(.system(size: 32))
+                            .foregroundColor(.trainSoftBlue)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("経路から設定")
+                                .font(.headline)
+                                .foregroundColor(.textPrimary)
+                            Text("経路を検索して通知設定")
+                                .font(.caption)
+                                .foregroundColor(.textSecondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14))
+                            .foregroundColor(.textSecondary)
+                    }
+                    .padding()
+                    .background(Color.backgroundCard)
+                    .cornerRadius(12)
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                // 時刻表から設定
+                Button(action: { showingTimetableSearch = true }) {
                     HStack(spacing: 16) {
                         Image(systemName: "tram.fill")
                             .font(.system(size: 32))
@@ -215,7 +251,7 @@ struct HomeView: View {
                             Text("時刻表から設定")
                                 .font(.headline)
                                 .foregroundColor(.textPrimary)
-                            Text("経路を検索して通知設定")
+                            Text("具体的な列車を選んで通知設定")
                                 .font(.caption)
                                 .foregroundColor(.textSecondary)
                         }

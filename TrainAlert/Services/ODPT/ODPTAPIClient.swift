@@ -117,7 +117,7 @@ final class ODPTAPIClient {
         stationId: String,
         railwayId: String,
         direction: String? = nil,
-        calendar: String = "odpt.Calendar:Weekday"
+        calendar: String? = nil
     ) async throws -> [ODPTStationTimetable] {
         // IDの形式をチェック（HeartRails形式の場合はモックを返す）
         let isHeartRailsFormat = stationId.hasPrefix("heartrails:")
@@ -148,20 +148,31 @@ final class ODPTAPIClient {
         let allTimetables: [ODPTStationTimetable] = try await request(url: url)
         print("ODPT API: Received \(allTimetables.count) timetables for station")
         
-        // 取得したデータから指定された路線・カレンダーでフィルタリング
-        let filteredTimetables = allTimetables.filter { timetable in
+        // 取得したデータから指定された路線でフィルタリング
+        var filteredTimetables = allTimetables.filter { timetable in
             let matchesRailway = timetable.railway == railwayId
-            let matchesCalendar = timetable.calendar == nil || timetable.calendar == calendar
             let matchesDirection = direction == nil || timetable.railDirection == direction
             
             if !matchesRailway {
                 print("  Filtered out: railway mismatch \(timetable.railway) != \(railwayId)")
             }
-            if !matchesCalendar {
-                print("  Filtered out: calendar mismatch \(timetable.calendar ?? "nil") != \(calendar)")
+            
+            return matchesRailway && matchesDirection
+        }
+        
+        // カレンダーでフィルタリング（指定がある場合）
+        if let calendar = calendar {
+            let calendarFiltered = filteredTimetables.filter { timetable in
+                timetable.calendar == nil || timetable.calendar == calendar
             }
             
-            return matchesRailway && matchesCalendar && matchesDirection
+            // 指定されたカレンダーの時刻表がない場合は、利用可能な時刻表を返す
+            if calendarFiltered.isEmpty {
+                print("ODPT API: No timetables for calendar \(calendar), returning all available timetables")
+                print("ODPT API: Available calendars: \(Set(filteredTimetables.compactMap { $0.calendar }))")
+            } else {
+                filteredTimetables = calendarFiltered
+            }
         }
         
         print("ODPT API: After filtering: \(filteredTimetables.count) timetables")
@@ -275,6 +286,70 @@ final class ODPTAPIClient {
                 throw error
             }
             throw ODPTAPIError.networkError(error)
+        }
+    }
+    
+    /// 路線情報を取得
+    func getRailwayInfo(railwayId: String) async throws -> ODPTRailway? {
+        guard configuration.hasAPIKey else {
+            throw ODPTAPIError.missingAPIKey
+        }
+        
+        var components = URLComponents(string: "\(configuration.baseURL)/odpt:Railway")!
+        components.queryItems = [
+            URLQueryItem(name: "acl:consumerKey", value: configuration.apiKey),
+            URLQueryItem(name: "owl:sameAs", value: railwayId)
+        ]
+        
+        guard let url = components.url else {
+            throw ODPTAPIError.invalidResponse
+        }
+        
+        let railways: [ODPTRailway] = try await request(url: url)
+        return railways.first
+    }
+    
+    /// 同じ路線の全駅を順序付きで取得
+    func getStationsOnRailway(railwayId: String) async throws -> [ODPTStation] {
+        // まず路線情報を取得して駅の順序を確認
+        if let railway = try await getRailwayInfo(railwayId: railwayId),
+           let stationOrder = railway.stationOrder {
+            // 駅の順序情報がある場合は、それに基づいて全駅を取得
+            var orderedStations: [ODPTStation] = []
+            
+            // 順序に従って並べる
+            let sortedOrder = stationOrder.sorted { $0.index < $1.index }
+            
+            for order in sortedOrder {
+                // 各駅の情報を取得（キャッシュを活用）
+                var components = URLComponents(string: "\(configuration.baseURL)/odpt:Station")!
+                components.queryItems = [
+                    URLQueryItem(name: "acl:consumerKey", value: configuration.apiKey),
+                    URLQueryItem(name: "owl:sameAs", value: order.station)
+                ]
+                
+                if let url = components.url {
+                    let stations: [ODPTStation] = try await request(url: url)
+                    if let station = stations.first {
+                        orderedStations.append(station)
+                    }
+                }
+            }
+            
+            return orderedStations
+        } else {
+            // 順序情報がない場合は、路線IDで全駅を取得
+            var components = URLComponents(string: "\(configuration.baseURL)/odpt:Station")!
+            components.queryItems = [
+                URLQueryItem(name: "acl:consumerKey", value: configuration.apiKey),
+                URLQueryItem(name: "odpt:railway", value: railwayId)
+            ]
+            
+            guard let url = components.url else {
+                throw ODPTAPIError.invalidResponse
+            }
+            
+            return try await request(url: url)
         }
     }
     
