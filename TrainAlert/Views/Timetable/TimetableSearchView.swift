@@ -73,6 +73,27 @@ struct TimetableSearchView: View {
                         railway: viewModel.selectedRailway ?? "",
                         direction: selectedDirection
                     )
+                    .onDisappear {
+                        selectedTrainForAlert = nil
+                    }
+                } else {
+                    // エラーフォールバック画面
+                    NavigationView {
+                        VStack {
+                            Image(systemName: "exclamationmark.triangle")
+                                .font(.system(size: 60))
+                                .foregroundColor(.red)
+                            Text("列車情報の読み込みに失敗しました")
+                                .font(.headline)
+                            Button("閉じる") {
+                                showingTrainSelection = false
+                                selectedTrainForAlert = nil
+                            }
+                            .padding()
+                        }
+                        .navigationTitle("エラー")
+                        .navigationBarTitleDisplayMode(.inline)
+                    }
                 }
             }
             .alert("エラー", isPresented: $viewModel.showError) {
@@ -81,6 +102,9 @@ struct TimetableSearchView: View {
                 }
             } message: {
                 Text(viewModel.errorMessage ?? "不明なエラーが発生しました")
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("DismissTimetableSearch"))) { _ in
+                dismiss()
             }
         }
     }
@@ -100,7 +124,7 @@ struct TimetableSearchView: View {
                             Text(station.stationTitle?.ja ?? station.title)
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(Color.textPrimary)
-                            Text(station.railwayTitle?.ja ?? station.railway)
+                            Text(station.railwayTitle?.ja ?? station.railway.railwayDisplayName)
                                 .font(.system(size: 12))
                                 .foregroundColor(Color.textSecondary)
                         }
@@ -300,6 +324,7 @@ struct TimetableSearchView: View {
     
     // MARK: - Helper Methods
     
+    
     private func getTrainTypeColor(_ trainType: String?) -> Color {
         guard let type = trainType?.lowercased() else { return Color.textPrimary }
         
@@ -390,7 +415,7 @@ private struct TimetableStationSearchView: View {
                                     .font(.system(size: 16, weight: .medium))
                                     .foregroundColor(Color.textPrimary)
                                 
-                                Text(station.railwayTitle?.ja ?? station.railway)
+                                Text(station.railwayTitle?.ja ?? station.railway.railwayDisplayName)
                                     .font(.system(size: 12))
                                     .foregroundColor(Color.textSecondary)
                             }
@@ -430,6 +455,8 @@ private struct TimetableStationSearchView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
     }
+    
+    // 親ビューのヘルパーメソッドと同じ実装
 }
 
 // MARK: - Preview

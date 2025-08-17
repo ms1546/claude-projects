@@ -117,7 +117,7 @@ final class ODPTAPIClient {
         stationId: String,
         railwayId: String,
         direction: String? = nil,
-        calendar: String = "odpt.Calendar:Weekday"
+        calendar: String? = nil
     ) async throws -> [ODPTStationTimetable] {
         // IDの形式をチェック（HeartRails形式の場合はモックを返す）
         let isHeartRailsFormat = stationId.hasPrefix("heartrails:")
@@ -148,20 +148,31 @@ final class ODPTAPIClient {
         let allTimetables: [ODPTStationTimetable] = try await request(url: url)
         print("ODPT API: Received \(allTimetables.count) timetables for station")
         
-        // 取得したデータから指定された路線・カレンダーでフィルタリング
-        let filteredTimetables = allTimetables.filter { timetable in
+        // 取得したデータから指定された路線でフィルタリング
+        var filteredTimetables = allTimetables.filter { timetable in
             let matchesRailway = timetable.railway == railwayId
-            let matchesCalendar = timetable.calendar == nil || timetable.calendar == calendar
             let matchesDirection = direction == nil || timetable.railDirection == direction
             
             if !matchesRailway {
                 print("  Filtered out: railway mismatch \(timetable.railway) != \(railwayId)")
             }
-            if !matchesCalendar {
-                print("  Filtered out: calendar mismatch \(timetable.calendar ?? "nil") != \(calendar)")
+            
+            return matchesRailway && matchesDirection
+        }
+        
+        // カレンダーでフィルタリング（指定がある場合）
+        if let calendar = calendar {
+            let calendarFiltered = filteredTimetables.filter { timetable in
+                timetable.calendar == nil || timetable.calendar == calendar
             }
             
-            return matchesRailway && matchesCalendar && matchesDirection
+            // 指定されたカレンダーの時刻表がない場合は、利用可能な時刻表を返す
+            if calendarFiltered.isEmpty {
+                print("ODPT API: No timetables for calendar \(calendar), returning all available timetables")
+                print("ODPT API: Available calendars: \(Set(filteredTimetables.compactMap { $0.calendar }))")
+            } else {
+                filteredTimetables = calendarFiltered
+            }
         }
         
         print("ODPT API: After filtering: \(filteredTimetables.count) timetables")

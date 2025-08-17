@@ -475,7 +475,7 @@ struct TrainSelectionView: View {
                     station.name = stationName
                     station.latitude = 35.6812  // TODO: 実際の座標を取得
                     station.longitude = 139.7671
-                    station.lines = [departureStation.railwayTitle?.ja ?? departureStation.railway]
+                    station.lines = [departureStation.railwayTitle?.ja ?? departureStation.railway.railwayDisplayName]
                     station.isFavorite = false
                     station.createdAt = Date()
                 }
@@ -506,6 +506,9 @@ struct TrainSelectionView: View {
                     
                     // 目覚まし監視サービスを更新
                     AlertMonitoringService.shared.reloadAlerts()
+                    
+                    // 時刻表画面も閉じるための通知
+                    NotificationCenter.default.post(name: NSNotification.Name("DismissTimetableSearch"), object: nil)
                     
                     // 画面を閉じる
                     dismiss()

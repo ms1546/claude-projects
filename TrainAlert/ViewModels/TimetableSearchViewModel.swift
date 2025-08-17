@@ -38,11 +38,12 @@ final class TimetableSearchViewModel: ObservableObject {
             // 現在の曜日に対応するカレンダータイプを取得
             let calendar = getCurrentCalendarType()
             
-            // 時刻表を取得
+            // 時刻表を取得（カレンダーは指定せず、利用可能なものを取得）
             let fetchedTimetables = try await apiClient.getStationTimetable(
                 stationId: station.sameAs,
                 railwayId: station.railway,
-                calendar: calendar
+                direction: nil,
+                calendar: nil  // カレンダーを指定しないで全て取得
             )
             
             await MainActor.run {
