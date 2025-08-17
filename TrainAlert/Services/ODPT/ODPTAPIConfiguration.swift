@@ -18,41 +18,24 @@ final class ODPTAPIConfiguration {
     var apiKey: String {
         // 1. 環境変数から取得（開発時）
         if let envKey = ProcessInfo.processInfo.environment["ODPT_API_KEY"], !envKey.isEmpty {
-            print("ODPT API Key: Using environment variable")
             return envKey
         }
         
         // 2. Configuration.plistから取得（実機時）
-        if let path = Bundle.main.path(forResource: "Configuration", ofType: "plist") {
-            print("Configuration.plist found at: \(path)")
-            if let config = NSDictionary(contentsOfFile: path) {
-                print("Configuration.plist loaded, keys: \(config.allKeys)")
-                if let plistKey = config["ODPT_API_KEY"] as? String {
-                    print("ODPT_API_KEY found in plist: \(plistKey.prefix(10))...")
-                    if !plistKey.isEmpty && plistKey != "YOUR_ODPT_API_KEY_HERE" {
-                        print("ODPT API Key: Using Configuration.plist")
-                        return plistKey
-                    } else {
-                        print("ODPT_API_KEY is empty or placeholder")
-                    }
-                } else {
-                    print("ODPT_API_KEY not found in plist")
-                }
-            } else {
-                print("Failed to load Configuration.plist as NSDictionary")
-            }
-        } else {
-            print("Configuration.plist not found in bundle")
+        if let path = Bundle.main.path(forResource: "Configuration", ofType: "plist"),
+           let config = NSDictionary(contentsOfFile: path),
+           let plistKey = config["ODPT_API_KEY"] as? String,
+           !plistKey.isEmpty,
+           plistKey != "YOUR_ODPT_API_KEY_HERE" {
+            return plistKey
         }
         
         // 3. Keychainから取得（ユーザー設定）
         if let keychainKey = try? KeychainManager.shared.getODPTAPIKey(),
            !keychainKey.isEmpty {
-            print("ODPT API Key: Using Keychain")
             return keychainKey
         }
         
-        print("ODPT API Key: NOT FOUND - returning empty string")
         return ""
     }
     

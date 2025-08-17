@@ -361,8 +361,6 @@ class RouteSearchViewModel: ObservableObject {
                     
                     // もし時刻表が取得できなかった場合、他のカレンダータイプも試す
                     if timetables.isEmpty {
-                        print("No timetables found for \(calendarType), trying other calendar types...")
-                        
                         // 全てのカレンダータイプを試す（最も可能性の高い順）
                         let allCalendarTypes: [String]
                         if calendarType == "odpt.Calendar:SundayHoliday" {
@@ -375,14 +373,12 @@ class RouteSearchViewModel: ObservableObject {
                         }
                         
                         for tryCalendarType in allCalendarTypes {
-                            print("Trying calendar type: \(tryCalendarType)")
                             let tryTimetables = try await apiClient.getStationTimetable(
                                 stationId: stationId,
                                 railwayId: railwayId,
                                 calendar: tryCalendarType
                             )
                             if !tryTimetables.isEmpty {
-                                print("✅ Found \(tryTimetables.count) timetables with \(tryCalendarType)")
                                 timetables = tryTimetables
                                 break
                             }

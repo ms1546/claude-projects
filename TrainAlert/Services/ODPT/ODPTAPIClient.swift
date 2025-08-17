@@ -144,12 +144,6 @@ final class ODPTAPIClient {
             throw ODPTAPIError.invalidResponse
         }
         
-        // APIキーの状態を確認
-        if configuration.apiKey.isEmpty {
-            print("⚠️ ODPT API Key is EMPTY!")
-            throw ODPTAPIError.missingAPIKey
-        }
-        
         print("ODPT API: Fetching timetable from URL: \(url.absoluteString)")
         let allTimetables: [ODPTStationTimetable] = try await request(url: url)
         print("ODPT API: Received \(allTimetables.count) timetables for station")
