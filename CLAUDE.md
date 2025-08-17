@@ -121,12 +121,12 @@ persistentContainer.performBackgroundTask { context in
 func fetchStations(near location: CLLocation) async throws -> [Station] {
     let url = URL(string: "...")!
     let (data, response) = try await URLSession.shared.data(from: url)
-    
+
     guard let httpResponse = response as? HTTPURLResponse,
           httpResponse.statusCode == 200 else {
         throw APIError.invalidResponse
     }
-    
+
     return try JSONDecoder().decode([Station].self, from: data)
 }
 
@@ -159,7 +159,7 @@ let apiKey = KeychainWrapper.standard.string(forKey: "openai_api_key")
 # Unit tests
 xcodebuild test -scheme TrainAlert -destination 'platform=iOS Simulator,name=iPhone 15'
 
-# UI tests  
+# UI tests
 xcodebuild test -scheme TrainAlertUITests -destination 'platform=iOS Simulator,name=iPhone 15'
 
 # Build for TestFlight
@@ -193,7 +193,7 @@ xcodebuild -exportArchive -archivePath ./build/TrainAlert.xcarchive -exportPath 
    - Test build with `xcodebuild` if possible
    - Pay special attention to async/await syntax changes
    - When fixing compile errors, always check related code for similar issues
-7. **Mock Data Policy**: 
+7. **Mock Data Policy**:
    - Mock data should ONLY be used for development and testing purposes
    - NEVER use mock data as a fallback for production API failures
    - When API returns empty or error responses, display appropriate error messages to users
@@ -291,7 +291,7 @@ xcodebuild -exportArchive -archivePath ./build/TrainAlert.xcarchive -exportPath 
 #### 推奨実装順序
 1. **Phase 1 - 独立機能**（すぐに開始可能）
    - #030 経路お気に入り機能（UI既存、バックエンドのみ、工数: 6h）
-   - #020 目覚まし編集機能（独立機能、工数: 未定）※最後でも可
+   - #020 目覚まし編集機能（独立機能、工数: 未定）※最後に行うので残しておく
 
 2. **Phase 2 - 基盤機能**
    - #022 時刻表連携アラーム機能（多くの機能の前提条件、工数: 16h）
