@@ -43,7 +43,7 @@ final class FavoriteRouteManager: ObservableObject {
     ) -> FavoriteRoute? {
         // 重複チェック
         if isDuplicate(departureStation: departureStation, arrivalStation: arrivalStation) {
-            logger.warning("Duplicate favorite route: \(departureStation) to \(arrivalStation)")
+            logger.info("Route already exists in favorites: \(departureStation) to \(arrivalStation)")
             return nil
         }
         

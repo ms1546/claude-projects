@@ -527,28 +527,25 @@ struct RouteSearchView: View {
                     .foregroundColor(Color.warmOrange)
                 }
                 
-                if let trainNumber = route.trainNumber {
-                    Text(trainNumber)
-                        .font(.system(size: 12))
-                        .foregroundColor(Color.textSecondary)
-                }
                 
                 // お気に入り保存ボタン
                 Button(action: {
-                    let success = viewModel.saveFavoriteRoute(route)
-                    if success {
-                        // 保存成功のフィードバック（後でToastなどで実装）
-                        print("お気に入りに保存しました")
-                    } else {
-                        // 保存失敗（既に存在または上限）
-                        print("お気に入りに保存できませんでした")
+                    if !viewModel.isFavoriteRoute(route) {
+                        let success = viewModel.saveFavoriteRoute(route)
+                        if success {
+                            // 保存成功のフィードバック
+                            print("お気に入りに保存しました")
+                        } else {
+                            // 保存失敗（上限）
+                            print("お気に入りに保存できませんでした（上限に達しています）")
+                        }
                     }
                 }) {
-                    Image(systemName: viewModel.canAddFavorite ? "bookmark" : "bookmark.fill")
+                    Image(systemName: viewModel.isFavoriteRoute(route) ? "bookmark.fill" : "bookmark")
                         .font(.system(size: 16))
-                        .foregroundColor(viewModel.canAddFavorite ? Color.trainSoftBlue : Color.trainLightGray)
+                        .foregroundColor(viewModel.isFavoriteRoute(route) ? Color.warmOrange : Color.trainSoftBlue)
                 }
-                .disabled(!viewModel.canAddFavorite)
+                .disabled(viewModel.isFavoriteRoute(route) || !viewModel.canAddFavorite)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 10)

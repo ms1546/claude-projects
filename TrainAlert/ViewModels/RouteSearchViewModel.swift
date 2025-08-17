@@ -717,6 +717,11 @@ class RouteSearchViewModel: ObservableObject {
             routeData: routeData
         )
         
+        if favoriteRoute != nil {
+            // 保存成功後、お気に入りリストを更新
+            favoriteRouteManager.fetchFavoriteRoutes()
+        }
+        
         return favoriteRoute != nil
     }
     
@@ -728,6 +733,16 @@ class RouteSearchViewModel: ObservableObject {
     /// お気に入りの残り枠数
     var remainingFavoriteCapacity: Int {
         20 - favoriteRouteManager.favoriteCount
+    }
+    
+    /// 経路がお気に入りに登録済みかチェック
+    /// - Parameter route: チェックする経路
+    /// - Returns: 登録済みの場合true
+    func isFavoriteRoute(_ route: RouteSearchResult) -> Bool {
+        favoriteRouteManager.favoriteRoutes.contains { favorite in
+            favorite.departureStation == route.departureStation &&
+            favorite.arrivalStation == route.arrivalStation
+        }
     }
     
     // MARK: - Nested Types

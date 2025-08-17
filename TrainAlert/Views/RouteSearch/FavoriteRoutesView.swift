@@ -12,6 +12,8 @@ struct FavoriteRoutesView: View {
     @StateObject private var viewModel = FavoriteRoutesViewModel()
     @Environment(\.dismiss) private var dismiss
     @State private var selectedRoute: FavoriteRoute?
+    @State private var navigateToAlertSetup = false
+    @State private var selectedRouteData: RouteSearchResult?
     
     var body: some View {
         NavigationView {
@@ -37,26 +39,38 @@ struct FavoriteRoutesView: View {
     // MARK: - Routes List
     
     private var routesList: some View {
-        List {
-            ForEach(viewModel.filteredRoutes) { route in
-                routeRow(route)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .padding(.vertical, 4)
-                    .onTapGesture {
-                        if let routeData = viewModel.useFavoriteRoute(route) {
-                            // 経路が選択されたら、検索画面を閉じて経路設定画面へ遷移
-                            dismiss()
-                            // NavigationLinkで遷移させる処理を追加
+        ZStack {
+            List {
+                ForEach(viewModel.filteredRoutes) { route in
+                    routeRow(route)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .padding(.vertical, 4)
+                        .onTapGesture {
+                            if let routeData = viewModel.useFavoriteRoute(route) {
+                                selectedRouteData = routeData
+                                navigateToAlertSetup = true
+                            }
                         }
-                    }
+                }
+                .onDelete(perform: viewModel.deleteFavoriteRoutes)
+                .onMove(perform: viewModel.moveRoute)
             }
-            .onDelete(perform: viewModel.deleteFavoriteRoutes)
-            .onMove(perform: viewModel.moveRoute)
+            .listStyle(PlainListStyle())
+            .background(Color(red: 250 / 255, green: 251 / 255, blue: 252 / 255))
+            .environment(\.editMode, .constant(viewModel.isEditing ? .active : .inactive))
+            
+            // Hidden NavigationLink
+            if let routeData = selectedRouteData {
+                NavigationLink(
+                    destination: TimetableAlertSetupView(route: routeData),
+                    isActive: $navigateToAlertSetup
+                ) {
+                    EmptyView()
+                }
+                .hidden()
+            }
         }
-        .listStyle(PlainListStyle())
-        .background(Color(red: 250 / 255, green: 251 / 255, blue: 252 / 255))
-        .environment(\.editMode, .constant(viewModel.isEditing ? .active : .inactive))
     }
     
     private func routeRow(_ route: FavoriteRoute) -> some View {
@@ -98,9 +112,23 @@ struct FavoriteRoutesView: View {
                             .font(.system(size: 14))
                             .foregroundColor(.red)
                     }
-                    Text("到着時刻")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
+                    if let routeData = route.routeData {
+                        let decoder = JSONDecoder()
+                        decoder.dateDecodingStrategy = .iso8601
+                        if let decodedRoute = try? decoder.decode(RouteSearchResult.self, from: routeData) {
+                            Text(formatTime(decodedRoute.arrivalTime))
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text("到着時刻")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                        }
+                    } else {
+                        Text("到着時刻")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             .padding(16)
