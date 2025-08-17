@@ -162,45 +162,90 @@ class AlertMonitoringService: NSObject, ObservableObject {
         let stationName = alert.station?.name ?? alert.stationName ?? "駅"
         let characterStyle = alert.characterStyleEnum
         
-        // 通知内容を作成
-        let title = "🚃 もうすぐ\(stationName)駅です！"
-        let body = generateNotificationMessage(for: alert, stationName: stationName)
-        
-        let content = UNMutableNotificationContent()
-        content.title = title
-        content.body = body
-        content.sound = .defaultCritical
-        content.categoryIdentifier = NotificationCategory.trainAlert.identifier
-        
-        // ユーザー情報を追加
-        if let alertId = alert.alertId {
-            content.userInfo = [
-                "alertId": alertId.uuidString,
-                "stationName": stationName,
-                "reason": reason
-            ]
+        // 時間ベースのアラートの場合、NotificationManagerを使用してスケジュール
+        if alert.notificationTime > 0, let arrivalTime = alert.arrivalTime {
+            do {
+                if let station = alert.station {
+                    let targetLocation = CLLocation(latitude: station.latitude, longitude: station.longitude)
+                    try await notificationManager.scheduleTrainAlert(
+                        for: stationName,
+                        arrivalTime: arrivalTime,
+                        currentLocation: locationManager.location,
+                        targetLocation: targetLocation,
+                        characterStyle: characterStyle
+                    )
+                    print("✅ 時間ベースの通知をスケジュールしました: \(stationName) - \(reason)")
+                }
+            } catch {
+                print("❌ 通知スケジュールエラー: \(error)")
+                monitoringError = error
+            }
         }
         
-        // 即座に通知を送信
-        let request = UNNotificationRequest(
-            identifier: UUID().uuidString,
-            content: content,
-            trigger: nil // nilで即座に送信
-        )
-        
-        do {
-            try await UNUserNotificationCenter.current().add(request)
-            lastNotificationTime = Date()
-            
-            // 履歴に追加
-            let history = alert.addHistory(message: "\(reason)で通知: \(body)")
-            try? viewContext.save()
-            
-            print("✅ 通知を送信しました: \(stationName) - \(reason)")
-        } catch {
-            print("❌ 通知送信エラー: \(error)")
-            monitoringError = error
+        // 距離ベースのアラートの場合
+        if alert.notificationDistance > 0, let station = alert.station {
+            do {
+                let targetLocation = CLLocation(latitude: station.latitude, longitude: station.longitude)
+                try await notificationManager.scheduleLocationBasedAlert(
+                    for: stationName,
+                    targetLocation: targetLocation,
+                    radius: alert.notificationDistance
+                )
+                print("✅ 位置ベースの通知をスケジュールしました: \(stationName) - \(reason)")
+            } catch {
+                print("❌ 通知スケジュールエラー: \(error)")
+                monitoringError = error
+            }
         }
+        
+        // アラートが近い場合は即座に通知も送信
+        let shouldSendImmediate: Bool
+        if let arrivalTime = alert.arrivalTime {
+            shouldSendImmediate = arrivalTime.timeIntervalSinceNow <= 60 // 1分以内
+        } else {
+            shouldSendImmediate = reason.contains("距離ベース")
+        }
+        
+        if shouldSendImmediate {
+            // 通知内容を作成
+            let title = "🚃 もうすぐ\(stationName)駅です！"
+            let body = generateNotificationMessage(for: alert, stationName: stationName)
+            
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = body
+            content.sound = .defaultCritical
+            content.categoryIdentifier = NotificationCategory.trainAlert.identifier
+            
+            // ユーザー情報を追加
+            if let alertId = alert.alertId {
+                content.userInfo = [
+                    "alertId": alertId.uuidString,
+                    "stationName": stationName,
+                    "reason": reason
+                ]
+            }
+            
+            // 即座に通知を送信
+            let request = UNNotificationRequest(
+                identifier: UUID().uuidString,
+                content: content,
+                trigger: nil // nilで即座に送信
+            )
+            
+            do {
+                try await UNUserNotificationCenter.current().add(request)
+                lastNotificationTime = Date()
+                print("✅ 即座の通知を送信しました: \(stationName) - \(reason)")
+            } catch {
+                print("❌ 通知送信エラー: \(error)")
+                monitoringError = error
+            }
+        }
+        
+        // 履歴に追加
+        let history = alert.addHistory(message: "\(reason)で通知: \(stationName)")
+        try? viewContext.save()
     }
     
     /// キャラクタースタイルに応じたメッセージを生成
