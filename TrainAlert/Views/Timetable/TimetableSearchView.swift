@@ -5,6 +5,7 @@
 //  時刻表検索・表示画面
 //
 
+import Foundation
 import SwiftUI
 
 // 選択データを保持する構造体
@@ -233,7 +234,7 @@ struct TimetableSearchView: View {
                             Text(station.stationTitle?.ja ?? station.title)
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(Color.textPrimary)
-                            Text(station.railwayTitle?.ja ?? getRailwayDisplayName(station.railway))
+                            Text(station.railwayTitle?.ja ?? station.railway.railwayJapaneseName())
                                 .font(.system(size: 12))
                                 .foregroundColor(Color.textSecondary)
                         }
@@ -263,7 +264,20 @@ struct TimetableSearchView: View {
         VStack(spacing: 0) {
             // 方向選択タブ
             if viewModel.directions.count > 1 {
-                directionTabs
+                DirectionTabView(
+                    directions: viewModel.directions,
+                    selectedDirection: $selectedDirection,
+                    getDirectionTitle: viewModel.getDirectionTitle,
+                    onSelect: { direction in
+                        viewModel.selectDirection(direction)
+                        // 方向が選択されたらデータ準備完了とみなす
+                        if isDataPreparing && !viewModel.isLoading {
+                            isDataPreparing = false
+                        }
+                        // データの完全性をチェック
+                        isDataReady = checkDataReadiness()
+                    }
+                )
             }
             
             // 時刻表リスト
@@ -271,8 +285,18 @@ struct TimetableSearchView: View {
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         ForEach(viewModel.displayedTrains, id: \.departureTime) { train in
-                            trainRow(train)
-                                .id(train.departureTime)
+                            TrainRowView(
+                                train: train,
+                                isNearCurrent: viewModel.isNearCurrentTime(train),
+                                isPastTime: viewModel.isPastTime(train),
+                                isLoading: viewModel.isLoading,
+                                isDataPreparing: isDataPreparing,
+                                isDataReady: isDataReady,
+                                onSelect: {
+                                    handleTrainSelection(train)
+                                }
+                            )
+                            .id(train.departureTime)
                         }
                     }
                     .padding(.vertical)
@@ -300,183 +324,55 @@ struct TimetableSearchView: View {
         }
     }
     
-    private var directionTabs: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                ForEach(viewModel.directions, id: \.self) { direction in
-                    Button(action: {
-                        withAnimation {
-                            selectedDirection = direction
-                            viewModel.selectDirection(direction)
-                            // 方向が選択されたらデータ準備完了とみなす
-                            if isDataPreparing && !viewModel.isLoading {
-                                isDataPreparing = false
-                            }
-                            // データの完全性をチェック
-                            isDataReady = checkDataReadiness()
-                        }
-                    }) {
-                        Text(viewModel.getDirectionTitle(for: direction))
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(
-                                selectedDirection == direction ? .white : Color.textPrimary
-                            )
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(
-                                        selectedDirection == direction ?
-                                        Color.trainSoftBlue : Color.backgroundCard
-                                    )
-                            )
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                }
-            }
-            .padding(.horizontal)
+    private func handleTrainSelection(_ train: ODPTTrainTimetableObject) {
+        // データのロード中、準備中、または準備未完了の場合は何もしない
+        guard !viewModel.isLoading && !isDataPreparing && !showingTrainSelection && isDataReady else {
+            return
         }
-        .padding(.vertical, 12)
-        .background(Color.backgroundSecondary)
-        .onAppear {
-            // 初回表示時に最初の方向を選択
-            if selectedDirection == nil, let firstDirection = viewModel.directions.first {
-                selectedDirection = firstDirection
-            }
-        }
-    }
-    
-    private func trainRow(_ train: ODPTTrainTimetableObject) -> some View {
-        let isNearCurrent = viewModel.isNearCurrentTime(train)
-        let isPastTime = viewModel.isPastTime(train)
-        let isDisabled = isPastTime || viewModel.isLoading || isDataPreparing || !isDataReady
         
-        return Button(action: {
-            // データのロード中、準備中、または準備未完了の場合は何もしない
-            guard !viewModel.isLoading && !isDataPreparing && !showingTrainSelection && isDataReady else {
-                return
-            }
-            
-            // 駅が選択されていることを確認
-            guard let station = selectedStation else {
-                return
-            }
-            
-            // 必要なデータを構造体にまとめる
-            let railwayId = station.railway
-            let currentDirection = selectedDirection ?? viewModel.directions.first
-            
-            // デバッグ情報
-            
-            // 前回のクリアタスクがあればキャンセル
-            dataClearTask?.cancel()
-            dataClearTask = nil
-            
-            // 選択データを作成
-            let newTrainData = TrainSelectionData(
-                train: train,
-                station: station,
-                railway: railwayId,
-                direction: currentDirection
-            )
-            
-            
-            // データを同期的に設定（重要：非同期にしない）
-            self.sheetTrainData = newTrainData
-            self.selectedTrainData = newTrainData
-            
-            // SwiftUIの更新サイクルを確実に待つ（初回は少し長めに）
-            let delay = showingTrainSelection ? 0.1 : 0.2
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                // 追加の安全チェック
-                guard let data = self.sheetTrainData else {
-                    self.viewModel.errorMessage = "データの設定に失敗しました。もう一度お試しください。"
-                    self.viewModel.showError = true
-                    return
-                }
-                
-                // データの整合性を再確認
-                
-                // 既にsheetが表示されている場合は何もしない
-                guard !self.showingTrainSelection else {
-                    return
-                }
-                
-                // sheet表示をトリガー
-                self.showingTrainSelection = true
-            }
-        }) {
-            HStack(spacing: 16) {
-                // 時刻
-                VStack(spacing: 2) {
-                    Text(train.departureTime)
-                        .font(.system(size: 24, weight: .bold, design: .monospaced))
-                        .foregroundColor(isPastTime ? Color.textSecondary.opacity(0.5) : Color.textPrimary)
-                    
-                    if isNearCurrent {
-                        Text("もうすぐ")
-                            .font(.caption2)
-                            .foregroundColor(Color.warmOrange)
-                    }
-                }
-                .frame(width: 80)
-                
-                // データ準備中インジケーター
-                if !isDataReady && !isPastTime {
-                    ProgressView()
-                        .scaleEffect(0.7)
-                }
-                
-                // 列車情報
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 8) {
-                        // 列車種別
-                        if let trainTypeTitle = train.trainTypeTitle?.ja {
-                            Text(trainTypeTitle)
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(getTrainTypeColor(train.trainType))
-                        }
-                        
-                        // 行き先
-                        if let destination = train.destinationStationTitle?.ja {
-                            Text(destination + "行")
-                                .font(.system(size: 14))
-                                .foregroundColor(Color.textPrimary)
-                        }
-                    }
-                    
-                    // プラットフォーム
-                    if let platform = train.platformNumber {
-                        Label("\(platform)番線", systemImage: "tram.fill")
-                            .font(.caption)
-                            .foregroundColor(Color.textSecondary)
-                    }
-                }
-                
-                Spacer()
-                
-                // 選択インジケーター
-                if !isDataReady && !isPastTime {
-                    Text("準備中...")
-                        .font(.caption)
-                        .foregroundColor(Color.textSecondary)
-                } else {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14))
-                        .foregroundColor(Color.textSecondary.opacity(0.6))
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(isNearCurrent ? Color.warmOrange.opacity(0.1) : Color.clear)
-            )
-            .opacity(isDisabled ? 0.5 : 1.0)
+        // 駅が選択されていることを確認
+        guard let station = selectedStation else {
+            return
         }
-        .buttonStyle(PlainButtonStyle())
-        .disabled(isDisabled)
-        .opacity(isDisabled ? 0.6 : 1.0)
+        
+        // 必要なデータを構造体にまとめる
+        let railwayId = station.railway
+        let currentDirection = selectedDirection ?? viewModel.directions.first
+        
+        // 前回のクリアタスクがあればキャンセル
+        dataClearTask?.cancel()
+        dataClearTask = nil
+        
+        // 選択データを作成
+        let newTrainData = TrainSelectionData(
+            train: train,
+            station: station,
+            railway: railwayId,
+            direction: currentDirection
+        )
+        
+        // データを同期的に設定（重要：非同期にしない）
+        self.sheetTrainData = newTrainData
+        self.selectedTrainData = newTrainData
+        
+        // SwiftUIの更新サイクルを確実に待つ（初回は少し長めに）
+        let delay = showingTrainSelection ? 0.1 : 0.2
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            // 追加の安全チェック
+            guard self.sheetTrainData != nil else {
+                self.viewModel.errorMessage = "データの設定に失敗しました。もう一度お試しください。"
+                self.viewModel.showError = true
+                return
+            }
+            
+            // 既にsheetが表示されている場合は何もしない
+            guard !self.showingTrainSelection else {
+                return
+            }
+            
+            // sheet表示をトリガー
+            self.showingTrainSelection = true
+        }
     }
     
     // MARK: - Empty States
@@ -521,91 +417,6 @@ struct TimetableSearchView: View {
     
     // MARK: - Helper Methods
     
-    private func getRailwayDisplayName(_ railway: String) -> String {
-        let components = railway.split(separator: ":").map { String($0) }
-        guard components.count >= 2 else { return railway }
-        
-        let operatorAndLine = components[1].split(separator: ".").map { String($0) }
-        guard operatorAndLine.count >= 2 else { return railway }
-        
-        let operatorName = operatorAndLine[0]
-        let lineName = operatorAndLine[1]
-        
-        // オペレーター名の日本語化
-        let operatorJa: String
-        switch operatorName {
-        case "TokyoMetro":
-            operatorJa = "東京メトロ"
-        case "JR-East":
-            operatorJa = "JR東日本"
-        case "Toei":
-            operatorJa = "都営"
-        case "Tokyu":
-            operatorJa = "東急"
-        case "Keio":
-            operatorJa = "京王"
-        case "Odakyu":
-            operatorJa = "小田急"
-        case "Seibu":
-            operatorJa = "西武"
-        case "Tobu":
-            operatorJa = "東武"
-        default:
-            operatorJa = operatorName
-        }
-        
-        // 路線名の日本語化
-        let lineJa: String
-        switch lineName {
-        case "Hanzomon":
-            lineJa = "半蔵門線"
-        case "Ginza":
-            lineJa = "銀座線"
-        case "Marunouchi":
-            lineJa = "丸ノ内線"
-        case "Hibiya":
-            lineJa = "日比谷線"
-        case "Tozai":
-            lineJa = "東西線"
-        case "Chiyoda":
-            lineJa = "千代田線"
-        case "Yurakucho":
-            lineJa = "有楽町線"
-        case "Namboku":
-            lineJa = "南北線"
-        case "Fukutoshin":
-            lineJa = "副都心線"
-        case "Yamanote":
-            lineJa = "山手線"
-        case "Chuo", "ChuoRapid":
-            lineJa = "中央線"
-        case "Keihin-TohokuNegishi":
-            lineJa = "京浜東北線"
-        case "Sobu":
-            lineJa = "総武線"
-        case "Saikyo":
-            lineJa = "埼京線"
-        default:
-            lineJa = lineName + "線"
-        }
-        
-        return operatorJa + lineJa
-    }
-    
-    private func getTrainTypeColor(_ trainType: String?) -> Color {
-        guard let type = trainType?.lowercased() else { return Color.textPrimary }
-        
-        if type.contains("rapid") || type.contains("快速") {
-            return Color.warmOrange
-        } else if type.contains("express") || type.contains("急行") {
-            return Color.red
-        } else if type.contains("limited") || type.contains("特急") {
-            return Color.purple
-        } else {
-            return Color.trainSoftBlue
-        }
-    }
-    
     // MARK: - Data Readiness Check
     
     /// データが完全に準備できているかチェック
@@ -624,195 +435,6 @@ struct TimetableSearchView: View {
     }
 }
 
-// MARK: - Station Search View
-
-private struct TimetableStationSearchView: View {
-    let title: String
-    let onSelect: (ODPTStation) -> Void
-    
-    @StateObject private var viewModel = StationSearchViewModel()
-    @Environment(\.dismiss) private var dismiss
-    @State private var searchText = ""
-    
-    var body: some View {
-        NavigationView {
-            ZStack {
-                Color.backgroundPrimary
-                    .ignoresSafeArea()
-                
-                VStack(spacing: 0) {
-                    // 検索フィールド
-                    searchField
-                        .padding()
-                        .background(Color.backgroundSecondary)
-                    
-                    // 検索結果
-                    if viewModel.isSearching {
-                        LoadingIndicator(text: "駅を検索中...")
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if viewModel.stations.isEmpty && !searchText.isEmpty {
-                        emptySearchResult
-                    } else {
-                        stationList
-                    }
-                }
-            }
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(trailing:
-                Button(action: {
-                    dismiss()
-                }) {
-                    Text("キャンセル")
-                        .foregroundColor(Color.trainSoftBlue)
-                }
-            )
-        }
-    }
-    
-    private var searchField: some View {
-        HStack {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(Color.textSecondary)
-            
-            TextField("駅名を入力", text: $searchText)
-                .textFieldStyle(PlainTextFieldStyle())
-                .foregroundColor(Color.textPrimary)
-                .onChange(of: searchText) { newValue in
-                    viewModel.searchStations(query: newValue)
-                }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color.backgroundCard)
-        .cornerRadius(12)
-    }
-    
-    private var stationList: some View {
-        ScrollView {
-            LazyVStack(spacing: 8) {
-                ForEach(viewModel.stations, id: \.sameAs) { station in
-                    Button(action: { onSelect(station) }) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(station.stationTitle?.ja ?? station.title)
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(Color.textPrimary)
-                                
-                                Text(station.railwayTitle?.ja ?? getRailwayDisplayName(station.railway))
-                                    .font(.system(size: 12))
-                                    .foregroundColor(Color.textSecondary)
-                            }
-                            
-                            Spacer()
-                            
-                            if let code = station.stationCode {
-                                Text(code)
-                                    .font(.caption)
-                                    .foregroundColor(Color.textSecondary)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.backgroundSecondary)
-                                    .cornerRadius(6)
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                }
-            }
-            .padding(.vertical)
-        }
-    }
-    
-    private var emptySearchResult: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 60))
-                .foregroundColor(Color.trainLightGray)
-            
-            Text("駅が見つかりませんでした")
-                .font(.headline)
-                .foregroundColor(Color.textSecondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
-    }
-    
-    // ヘルパーメソッド
-    private func getRailwayDisplayName(_ railway: String) -> String {
-        let components = railway.split(separator: ":").map { String($0) }
-        guard components.count >= 2 else { return railway }
-        
-        let operatorAndLine = components[1].split(separator: ".").map { String($0) }
-        guard operatorAndLine.count >= 2 else { return railway }
-        
-        let operatorName = operatorAndLine[0]
-        let lineName = operatorAndLine[1]
-        
-        // オペレーター名の日本語化
-        let operatorJa: String
-        switch operatorName {
-        case "TokyoMetro":
-            operatorJa = "東京メトロ"
-        case "JR-East":
-            operatorJa = "JR東日本"
-        case "Toei":
-            operatorJa = "都営"
-        case "Tokyu":
-            operatorJa = "東急"
-        case "Keio":
-            operatorJa = "京王"
-        case "Odakyu":
-            operatorJa = "小田急"
-        case "Seibu":
-            operatorJa = "西武"
-        case "Tobu":
-            operatorJa = "東武"
-        default:
-            operatorJa = operatorName
-        }
-        
-        // 路線名の日本語化
-        let lineJa: String
-        switch lineName {
-        case "Hanzomon":
-            lineJa = "半蔵門線"
-        case "Ginza":
-            lineJa = "銀座線"
-        case "Marunouchi":
-            lineJa = "丸ノ内線"
-        case "Hibiya":
-            lineJa = "日比谷線"
-        case "Tozai":
-            lineJa = "東西線"
-        case "Chiyoda":
-            lineJa = "千代田線"
-        case "Yurakucho":
-            lineJa = "有楽町線"
-        case "Namboku":
-            lineJa = "南北線"
-        case "Fukutoshin":
-            lineJa = "副都心線"
-        case "Yamanote":
-            lineJa = "山手線"
-        case "Chuo", "ChuoRapid":
-            lineJa = "中央線"
-        case "Keihin-TohokuNegishi":
-            lineJa = "京浜東北線"
-        case "Sobu":
-            lineJa = "総武線"
-        case "Saikyo":
-            lineJa = "埼京線"
-        default:
-            lineJa = lineName + "線"
-        }
-        
-        return operatorJa + lineJa
-    }
-}
-
 // MARK: - Preview
 
 struct TimetableSearchView_Previews: PreviewProvider {
@@ -820,3 +442,4 @@ struct TimetableSearchView_Previews: PreviewProvider {
         TimetableSearchView()
     }
 }
+
