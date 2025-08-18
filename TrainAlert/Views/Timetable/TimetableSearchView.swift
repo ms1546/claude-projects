@@ -122,10 +122,14 @@ struct TimetableSearchView: View {
             .sheet(isPresented: $showingTrainSelection, onDismiss: {
                 // sheet閉じた後の処理
                 print("Sheet dismissed")
-                // データのクリアは次の選択時に行う
+                // 少し遅延してからデータをクリア（次回の選択に備える）
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    self.sheetTrainData = nil
+                    self.selectedTrainData = nil
+                }
             }) {
-                // sheet表示時にデータの存在を確認
-                if let data = sheetTrainData {
+                // sheet表示時にデータの存在を確認（初回表示時の対策）
+                if let data = sheetTrainData ?? selectedTrainData {
                     TrainSelectionView(
                         train: data.train,
                         departureStation: data.station,
@@ -350,10 +354,6 @@ struct TimetableSearchView: View {
             print("  Direction: \(currentDirection ?? "nil")")
             print("  isNearCurrent: \(isNearCurrent)")
             
-            // 古いデータをクリア
-            sheetTrainData = nil
-            selectedTrainData = nil
-            
             // 選択データを作成
             let newTrainData = TrainSelectionData(
                 train: train,
@@ -368,29 +368,17 @@ struct TimetableSearchView: View {
             print("  Railway: \(newTrainData.railway)")
             print("  Direction: \(newTrainData.direction ?? "nil")")
             
-            // sheet用のデータを設定（SwiftUIの更新を確実にするため）
-            DispatchQueue.main.async {
-                self.sheetTrainData = newTrainData
-                self.selectedTrainData = newTrainData
-                print("Data set on main queue")
-            }
+            // データを同期的に設定（重要：非同期にしない）
+            self.sheetTrainData = newTrainData
+            self.selectedTrainData = newTrainData
             
-            // より長い遅延を設定して、SwiftUIの状態更新を確実に待つ
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                // データが確実に存在することを再度確認
-                guard let data = sheetTrainData else {
-                    print("ERROR: sheetTrainData is nil when trying to show sheet")
-                    viewModel.errorMessage = "データの設定に失敗しました。もう一度お試しください。"
-                    viewModel.showError = true
-                    return
-                }
-                
-                print("Sheet presentation triggered - data confirmed:")
-                print("  Train: \(data.train.departureTime)")
-                print("  Station: \(data.station.stationTitle?.ja ?? data.station.title)")
+            // SwiftUIの更新サイクルを1フレーム待つ
+            DispatchQueue.main.async {
+                print("Next frame - data should be set:")
+                print("  sheetTrainData exists: \(self.sheetTrainData != nil)")
                 
                 // sheet表示をトリガー
-                showingTrainSelection = true
+                self.showingTrainSelection = true
             }
         }) {
             HStack(spacing: 16) {
