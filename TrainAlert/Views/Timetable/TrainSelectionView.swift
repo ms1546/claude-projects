@@ -792,24 +792,53 @@ private struct ArrivalStationSearchView: View {
                     if let dir = direction {
                         print("Using direction info: \(dir)")
                         
-                        // 方向文字列から終点駅を抽出
+                        // 方向を判定するロジック
                         var isForward = true  // デフォルトは順方向
                         
-                        // 方向文字列に含まれる駅名を探す
-                        for (index, station) in allStationsOnLine.enumerated() {
-                            let stationName = station.stationTitle?.ja ?? station.title
-                            if dir.contains(stationName) {
-                                print("Found direction station: \(stationName) at index \(index)")
-                                // 方向駅のインデックスと出発駅のインデックスを比較
-                                isForward = index > departureIndex
-                                break
-                            }
+                        // 方向文字列から終点駅名を抽出
+                        // 例: "odpt.RailDirection:TokyoMetro.Shibuya" → "Shibuya"
+                        let directionComponents = dir.split(separator: ".").map { String($0) }
+                        let directionStationName = directionComponents.last ?? ""
+                        
+                        print("Direction station name: \(directionStationName)")
+                        
+                        // 路線の最初と最後の駅を確認
+                        let firstStation = allStationsOnLine.first
+                        let lastStation = allStationsOnLine.last
+                        
+                        // 方向駅が路線の最初の駅に近い場合は逆方向
+                        if let first = firstStation, 
+                           (first.stationTitle?.en?.lowercased().contains(directionStationName.lowercased()) == true ||
+                            first.stationTitle?.ja?.contains(directionStationName) == true ||
+                            first.title.lowercased().contains(directionStationName.lowercased())) {
+                            isForward = false
+                            print("Direction matches first station: reverse direction")
+                        }
+                        // 方向駅が路線の最後の駅に近い場合は順方向
+                        else if let last = lastStation,
+                                (last.stationTitle?.en?.lowercased().contains(directionStationName.lowercased()) == true ||
+                                 last.stationTitle?.ja?.contains(directionStationName) == true ||
+                                 last.title.lowercased().contains(directionStationName.lowercased())) {
+                            isForward = true
+                            print("Direction matches last station: forward direction")
+                        }
+                        // 既知の方向パターンをチェック
+                        else if dir.contains("Shibuya") || dir.contains("渋谷") {
+                            // 半蔵門線の場合、渋谷は始発駅なので逆方向
+                            isForward = false
+                            print("Known pattern: Shibuya direction = reverse")
+                        } else if dir.contains("Oshiage") || dir.contains("押上") {
+                            // 半蔵門線の場合、押上は終着駅なので順方向
+                            isForward = true
+                            print("Known pattern: Oshiage direction = forward")
                         }
                         
                         if isForward {
                             // 順方向：出発駅より後の駅
-                            arrivalStations = Array(allStationsOnLine[(departureIndex + 1)...])
-                            print("Forward direction: showing stations after departure")
+                            if departureIndex < allStationsOnLine.count - 1 {
+                                arrivalStations = Array(allStationsOnLine[(departureIndex + 1)...])
+                                print("Forward direction: showing stations after departure")
+                            }
                         } else {
                             // 逆方向：出発駅より前の駅
                             if departureIndex > 0 {
