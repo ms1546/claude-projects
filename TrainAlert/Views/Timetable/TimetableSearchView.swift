@@ -58,7 +58,7 @@ struct TimetableSearchView: View {
                             timetableContent
                                 .overlay(
                                     // ローディング中のオーバーレイ
-                                    (viewModel.isLoading || isDataPreparing) ? 
+                                    (viewModel.isLoading || isDataPreparing) ?
                                     Color.black.opacity(0.3)
                                         .overlay(
                                             VStack(spacing: 10) {

@@ -10,7 +10,7 @@ Medium - 機能には影響しないが、保守性とコード品質に関わ�
 8-12時間
 
 ## ステータス
-[ ] Not Started / [ ] In Progress / [ ] Completed
+[ ] Not Started / [x] In Progress / [ ] Completed
 
 ## タスクリスト
 
