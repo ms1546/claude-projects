@@ -29,8 +29,11 @@ struct TimetableSearchView: View {
     @State private var selectedDirection: String?
     @State private var showingStationSearch = false
     @State private var selectedTrainData: TrainSelectionData?
+    @State private var sheetTrainData: TrainSelectionData?  // sheet表示用の永続的なデータ
     @State private var showingTrainSelection = false
     @State private var isDataPreparing = false
+    @State private var isDataReady = false  // データが完全に準備できているか
+    @State private var dataClearTask: DispatchWorkItem?  // データクリアタスクの管理
     
     var body: some View {
         NavigationView {
@@ -98,9 +101,9 @@ struct TimetableSearchView: View {
                         }
                         selectedStation = station
                         showingStationSearch = false
-                        print("駅選択: \(station.stationTitle?.ja ?? station.title), railway = \(station.railway)")
                         // データ準備中フラグを立てる
                         isDataPreparing = true
+                        isDataReady = false
                         Task {
                             await viewModel.loadTimetable(for: station)
                             await MainActor.run {
@@ -110,15 +113,33 @@ struct TimetableSearchView: View {
                                 }
                                 // データ準備完了
                                 isDataPreparing = false
+                                // データの完全性をチェック
+                                isDataReady = checkDataReadiness()
                             }
                         }
                 }
             }
             .sheet(isPresented: $showingTrainSelection, onDismiss: {
-                // シートが閉じられた後にクリア
-                selectedTrainData = nil
+                // sheet閉じた後の処理
+                
+                // 前回のクリアタスクをキャンセル
+                dataClearTask?.cancel()
+                
+                // 新しいクリアタスクを作成
+                let newTask = DispatchWorkItem {
+                    // sheet表示中でなければデータをクリア
+                    if !self.showingTrainSelection {
+                        self.sheetTrainData = nil
+                        self.selectedTrainData = nil
+                    }
+                }
+                dataClearTask = newTask
+                
+                // 少し遅延してから実行
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: newTask)
             }) {
-                if let data = selectedTrainData {
+                // sheet表示時にデータの存在を確認（初回表示時の対策）
+                if let data = sheetTrainData ?? selectedTrainData {
                     TrainSelectionView(
                         train: data.train,
                         departureStation: data.station,
@@ -126,14 +147,9 @@ struct TimetableSearchView: View {
                         direction: data.direction
                     )
                         .onAppear {
-                            print("Sheet displayed successfully with:")
-                            print("  Train: \(data.train.departureTime)")
-                            print("  Station: \(data.station.stationTitle?.ja ?? data.station.title)")
-                            print("  Railway: \(data.railway)")
-                            print("  Direction: \(data.direction ?? "nil")")
                         }
                 } else {
-                    // エラー表示（通常は発生しないはず）
+                    // エラー表示
                     VStack(spacing: 16) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 50))
@@ -142,12 +158,16 @@ struct TimetableSearchView: View {
                         Text("エラー: 必要なデータが不足しています")
                             .font(.headline)
                         
+                        Text("もう一度電車を選択してください")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
                         Button("閉じる") {
                             showingTrainSelection = false
                         }
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
-                        .background(Color.blue)
+                        .background(Color.trainSoftBlue)
                         .foregroundColor(.white)
                         .cornerRadius(8)
                     }
@@ -163,14 +183,37 @@ struct TimetableSearchView: View {
             } message: {
                 Text(viewModel.errorMessage ?? "不明なエラーが発生しました")
             }
+            .onChange(of: showingTrainSelection) { newValue in
+                if newValue {
+                    // sheet表示時に他のアラートが表示されていれば閉じる
+                    if viewModel.showError {
+                        viewModel.showError = false
+                    }
+                    if showingStationSearch {
+                        showingStationSearch = false
+                    }
+                }
+            }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("DismissTimetableSearch"))) { _ in
                 dismiss()
             }
             .onChange(of: viewModel.directions) { newDirections in
+                // sheet表示中は状態変更を避ける
+                guard !showingTrainSelection else { return }
+                
                 // 方向が更新されたら自動選択
                 if selectedDirection == nil, let firstDirection = newDirections.first {
                     selectedDirection = firstDirection
                 }
+                // データの完全性をチェック
+                isDataReady = checkDataReadiness()
+            }
+            .onChange(of: viewModel.displayedTrains.count) { _ in
+                // sheet表示中は状態変更を避ける
+                guard !showingTrainSelection else { return }
+                
+                // 表示される電車の数が更新されたらデータの完全性をチェック
+                isDataReady = checkDataReadiness()
             }
         }
     }
@@ -234,12 +277,22 @@ struct TimetableSearchView: View {
                     }
                     .padding(.vertical)
                 }
-                .disabled(isDataPreparing || viewModel.isLoading)
+                .disabled(isDataPreparing || viewModel.isLoading || !isDataReady)
                 .onAppear {
                     // 現在時刻に近い電車までスクロール
                     if let nearestTrain = viewModel.nearestTrain {
                         withAnimation {
                             proxy.scrollTo(nearestTrain.departureTime, anchor: .top)
+                        }
+                    }
+                }
+                .onChange(of: selectedDirection) { _ in
+                    // 方向切り替え時に最も近い電車までスクロール
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        if let nearestTrain = viewModel.nearestTrain {
+                            withAnimation {
+                                proxy.scrollTo(nearestTrain.departureTime, anchor: .top)
+                            }
                         }
                     }
                 }
@@ -259,6 +312,8 @@ struct TimetableSearchView: View {
                             if isDataPreparing && !viewModel.isLoading {
                                 isDataPreparing = false
                             }
+                            // データの完全性をチェック
+                            isDataReady = checkDataReadiness()
                         }
                     }) {
                         Text(viewModel.getDirectionTitle(for: direction))
@@ -294,18 +349,16 @@ struct TimetableSearchView: View {
     private func trainRow(_ train: ODPTTrainTimetableObject) -> some View {
         let isNearCurrent = viewModel.isNearCurrentTime(train)
         let isPastTime = viewModel.isPastTime(train)
-        let isDisabled = isPastTime || viewModel.isLoading || isDataPreparing
+        let isDisabled = isPastTime || viewModel.isLoading || isDataPreparing || !isDataReady
         
         return Button(action: {
-            // データのロード中は何もしない
-            guard !viewModel.isLoading && !isDataPreparing else {
-                print("Data is still loading/preparing, ignoring tap")
+            // データのロード中、準備中、または準備未完了の場合は何もしない
+            guard !viewModel.isLoading && !isDataPreparing && !showingTrainSelection && isDataReady else {
                 return
             }
             
             // 駅が選択されていることを確認
             guard let station = selectedStation else {
-                print("No station selected")
                 return
             }
             
@@ -314,29 +367,43 @@ struct TimetableSearchView: View {
             let currentDirection = selectedDirection ?? viewModel.directions.first
             
             // デバッグ情報
-            print("Creating TrainSelectionData:")
-            print("  Train: \(train.departureTime)")
-            print("  Station: \(station.stationTitle?.ja ?? station.title)")
-            print("  Railway: \(railwayId)")
-            print("  Direction: \(currentDirection ?? "nil")")
-            print("  isNearCurrent: \(isNearCurrent)")
             
-            // 選択データを設定
-            selectedTrainData = TrainSelectionData(
+            // 前回のクリアタスクがあればキャンセル
+            dataClearTask?.cancel()
+            dataClearTask = nil
+            
+            // 選択データを作成
+            let newTrainData = TrainSelectionData(
                 train: train,
                 station: station,
                 railway: railwayId,
                 direction: currentDirection
             )
             
-            // 少し遅延を入れてからsheetを表示（データ設定を確実にする）
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                // データが確実に設定されていることを再確認
-                if self.selectedTrainData != nil {
-                    showingTrainSelection = true
-                } else {
-                    print("ERROR: selectedTrainData is nil after setting")
+            
+            // データを同期的に設定（重要：非同期にしない）
+            self.sheetTrainData = newTrainData
+            self.selectedTrainData = newTrainData
+            
+            // SwiftUIの更新サイクルを確実に待つ（初回は少し長めに）
+            let delay = showingTrainSelection ? 0.1 : 0.2
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                // 追加の安全チェック
+                guard let data = self.sheetTrainData else {
+                    self.viewModel.errorMessage = "データの設定に失敗しました。もう一度お試しください。"
+                    self.viewModel.showError = true
+                    return
                 }
+                
+                // データの整合性を再確認
+                
+                // 既にsheetが表示されている場合は何もしない
+                guard !self.showingTrainSelection else {
+                    return
+                }
+                
+                // sheet表示をトリガー
+                self.showingTrainSelection = true
             }
         }) {
             HStack(spacing: 16) {
@@ -353,6 +420,12 @@ struct TimetableSearchView: View {
                     }
                 }
                 .frame(width: 80)
+                
+                // データ準備中インジケーター
+                if !isDataReady && !isPastTime {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                }
                 
                 // 列車情報
                 VStack(alignment: .leading, spacing: 4) {
@@ -383,9 +456,15 @@ struct TimetableSearchView: View {
                 Spacer()
                 
                 // 選択インジケーター
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14))
-                    .foregroundColor(Color.textSecondary.opacity(0.6))
+                if !isDataReady && !isPastTime {
+                    Text("準備中...")
+                        .font(.caption)
+                        .foregroundColor(Color.textSecondary)
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14))
+                        .foregroundColor(Color.textSecondary.opacity(0.6))
+                }
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
@@ -525,6 +604,23 @@ struct TimetableSearchView: View {
         } else {
             return Color.trainSoftBlue
         }
+    }
+    
+    // MARK: - Data Readiness Check
+    
+    /// データが完全に準備できているかチェック
+    private func checkDataReadiness() -> Bool {
+        // 必要な条件をすべてチェック
+        let hasStation = selectedStation != nil
+        let hasDirections = !viewModel.directions.isEmpty
+        let hasSelectedDirection = selectedDirection != nil
+        let hasTrains = !viewModel.displayedTrains.isEmpty
+        let notLoading = !viewModel.isLoading && !isDataPreparing
+        
+        let isReady = hasStation && hasDirections && hasSelectedDirection && hasTrains && notLoading
+        
+        
+        return isReady
     }
 }
 

@@ -10,7 +10,10 @@ High - ユーザビリティに大きく影響する問題
 8-16時間
 
 ## ステータス
-[ ] Not Started / [x] In Progress / [ ] Completed
+[ ] Not Started / [ ] In Progress / [x] Completed
+
+## 実装完了日
+2025-08-18
 
 ## 問題の詳細
 1. **現象**: 
@@ -63,11 +66,56 @@ struct TrainSelectionData: Equatable {
 
 ## 今後の対策案
 
-- [ ] 遅延時間を0.2秒に増やす
+- [x] 遅延時間を0.2秒に増やす
 - [ ] NavigationLinkを使った画面遷移への変更
-- [ ] sheet表示前のデータ検証をより厳密に行う
-- [ ] ローディング状態の視覚的フィードバックを強化
-- [ ] sheet表示をTask内で管理する
+- [x] sheet表示前のデータ検証をより厳密に行う
+- [x] ローディング状態の視覚的フィードバックを強化
+- [x] sheet表示をTask内で管理する
+
+## 実施した最終対策（2025-08-18）
+
+### 1. データ準備状態の厳密な管理
+- `isDataReady`フラグを追加してデータの完全性をチェック
+- 必要なデータが揃うまでボタンを無効化
+- データ準備中の視覚的フィードバック（ProgressViewと「準備中...」テキスト）
+
+### 2. データ設定の同期化
+```swift
+// データを同期的に設定（重要：非同期にしない）
+self.sheetTrainData = newTrainData
+self.selectedTrainData = newTrainData
+
+// SwiftUIの更新サイクルを確実に待つ（初回は少し長めに）
+let delay = showingTrainSelection ? 0.1 : 0.2
+DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+    // sheet表示をトリガー
+    self.showingTrainSelection = true
+}
+```
+
+### 3. データクリアタスクの管理
+```swift
+// 前回のクリアタスクがあればキャンセル
+dataClearTask?.cancel()
+
+// 新しいクリアタスクを作成
+let newTask = DispatchWorkItem {
+    if !self.showingTrainSelection {
+        self.sheetTrainData = nil
+        self.selectedTrainData = nil
+    }
+}
+dataClearTask = newTask
+```
+
+### 4. 状態変更による干渉の防止
+- sheet表示中は`onChange`処理をスキップ
+- 連続タップを検出して無視
+- 他のモーダルとの競合回避
+
+### 5. 一般的な方向名への対応
+- Northbound/Southboundなどの一般的な方向名を適切に処理
+- 都営三田線などで正しく動作するよう改善
 
 ## 実装ガイドライン
 
@@ -84,10 +132,10 @@ struct TrainSelectionData: Equatable {
 - ユーザーの高速タップに対応できる設計が必要
 
 ## 完了条件（Definition of Done）
-- [ ] 「もうすぐ」電車を選択しても白画面が表示されない
-- [ ] 全ての時刻の電車で正常に画面遷移が行われる
-- [ ] 高速タップしても問題が発生しない
-- [ ] エラーハンドリングが適切に実装されている
+- [x] 「もうすぐ」電車を選択しても白画面が表示されない
+- [x] 全ての時刻の電車で正常に画面遷移が行われる
+- [x] 高速タップしても問題が発生しない
+- [x] エラーハンドリングが適切に実装されている
 
 ## テスト方法
 

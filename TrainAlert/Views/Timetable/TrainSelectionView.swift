@@ -679,6 +679,12 @@ private struct ArrivalStationSearchView: View {
             .onAppear {
                 loadPossibleArrivalStations()
             }
+            .onChange(of: direction) { _ in
+                isLoading = true
+                stations = []
+                estimatedTimes = [:]
+                loadPossibleArrivalStations()
+            }
         }
     }
     
@@ -754,15 +760,12 @@ private struct ArrivalStationSearchView: View {
             do {
                 let apiClient = ODPTAPIClient.shared
                 
-                print("Loading stations for railway: \(railway)")
                 
                 // 路線の全駅を順序付きで取得
                 let allStationsOnLine = try await apiClient.getStationsOnRailway(railwayId: railway)
                 
-                print("Received \(allStationsOnLine.count) stations")
                 
                 if allStationsOnLine.isEmpty {
-                    print("ERROR: No stations found for railway \(railway)")
                     throw ODPTAPIError.invalidResponse
                 }
                 
@@ -771,38 +774,151 @@ private struct ArrivalStationSearchView: View {
                     station.sameAs == departureStation.sameAs
                 } ?? -1
                 
+                // デバッグ情報
+                
                 // 進行方向に基づいてフィルタリング
                 var arrivalStations: [ODPTStation] = []
                 
                 if departureIndex >= 0 {
-                    // 列車の行き先から進行方向を判定
-                    let destinationName = train.destinationStationTitle?.ja ?? ""
-                    let destinationIndex = allStationsOnLine.firstIndex { station in
-                        let stationName = station.stationTitle?.ja ?? station.title
-                        return destinationName.contains(stationName) || stationName == destinationName
-                    }
-                    
-                    if let destIndex = destinationIndex {
-                        // 出発駅と行き先駅の位置関係から到着可能駅を決定
-                        if destIndex > departureIndex {
-                            // 行き先が後方：出発駅より後の駅
-                            arrivalStations = Array(allStationsOnLine[(departureIndex + 1)...min(destIndex, allStationsOnLine.count - 1)])
-                        } else if destIndex < departureIndex {
-                            // 行き先が前方：出発駅より前の駅
-                            arrivalStations = Array(allStationsOnLine[max(0, destIndex)...(departureIndex - 1)]).reversed()
+                    // direction情報から進行方向を判定（優先）
+                    if let dir = direction {
+                        // 方向を判定するロジック
+                        var isForward = true  // デフォルトは順方向
+                        
+                        // 方向文字列から終点駅名または方向を抽出
+                        // 例: "odpt.RailDirection:TokyoMetro.Shibuya" → "Shibuya"
+                        // 例: "odpt.RailDirection:Northbound" → "Northbound"
+                        let directionComponents = dir.split(separator: ":").map { String($0) }
+                        let directionValue = directionComponents.last ?? ""
+                        
+                        
+                        // 一般的な方向名かチェック
+                        let generalDirections = ["Northbound", "Southbound", "Eastbound", "Westbound", 
+                                               "Inbound", "Outbound", "Clockwise", "Counterclockwise"]
+                        let isGeneralDirection = generalDirections.contains(directionValue)
+                        
+                        // 路線の最初と最後の駅を確認
+                        let firstStation = allStationsOnLine.first
+                        let lastStation = allStationsOnLine.last
+                        
+                        if isGeneralDirection {
+                            // 一般的な方向名の場合の処理
+                            switch directionValue.lowercased() {
+                            case "northbound", "eastbound", "outbound":
+                                // 通常、路線の順方向（インデックスが増える方向）
+                                isForward = true
+                            case "southbound", "westbound", "inbound":
+                                // 通常、路線の逆方向（インデックスが減る方向）
+                                isForward = false
+                            case "clockwise":
+                                // 環状線の時計回り（路線により異なる）
+                                isForward = true
+                            case "counterclockwise":
+                                // 環状線の反時計回り（路線により異なる）
+                                isForward = false
+                            default:
+                                // デフォルトは順方向
+                                isForward = true
+                            }
+                        } else {
+                            // 駅名が含まれている場合の処理
+                            let directionStationName = directionValue.split(separator: ".").last.map { String($0) } ?? directionValue
+                            
+                            // 方向名とマッチングするための正規化関数
+                            func normalizeStationName(_ name: String) -> String {
+                                name.lowercased()
+                                .replacingOccurrences(of: "-", with: "")
+                                .replacingOccurrences(of: " ", with: "")
+                                .replacingOccurrences(of: "〈", with: "")
+                                .replacingOccurrences(of: "〉", with: "")
+                                .replacingOccurrences(of: "<", with: "")
+                                .replacingOccurrences(of: ">", with: "")
                         }
-                    } else {
-                        // 行き先が不明な場合は、direction情報から判定
-                        if let dir = direction {
-                            // 路線情報から方向を判定（実装はAPI仕様に依存）
-                            let isAscending = dir.contains("ascending") || dir.contains("上り")
-                            if isAscending {
-                                arrivalStations = Array(allStationsOnLine[0..<departureIndex]).reversed()
+                        
+                        let normalizedDirectionName = normalizeStationName(directionStationName)
+                        
+                        // 路線内の全駅をチェックして方向を判定
+                        var directionStationIndex: Int?
+                        for (index, station) in allStationsOnLine.enumerated() {
+                            let stationEnName = normalizeStationName(station.stationTitle?.en ?? "")
+                            let stationJaName = station.stationTitle?.ja ?? ""
+                            let stationTitle = normalizeStationName(station.title)
+                            
+                            if stationEnName.contains(normalizedDirectionName) || 
+                               stationJaName.contains(directionStationName) ||
+                               stationTitle.contains(normalizedDirectionName) {
+                                directionStationIndex = index
+                                break
+                            }
+                        }
+                        
+                        // 方向駅のインデックスに基づいて判定
+                        if let dirIndex = directionStationIndex {
+                            if dirIndex < departureIndex {
+                                // 方向駅が出発駅より前にある場合は逆方向
+                                isForward = false
+                            } else if dirIndex > departureIndex {
+                                // 方向駅が出発駅より後にある場合は順方向
+                                isForward = true
                             } else {
+                                // 同じ駅の場合（通常はありえない）
+                                isForward = true
+                            }
+                        } else {
+                            // 方向駅が見つからない場合のフォールバック
+                            
+                            // 最初と最後の駅でチェック
+                            if let first = firstStation {
+                                let firstEnName = normalizeStationName(first.stationTitle?.en ?? "")
+                                let firstJaName = first.stationTitle?.ja ?? ""
+                                if firstEnName.contains(normalizedDirectionName) || 
+                                   firstJaName.contains(directionStationName) {
+                                    isForward = false
+                                }
+                            }
+                            
+                            if let last = lastStation {
+                                let lastEnName = normalizeStationName(last.stationTitle?.en ?? "")
+                                let lastJaName = last.stationTitle?.ja ?? ""
+                                if lastEnName.contains(normalizedDirectionName) || 
+                                   lastJaName.contains(directionStationName) {
+                                    isForward = true
+                                }
+                            }
+                        }
+                        }
+                        
+                        if isForward {
+                            // 順方向：出発駅より後の駅
+                            if departureIndex < allStationsOnLine.count - 1 {
                                 arrivalStations = Array(allStationsOnLine[(departureIndex + 1)...])
                             }
                         } else {
-                            // 方向が不明な場合は出発駅以外の全駅
+                            // 逆方向：出発駅より前の駅
+                            if departureIndex > 0 {
+                                arrivalStations = Array(allStationsOnLine[0..<departureIndex]).reversed()
+                            }
+                        }
+                    } else {
+                        // direction情報がない場合は列車の行き先から判定
+                        let destinationName = train.destinationStationTitle?.ja ?? ""
+                        
+                        let destinationIndex = allStationsOnLine.firstIndex { station in
+                            let stationName = station.stationTitle?.ja ?? station.title
+                            return destinationName.contains(stationName) || stationName == destinationName
+                        }
+                        
+                        if let destIndex = destinationIndex {
+                            // 出発駅と行き先駅の位置関係から到着可能駅を決定
+                            if destIndex > departureIndex {
+                                // 行き先が後方：出発駅より後の駅
+                                arrivalStations = Array(allStationsOnLine[(departureIndex + 1)...min(destIndex, allStationsOnLine.count - 1)])
+                            } else if destIndex < departureIndex {
+                                // 行き先が前方：出発駅より前の駅
+                                arrivalStations = Array(allStationsOnLine[max(0, destIndex)...(departureIndex - 1)]).reversed()
+                            }
+                        } else {
+                            // 行き先が不明な場合は出発駅以外の全駅
                             arrivalStations = allStationsOnLine.filter { $0.sameAs != departureStation.sameAs }
                         }
                     }
@@ -820,13 +936,13 @@ private struct ArrivalStationSearchView: View {
                     times[station.sameAs] = arrivalTime
                 }
                 
+                
                 await MainActor.run {
                     self.stations = arrivalStations
                     self.estimatedTimes = times
                     self.isLoading = false
                 }
             } catch {
-                print("APIから駅データの取得に失敗: \(error)")
                 // APIエラー時のフォールバック
                 await MainActor.run {
                     self.isLoading = false
