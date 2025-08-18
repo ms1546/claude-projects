@@ -679,6 +679,12 @@ private struct ArrivalStationSearchView: View {
             .onAppear {
                 loadPossibleArrivalStations()
             }
+            .onChange(of: direction) { _ in
+                isLoading = true
+                stations = []
+                estimatedTimes = [:]
+                loadPossibleArrivalStations()
+            }
         }
     }
     
@@ -771,38 +777,69 @@ private struct ArrivalStationSearchView: View {
                     station.sameAs == departureStation.sameAs
                 } ?? -1
                 
+                // デバッグ情報
+                print("=== Direction Analysis ===")
+                print("Direction parameter: \(direction ?? "nil")")
+                print("Train destination: \(train.destinationStationTitle?.ja ?? "不明")")
+                print("Departure station: \(departureStation.stationTitle?.ja ?? departureStation.title)")
+                print("Departure index: \(departureIndex)")
+                
                 // 進行方向に基づいてフィルタリング
                 var arrivalStations: [ODPTStation] = []
                 
                 if departureIndex >= 0 {
-                    // 列車の行き先から進行方向を判定
-                    let destinationName = train.destinationStationTitle?.ja ?? ""
-                    let destinationIndex = allStationsOnLine.firstIndex { station in
-                        let stationName = station.stationTitle?.ja ?? station.title
-                        return destinationName.contains(stationName) || stationName == destinationName
-                    }
-                    
-                    if let destIndex = destinationIndex {
-                        // 出発駅と行き先駅の位置関係から到着可能駅を決定
-                        if destIndex > departureIndex {
-                            // 行き先が後方：出発駅より後の駅
-                            arrivalStations = Array(allStationsOnLine[(departureIndex + 1)...min(destIndex, allStationsOnLine.count - 1)])
-                        } else if destIndex < departureIndex {
-                            // 行き先が前方：出発駅より前の駅
-                            arrivalStations = Array(allStationsOnLine[max(0, destIndex)...(departureIndex - 1)]).reversed()
+                    // direction情報から進行方向を判定（優先）
+                    if let dir = direction {
+                        print("Using direction info: \(dir)")
+                        
+                        // 方向文字列から終点駅を抽出
+                        var isForward = true  // デフォルトは順方向
+                        
+                        // 方向文字列に含まれる駅名を探す
+                        for (index, station) in allStationsOnLine.enumerated() {
+                            let stationName = station.stationTitle?.ja ?? station.title
+                            if dir.contains(stationName) {
+                                print("Found direction station: \(stationName) at index \(index)")
+                                // 方向駅のインデックスと出発駅のインデックスを比較
+                                isForward = index > departureIndex
+                                break
+                            }
+                        }
+                        
+                        if isForward {
+                            // 順方向：出発駅より後の駅
+                            arrivalStations = Array(allStationsOnLine[(departureIndex + 1)...])
+                            print("Forward direction: showing stations after departure")
+                        } else {
+                            // 逆方向：出発駅より前の駅
+                            if departureIndex > 0 {
+                                arrivalStations = Array(allStationsOnLine[0..<departureIndex]).reversed()
+                                print("Reverse direction: showing stations before departure")
+                            }
                         }
                     } else {
-                        // 行き先が不明な場合は、direction情報から判定
-                        if let dir = direction {
-                            // 路線情報から方向を判定（実装はAPI仕様に依存）
-                            let isAscending = dir.contains("ascending") || dir.contains("上り")
-                            if isAscending {
-                                arrivalStations = Array(allStationsOnLine[0..<departureIndex]).reversed()
-                            } else {
-                                arrivalStations = Array(allStationsOnLine[(departureIndex + 1)...])
+                        // direction情報がない場合は列車の行き先から判定
+                        let destinationName = train.destinationStationTitle?.ja ?? ""
+                        print("No direction info, using train destination: \(destinationName)")
+                        
+                        let destinationIndex = allStationsOnLine.firstIndex { station in
+                            let stationName = station.stationTitle?.ja ?? station.title
+                            return destinationName.contains(stationName) || stationName == destinationName
+                        }
+                        
+                        if let destIndex = destinationIndex {
+                            print("Found destination at index: \(destIndex)")
+                            // 出発駅と行き先駅の位置関係から到着可能駅を決定
+                            if destIndex > departureIndex {
+                                // 行き先が後方：出発駅より後の駅
+                                arrivalStations = Array(allStationsOnLine[(departureIndex + 1)...min(destIndex, allStationsOnLine.count - 1)])
+                            } else if destIndex < departureIndex {
+                                // 行き先が前方：出発駅より前の駅
+                                arrivalStations = Array(allStationsOnLine[max(0, destIndex)...(departureIndex - 1)]).reversed()
                             }
                         } else {
-                            // 方向が不明な場合は出発駅以外の全駅
+                            // 行き先が不明な場合は出発駅以外の全駅
+                            print("Destination not found, showing all stations")
                             arrivalStations = allStationsOnLine.filter { $0.sameAs != departureStation.sameAs }
                         }
                     }
@@ -818,6 +855,13 @@ private struct ArrivalStationSearchView: View {
                     let minutesPerStation = railway.contains("TokyoMetro") ? 3 : 4 // メトロは3分、JRは4分
                     let arrivalTime = baseTime.addingTimeInterval(TimeInterval((index + 1) * minutesPerStation * 60))
                     times[station.sameAs] = arrivalTime
+                }
+                
+                print("=== Result ===")
+                print("Total arrival stations: \(arrivalStations.count)")
+                if !arrivalStations.isEmpty {
+                    print("First station: \(arrivalStations.first?.stationTitle?.ja ?? "不明")")
+                    print("Last station: \(arrivalStations.last?.stationTitle?.ja ?? "不明")")
                 }
                 
                 await MainActor.run {
@@ -896,3 +940,4 @@ struct TrainSelectionView_Previews: PreviewProvider {
         .environmentObject(NotificationManager.shared)
     }
 }
+
