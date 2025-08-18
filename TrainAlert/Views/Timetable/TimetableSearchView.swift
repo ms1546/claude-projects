@@ -243,6 +243,16 @@ struct TimetableSearchView: View {
                         }
                     }
                 }
+                .onChange(of: selectedDirection) { _ in
+                    // 方向切り替え時に最も近い電車までスクロール
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        if let nearestTrain = viewModel.nearestTrain {
+                            withAnimation {
+                                proxy.scrollTo(nearestTrain.departureTime, anchor: .top)
+                            }
+                        }
+                    }
+                }
             }
         }
     }

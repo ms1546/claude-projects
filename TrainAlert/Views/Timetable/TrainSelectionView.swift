@@ -806,31 +806,75 @@ private struct ArrivalStationSearchView: View {
                         let firstStation = allStationsOnLine.first
                         let lastStation = allStationsOnLine.last
                         
-                        // 方向駅が路線の最初の駅に近い場合は逆方向
-                        if let first = firstStation, 
-                           (first.stationTitle?.en?.lowercased().contains(directionStationName.lowercased()) == true ||
-                            first.stationTitle?.ja?.contains(directionStationName) == true ||
-                            first.title.lowercased().contains(directionStationName.lowercased())) {
-                            isForward = false
-                            print("Direction matches first station: reverse direction")
+                        // 方向名とマッチングするための正規化関数
+                        func normalizeStationName(_ name: String) -> String {
+                            return name.lowercased()
+                                .replacingOccurrences(of: "-", with: "")
+                                .replacingOccurrences(of: " ", with: "")
+                                .replacingOccurrences(of: "〈", with: "")
+                                .replacingOccurrences(of: "〉", with: "")
+                                .replacingOccurrences(of: "<", with: "")
+                                .replacingOccurrences(of: ">", with: "")
                         }
-                        // 方向駅が路線の最後の駅に近い場合は順方向
-                        else if let last = lastStation,
-                                (last.stationTitle?.en?.lowercased().contains(directionStationName.lowercased()) == true ||
-                                 last.stationTitle?.ja?.contains(directionStationName) == true ||
-                                 last.title.lowercased().contains(directionStationName.lowercased())) {
-                            isForward = true
-                            print("Direction matches last station: forward direction")
+                        
+                        let normalizedDirectionName = normalizeStationName(directionStationName)
+                        print("Normalized direction name: \(normalizedDirectionName)")
+                        
+                        // 路線内の全駅をチェックして方向を判定
+                        var directionStationIndex: Int? = nil
+                        for (index, station) in allStationsOnLine.enumerated() {
+                            let stationEnName = normalizeStationName(station.stationTitle?.en ?? "")
+                            let stationJaName = station.stationTitle?.ja ?? ""
+                            let stationTitle = normalizeStationName(station.title)
+                            
+                            if stationEnName.contains(normalizedDirectionName) || 
+                               stationJaName.contains(directionStationName) ||
+                               stationTitle.contains(normalizedDirectionName) {
+                                directionStationIndex = index
+                                print("Found direction station at index \(index): \(station.stationTitle?.ja ?? station.title)")
+                                break
+                            }
                         }
-                        // 既知の方向パターンをチェック
-                        else if dir.contains("Shibuya") || dir.contains("渋谷") {
-                            // 半蔵門線の場合、渋谷は始発駅なので逆方向
-                            isForward = false
-                            print("Known pattern: Shibuya direction = reverse")
-                        } else if dir.contains("Oshiage") || dir.contains("押上") {
-                            // 半蔵門線の場合、押上は終着駅なので順方向
-                            isForward = true
-                            print("Known pattern: Oshiage direction = forward")
+                        
+                        // 方向駅のインデックスに基づいて判定
+                        if let dirIndex = directionStationIndex {
+                            if dirIndex < departureIndex {
+                                // 方向駅が出発駅より前にある場合は逆方向
+                                isForward = false
+                                print("Direction station is before departure: reverse direction")
+                            } else if dirIndex > departureIndex {
+                                // 方向駅が出発駅より後にある場合は順方向
+                                isForward = true
+                                print("Direction station is after departure: forward direction")
+                            } else {
+                                // 同じ駅の場合（通常はありえない）
+                                print("Direction station is same as departure station")
+                                isForward = true
+                            }
+                        } else {
+                            // 方向駅が見つからない場合のフォールバック
+                            print("Direction station not found, using fallback logic")
+                            
+                            // 最初と最後の駅でチェック
+                            if let first = firstStation {
+                                let firstEnName = normalizeStationName(first.stationTitle?.en ?? "")
+                                let firstJaName = first.stationTitle?.ja ?? ""
+                                if firstEnName.contains(normalizedDirectionName) || 
+                                   firstJaName.contains(directionStationName) {
+                                    isForward = false
+                                    print("Direction matches first station: reverse direction")
+                                }
+                            }
+                            
+                            if let last = lastStation {
+                                let lastEnName = normalizeStationName(last.stationTitle?.en ?? "")
+                                let lastJaName = last.stationTitle?.ja ?? ""
+                                if lastEnName.contains(normalizedDirectionName) || 
+                                   lastJaName.contains(directionStationName) {
+                                    isForward = true
+                                    print("Direction matches last station: forward direction")
+                                }
+                            }
                         }
                         
                         if isForward {
