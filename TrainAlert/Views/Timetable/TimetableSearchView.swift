@@ -234,7 +234,7 @@ struct TimetableSearchView: View {
                             Text(station.stationTitle?.ja ?? station.title)
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(Color.textPrimary)
-                            Text(station.railwayTitle?.ja ?? station.railway.railwayJapaneseName())
+                            Text(station.railwayTitle?.ja ?? station.railway.railwayDisplayName)
                                 .font(.system(size: 12))
                                 .foregroundColor(Color.textSecondary)
                         }
