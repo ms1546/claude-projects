@@ -12,6 +12,9 @@ High - ユーザビリティに大きく影響する問題
 ## ステータス
 [ ] Not Started / [ ] In Progress / [x] Completed
 
+## 実装完了日
+2025-08-18
+
 ## 問題の詳細
 1. **現象**: 
    - 時刻表検索画面で「もうすぐ」ラベルがついた電車を選択時に白画面が表示される
@@ -66,37 +69,51 @@ struct TrainSelectionData: Equatable {
 - [x] 遅延時間を0.2秒に増やす
 - [ ] NavigationLinkを使った画面遷移への変更
 - [x] sheet表示前のデータ検証をより厳密に行う
-- [ ] ローディング状態の視覚的フィードバックを強化
+- [x] ローディング状態の視覚的フィードバックを強化
 - [x] sheet表示をTask内で管理する
 
 ## 実施した最終対策（2025-08-18）
 
-### 1. onDismissでのデータクリアタイミングを調整
-```swift
-.sheet(isPresented: $showingTrainSelection, onDismiss: {
-    // シートが閉じられた後、少し遅延してからクリア
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-        selectedTrainData = nil
-    }
-})
-```
+### 1. データ準備状態の厳密な管理
+- `isDataReady`フラグを追加してデータの完全性をチェック
+- 必要なデータが揃うまでボタンを無効化
+- データ準備中の視覚的フィードバック（ProgressViewと「準備中...」テキスト）
 
-### 2. Task内でのデータ設定とsheet表示管理
+### 2. データ設定の同期化
 ```swift
-Task { @MainActor in
-    selectedTrainData = TrainSelectionData(...)
-    
-    guard selectedTrainData != nil else {
-        // エラー処理
-        return
-    }
-    
-    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
-    showingTrainSelection = true
+// データを同期的に設定（重要：非同期にしない）
+self.sheetTrainData = newTrainData
+self.selectedTrainData = newTrainData
+
+// SwiftUIの更新サイクルを確実に待つ（初回は少し長めに）
+let delay = showingTrainSelection ? 0.1 : 0.2
+DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+    // sheet表示をトリガー
+    self.showingTrainSelection = true
 }
 ```
 
-### 3. 一般的な方向名への対応
+### 3. データクリアタスクの管理
+```swift
+// 前回のクリアタスクがあればキャンセル
+dataClearTask?.cancel()
+
+// 新しいクリアタスクを作成
+let newTask = DispatchWorkItem {
+    if !self.showingTrainSelection {
+        self.sheetTrainData = nil
+        self.selectedTrainData = nil
+    }
+}
+dataClearTask = newTask
+```
+
+### 4. 状態変更による干渉の防止
+- sheet表示中は`onChange`処理をスキップ
+- 連続タップを検出して無視
+- 他のモーダルとの競合回避
+
+### 5. 一般的な方向名への対応
 - Northbound/Southboundなどの一般的な方向名を適切に処理
 - 都営三田線などで正しく動作するよう改善
 
