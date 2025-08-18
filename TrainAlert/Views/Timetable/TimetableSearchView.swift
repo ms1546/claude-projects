@@ -29,6 +29,7 @@ struct TimetableSearchView: View {
     @State private var selectedDirection: String?
     @State private var showingStationSearch = false
     @State private var selectedTrainData: TrainSelectionData?
+    @State private var sheetTrainData: TrainSelectionData?  // sheet表示用の永続的なデータ
     @State private var showingTrainSelection = false
     @State private var isDataPreparing = false
     
@@ -114,14 +115,11 @@ struct TimetableSearchView: View {
                         }
                 }
             }
-            .sheet(isPresented: $showingTrainSelection, onDismiss: {
-                // シートが閉じられた後、少し遅延してからクリア
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    selectedTrainData = nil
-                }
-            }) {
-                // データの存在を再確認
-                if let data = selectedTrainData {
+            .sheet(isPresented: $showingTrainSelection) {
+                let _ = print("Sheet is being presented, sheetTrainData = \(sheetTrainData != nil ? "exists" : "nil")")
+                
+                // sheet用の永続的なデータを使用
+                if let data = sheetTrainData {
                     TrainSelectionView(
                         train: data.train,
                         departureStation: data.station,
@@ -135,8 +133,13 @@ struct TimetableSearchView: View {
                             print("  Railway: \(data.railway)")
                             print("  Direction: \(data.direction ?? "nil")")
                         }
+                        .onDisappear {
+                            // sheet閉じた後にデータをクリア
+                            sheetTrainData = nil
+                            selectedTrainData = nil
+                        }
                 } else {
-                    // エラー表示（通常は発生しないはず）
+                    // エラー表示
                     VStack(spacing: 16) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 50))
@@ -145,12 +148,16 @@ struct TimetableSearchView: View {
                         Text("エラー: 必要なデータが不足しています")
                             .font(.headline)
                         
+                        Text("もう一度電車を選択してください")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
                         Button("閉じる") {
                             showingTrainSelection = false
                         }
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
-                        .background(Color.blue)
+                        .background(Color.trainSoftBlue)
                         .foregroundColor(.white)
                         .cornerRadius(8)
                     }
@@ -334,31 +341,35 @@ struct TimetableSearchView: View {
             print("  Direction: \(currentDirection ?? "nil")")
             print("  isNearCurrent: \(isNearCurrent)")
             
-            // Task内でデータ設定とsheet表示を管理
-            Task { @MainActor in
-                // 選択データを設定
-                selectedTrainData = TrainSelectionData(
-                    train: train,
-                    station: station,
-                    railway: railwayId,
-                    direction: currentDirection
-                )
-                
-                // データが設定されたことを確認
-                guard selectedTrainData != nil else {
-                    print("ERROR: Failed to set selectedTrainData")
-                    viewModel.errorMessage = "選択した列車の情報を取得できませんでした。もう一度お試しください。"
+            // 選択データを先に設定（同期的に）
+            let newTrainData = TrainSelectionData(
+                train: train,
+                station: station,
+                railway: railwayId,
+                direction: currentDirection
+            )
+            
+            // 即座にデータを設定
+            selectedTrainData = newTrainData
+            sheetTrainData = newTrainData  // sheet用のデータも設定
+            
+            print("Successfully set train data")
+            print("  Train: \(newTrainData.train.departureTime)")
+            print("  Station: \(newTrainData.station.stationTitle?.ja ?? newTrainData.station.title)")
+            print("  Railway: \(newTrainData.railway)")
+            print("  Direction: \(newTrainData.direction ?? "nil")")
+            
+            // SwiftUIの更新サイクルを待ってからsheetを表示
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                // データが確実に存在することを再度確認
+                if sheetTrainData != nil {
+                    print("Sheet presentation triggered - data confirmed")
+                    showingTrainSelection = true
+                } else {
+                    print("ERROR: sheetTrainData is nil when trying to show sheet")
+                    viewModel.errorMessage = "データの設定に失敗しました。もう一度お試しください。"
                     viewModel.showError = true
-                    return
                 }
-                
-                print("Successfully set selectedTrainData, preparing to show sheet")
-                
-                // 少し遅延を入れてからsheetを表示（SwiftUIの状態更新を待つ）
-                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
-                
-                print("Showing train selection sheet")
-                showingTrainSelection = true
             }
         }) {
             HStack(spacing: 16) {
