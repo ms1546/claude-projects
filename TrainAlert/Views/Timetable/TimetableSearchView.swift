@@ -143,6 +143,7 @@ struct TimetableSearchView: View {
                             print("  Railway: \(data.railway)")
                             print("  Direction: \(data.direction ?? "nil")")
                         }
+                        .interactiveDismissDisabled()  // iOS 15以降で利用可能
                 } else {
                     // エラー表示
                     VStack(spacing: 16) {
@@ -182,6 +183,9 @@ struct TimetableSearchView: View {
                 dismiss()
             }
             .onChange(of: viewModel.directions) { newDirections in
+                // sheet表示中は状態変更を避ける
+                guard !showingTrainSelection else { return }
+                
                 // 方向が更新されたら自動選択
                 if selectedDirection == nil, let firstDirection = newDirections.first {
                     selectedDirection = firstDirection
@@ -190,6 +194,9 @@ struct TimetableSearchView: View {
                 isDataReady = checkDataReadiness()
             }
             .onChange(of: viewModel.displayedTrains.count) { _ in
+                // sheet表示中は状態変更を避ける
+                guard !showingTrainSelection else { return }
+                
                 // 表示される電車の数が更新されたらデータの完全性をチェック
                 isDataReady = checkDataReadiness()
             }
@@ -372,10 +379,23 @@ struct TimetableSearchView: View {
             self.sheetTrainData = newTrainData
             self.selectedTrainData = newTrainData
             
-            // SwiftUIの更新サイクルを1フレーム待つ
-            DispatchQueue.main.async {
+            // SwiftUIの更新サイクルを確実に待つ
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 print("Next frame - data should be set:")
                 print("  sheetTrainData exists: \(self.sheetTrainData != nil)")
+                print("  showingTrainSelection: \(self.showingTrainSelection)")
+                
+                // 追加の安全チェック
+                guard self.sheetTrainData != nil else {
+                    print("ERROR: sheetTrainData became nil before sheet presentation")
+                    return
+                }
+                
+                // 既にsheetが表示されている場合は何もしない
+                guard !self.showingTrainSelection else {
+                    print("WARNING: Sheet is already showing, ignoring duplicate request")
+                    return
+                }
                 
                 // sheet表示をトリガー
                 self.showingTrainSelection = true
