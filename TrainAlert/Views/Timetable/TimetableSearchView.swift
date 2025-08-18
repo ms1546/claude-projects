@@ -30,9 +30,14 @@ struct TimetableSearchView: View {
     @State private var showingStationSearch = false
     @State private var selectedTrainData: TrainSelectionData?
     @State private var sheetTrainData: TrainSelectionData?  // sheet表示用の永続的なデータ
-    @State private var showingTrainSelection = false
+    @State private var showingTrainSelection = false {
+        didSet {
+            print("showingTrainSelection changed: \(oldValue) -> \(showingTrainSelection)")
+        }
+    }
     @State private var isDataPreparing = false
     @State private var isDataReady = false  // データが完全に準備できているか
+    @State private var dataClearTask: DispatchWorkItem?  // データクリアタスクの管理
     
     var body: some View {
         NavigationView {
@@ -122,11 +127,24 @@ struct TimetableSearchView: View {
             .sheet(isPresented: $showingTrainSelection, onDismiss: {
                 // sheet閉じた後の処理
                 print("Sheet dismissed")
-                // 少し遅延してからデータをクリア（次回の選択に備える）
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    self.sheetTrainData = nil
-                    self.selectedTrainData = nil
+                
+                // 前回のクリアタスクをキャンセル
+                dataClearTask?.cancel()
+                
+                // 新しいクリアタスクを作成
+                let newTask = DispatchWorkItem { [weak self] in
+                    guard let self = self else { return }
+                    // sheet表示中でなければデータをクリア
+                    if !self.showingTrainSelection {
+                        print("Clearing sheet data after dismiss")
+                        self.sheetTrainData = nil
+                        self.selectedTrainData = nil
+                    }
                 }
+                dataClearTask = newTask
+                
+                // 少し遅延してから実行
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: newTask)
             }) {
                 // sheet表示時にデータの存在を確認（初回表示時の対策）
                 if let data = sheetTrainData ?? selectedTrainData {
@@ -143,7 +161,6 @@ struct TimetableSearchView: View {
                             print("  Railway: \(data.railway)")
                             print("  Direction: \(data.direction ?? "nil")")
                         }
-                        .interactiveDismissDisabled()  // iOS 15以降で利用可能
                 } else {
                     // エラー表示
                     VStack(spacing: 16) {
@@ -178,6 +195,17 @@ struct TimetableSearchView: View {
                 }
             } message: {
                 Text(viewModel.errorMessage ?? "不明なエラーが発生しました")
+            }
+            .onChange(of: showingTrainSelection) { newValue in
+                if newValue {
+                    // sheet表示時に他のアラートが表示されていれば閉じる
+                    if viewModel.showError {
+                        viewModel.showError = false
+                    }
+                    if showingStationSearch {
+                        showingStationSearch = false
+                    }
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("DismissTimetableSearch"))) { _ in
                 dismiss()
@@ -361,6 +389,10 @@ struct TimetableSearchView: View {
             print("  Direction: \(currentDirection ?? "nil")")
             print("  isNearCurrent: \(isNearCurrent)")
             
+            // 前回のクリアタスクがあればキャンセル
+            dataClearTask?.cancel()
+            dataClearTask = nil
+            
             // 選択データを作成
             let newTrainData = TrainSelectionData(
                 train: train,
@@ -379,17 +411,27 @@ struct TimetableSearchView: View {
             self.sheetTrainData = newTrainData
             self.selectedTrainData = newTrainData
             
-            // SwiftUIの更新サイクルを確実に待つ
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            // SwiftUIの更新サイクルを確実に待つ（初回は少し長めに）
+            let delay = showingTrainSelection ? 0.1 : 0.2
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 print("Next frame - data should be set:")
                 print("  sheetTrainData exists: \(self.sheetTrainData != nil)")
                 print("  showingTrainSelection: \(self.showingTrainSelection)")
                 
                 // 追加の安全チェック
-                guard self.sheetTrainData != nil else {
+                guard let data = self.sheetTrainData else {
                     print("ERROR: sheetTrainData became nil before sheet presentation")
+                    self.errorMessage = "データの設定に失敗しました。もう一度お試しください。"
+                    self.showError = true
                     return
                 }
+                
+                // データの整合性を再確認
+                print("Final data check before sheet:")
+                print("  Train: \(data.train.departureTime)")
+                print("  Station: \(data.station.stationTitle?.ja ?? data.station.title)")
+                print("  Railway: \(data.railway)")
+                print("  Direction: \(data.direction ?? "nil")")
                 
                 // 既にsheetが表示されている場合は何もしない
                 guard !self.showingTrainSelection else {
@@ -399,6 +441,7 @@ struct TimetableSearchView: View {
                 
                 // sheet表示をトリガー
                 self.showingTrainSelection = true
+                print("Sheet presentation triggered")
             }
         }) {
             HStack(spacing: 16) {
