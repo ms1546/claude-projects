@@ -115,9 +115,12 @@ struct TimetableSearchView: View {
                 }
             }
             .sheet(isPresented: $showingTrainSelection, onDismiss: {
-                // シートが閉じられた後にクリア
-                selectedTrainData = nil
+                // シートが閉じられた後、少し遅延してからクリア
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    selectedTrainData = nil
+                }
             }) {
+                // データの存在を再確認
                 if let data = selectedTrainData {
                     TrainSelectionView(
                         train: data.train,
@@ -331,26 +334,31 @@ struct TimetableSearchView: View {
             print("  Direction: \(currentDirection ?? "nil")")
             print("  isNearCurrent: \(isNearCurrent)")
             
-            // 選択データを設定
-            selectedTrainData = TrainSelectionData(
-                train: train,
-                station: station,
-                railway: railwayId,
-                direction: currentDirection
-            )
-            
-            // 少し遅延を入れてからsheetを表示（データ設定を確実にする）
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                // データが確実に設定されていることを再確認
-                if self.selectedTrainData != nil {
-                    print("Successfully set selectedTrainData, showing sheet")
-                    showingTrainSelection = true
-                } else {
-                    print("ERROR: selectedTrainData is nil after setting")
-                    // エラーメッセージを表示
+            // Task内でデータ設定とsheet表示を管理
+            Task { @MainActor in
+                // 選択データを設定
+                selectedTrainData = TrainSelectionData(
+                    train: train,
+                    station: station,
+                    railway: railwayId,
+                    direction: currentDirection
+                )
+                
+                // データが設定されたことを確認
+                guard selectedTrainData != nil else {
+                    print("ERROR: Failed to set selectedTrainData")
                     viewModel.errorMessage = "選択した列車の情報を取得できませんでした。もう一度お試しください。"
                     viewModel.showError = true
+                    return
                 }
+                
+                print("Successfully set selectedTrainData, preparing to show sheet")
+                
+                // 少し遅延を入れてからsheetを表示（SwiftUIの状態更新を待つ）
+                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+                
+                print("Showing train selection sheet")
+                showingTrainSelection = true
             }
         }) {
             HStack(spacing: 16) {

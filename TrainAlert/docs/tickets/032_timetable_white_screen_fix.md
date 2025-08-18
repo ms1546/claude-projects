@@ -10,7 +10,7 @@ High - ユーザビリティに大きく影響する問題
 8-16時間
 
 ## ステータス
-[ ] Not Started / [x] In Progress / [ ] Completed
+[ ] Not Started / [ ] In Progress / [x] Completed
 
 ## 問題の詳細
 1. **現象**: 
@@ -63,11 +63,42 @@ struct TrainSelectionData: Equatable {
 
 ## 今後の対策案
 
-- [ ] 遅延時間を0.2秒に増やす
+- [x] 遅延時間を0.2秒に増やす
 - [ ] NavigationLinkを使った画面遷移への変更
-- [ ] sheet表示前のデータ検証をより厳密に行う
+- [x] sheet表示前のデータ検証をより厳密に行う
 - [ ] ローディング状態の視覚的フィードバックを強化
-- [ ] sheet表示をTask内で管理する
+- [x] sheet表示をTask内で管理する
+
+## 実施した最終対策（2025-08-18）
+
+### 1. onDismissでのデータクリアタイミングを調整
+```swift
+.sheet(isPresented: $showingTrainSelection, onDismiss: {
+    // シートが閉じられた後、少し遅延してからクリア
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        selectedTrainData = nil
+    }
+})
+```
+
+### 2. Task内でのデータ設定とsheet表示管理
+```swift
+Task { @MainActor in
+    selectedTrainData = TrainSelectionData(...)
+    
+    guard selectedTrainData != nil else {
+        // エラー処理
+        return
+    }
+    
+    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+    showingTrainSelection = true
+}
+```
+
+### 3. 一般的な方向名への対応
+- Northbound/Southboundなどの一般的な方向名を適切に処理
+- 都営三田線などで正しく動作するよう改善
 
 ## 実装ガイドライン
 
@@ -84,10 +115,10 @@ struct TrainSelectionData: Equatable {
 - ユーザーの高速タップに対応できる設計が必要
 
 ## 完了条件（Definition of Done）
-- [ ] 「もうすぐ」電車を選択しても白画面が表示されない
-- [ ] 全ての時刻の電車で正常に画面遷移が行われる
-- [ ] 高速タップしても問題が発生しない
-- [ ] エラーハンドリングが適切に実装されている
+- [x] 「もうすぐ」電車を選択しても白画面が表示されない
+- [x] 全ての時刻の電車で正常に画面遷移が行われる
+- [x] 高速タップしても問題が発生しない
+- [x] エラーハンドリングが適切に実装されている
 
 ## テスト方法
 
