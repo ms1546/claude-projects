@@ -30,11 +30,7 @@ struct TimetableSearchView: View {
     @State private var showingStationSearch = false
     @State private var selectedTrainData: TrainSelectionData?
     @State private var sheetTrainData: TrainSelectionData?  // sheet表示用の永続的なデータ
-    @State private var showingTrainSelection = false {
-        didSet {
-            print("showingTrainSelection changed: \(oldValue) -> \(showingTrainSelection)")
-        }
-    }
+    @State private var showingTrainSelection = false
     @State private var isDataPreparing = false
     @State private var isDataReady = false  // データが完全に準備できているか
     @State private var dataClearTask: DispatchWorkItem?  // データクリアタスクの管理
@@ -105,7 +101,6 @@ struct TimetableSearchView: View {
                         }
                         selectedStation = station
                         showingStationSearch = false
-                        print("駅選択: \(station.stationTitle?.ja ?? station.title), railway = \(station.railway)")
                         // データ準備中フラグを立てる
                         isDataPreparing = true
                         isDataReady = false
@@ -126,7 +121,6 @@ struct TimetableSearchView: View {
             }
             .sheet(isPresented: $showingTrainSelection, onDismiss: {
                 // sheet閉じた後の処理
-                print("Sheet dismissed")
                 
                 // 前回のクリアタスクをキャンセル
                 dataClearTask?.cancel()
@@ -135,7 +129,6 @@ struct TimetableSearchView: View {
                 let newTask = DispatchWorkItem {
                     // sheet表示中でなければデータをクリア
                     if !self.showingTrainSelection {
-                        print("Clearing sheet data after dismiss")
                         self.sheetTrainData = nil
                         self.selectedTrainData = nil
                     }
@@ -154,11 +147,6 @@ struct TimetableSearchView: View {
                         direction: data.direction
                     )
                         .onAppear {
-                            print("Sheet displayed successfully with:")
-                            print("  Train: \(data.train.departureTime)")
-                            print("  Station: \(data.station.stationTitle?.ja ?? data.station.title)")
-                            print("  Railway: \(data.railway)")
-                            print("  Direction: \(data.direction ?? "nil")")
                         }
                 } else {
                     // エラー表示
@@ -366,13 +354,11 @@ struct TimetableSearchView: View {
         return Button(action: {
             // データのロード中、準備中、または準備未完了の場合は何もしない
             guard !viewModel.isLoading && !isDataPreparing && !showingTrainSelection && isDataReady else {
-                print("Data is not ready: isLoading=\(viewModel.isLoading), isDataPreparing=\(isDataPreparing), isDataReady=\(isDataReady), showingTrainSelection=\(showingTrainSelection)")
                 return
             }
             
             // 駅が選択されていることを確認
             guard let station = selectedStation else {
-                print("No station selected")
                 return
             }
             
@@ -381,12 +367,6 @@ struct TimetableSearchView: View {
             let currentDirection = selectedDirection ?? viewModel.directions.first
             
             // デバッグ情報
-            print("Creating TrainSelectionData:")
-            print("  Train: \(train.departureTime)")
-            print("  Station: \(station.stationTitle?.ja ?? station.title)")
-            print("  Railway: \(railwayId)")
-            print("  Direction: \(currentDirection ?? "nil")")
-            print("  isNearCurrent: \(isNearCurrent)")
             
             // 前回のクリアタスクがあればキャンセル
             dataClearTask?.cancel()
@@ -400,11 +380,6 @@ struct TimetableSearchView: View {
                 direction: currentDirection
             )
             
-            print("Setting train data:")
-            print("  Train: \(newTrainData.train.departureTime)")
-            print("  Station: \(newTrainData.station.stationTitle?.ja ?? newTrainData.station.title)")
-            print("  Railway: \(newTrainData.railway)")
-            print("  Direction: \(newTrainData.direction ?? "nil")")
             
             // データを同期的に設定（重要：非同期にしない）
             self.sheetTrainData = newTrainData
@@ -413,34 +388,22 @@ struct TimetableSearchView: View {
             // SwiftUIの更新サイクルを確実に待つ（初回は少し長めに）
             let delay = showingTrainSelection ? 0.1 : 0.2
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                print("Next frame - data should be set:")
-                print("  sheetTrainData exists: \(self.sheetTrainData != nil)")
-                print("  showingTrainSelection: \(self.showingTrainSelection)")
-                
                 // 追加の安全チェック
                 guard let data = self.sheetTrainData else {
-                    print("ERROR: sheetTrainData became nil before sheet presentation")
                     self.viewModel.errorMessage = "データの設定に失敗しました。もう一度お試しください。"
                     self.viewModel.showError = true
                     return
                 }
                 
                 // データの整合性を再確認
-                print("Final data check before sheet:")
-                print("  Train: \(data.train.departureTime)")
-                print("  Station: \(data.station.stationTitle?.ja ?? data.station.title)")
-                print("  Railway: \(data.railway)")
-                print("  Direction: \(data.direction ?? "nil")")
                 
                 // 既にsheetが表示されている場合は何もしない
                 guard !self.showingTrainSelection else {
-                    print("WARNING: Sheet is already showing, ignoring duplicate request")
                     return
                 }
                 
                 // sheet表示をトリガー
                 self.showingTrainSelection = true
-                print("Sheet presentation triggered")
             }
         }) {
             HStack(spacing: 16) {
@@ -656,13 +619,6 @@ struct TimetableSearchView: View {
         
         let isReady = hasStation && hasDirections && hasSelectedDirection && hasTrains && notLoading
         
-        print("Data readiness check:")
-        print("  hasStation: \(hasStation)")
-        print("  hasDirections: \(hasDirections)")
-        print("  hasSelectedDirection: \(hasSelectedDirection)")
-        print("  hasTrains: \(hasTrains)")
-        print("  notLoading: \(notLoading)")
-        print("  isReady: \(isReady)")
         
         return isReady
     }

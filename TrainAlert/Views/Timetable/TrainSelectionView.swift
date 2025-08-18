@@ -760,15 +760,12 @@ private struct ArrivalStationSearchView: View {
             do {
                 let apiClient = ODPTAPIClient.shared
                 
-                print("Loading stations for railway: \(railway)")
                 
                 // 路線の全駅を順序付きで取得
                 let allStationsOnLine = try await apiClient.getStationsOnRailway(railwayId: railway)
                 
-                print("Received \(allStationsOnLine.count) stations")
                 
                 if allStationsOnLine.isEmpty {
-                    print("ERROR: No stations found for railway \(railway)")
                     throw ODPTAPIError.invalidResponse
                 }
                 
@@ -778,11 +775,6 @@ private struct ArrivalStationSearchView: View {
                 } ?? -1
                 
                 // デバッグ情報
-                print("=== Direction Analysis ===")
-                print("Direction parameter: \(direction ?? "nil")")
-                print("Train destination: \(train.destinationStationTitle?.ja ?? "不明")")
-                print("Departure station: \(departureStation.stationTitle?.ja ?? departureStation.title)")
-                print("Departure index: \(departureIndex)")
                 
                 // 進行方向に基づいてフィルタリング
                 var arrivalStations: [ODPTStation] = []
@@ -790,8 +782,6 @@ private struct ArrivalStationSearchView: View {
                 if departureIndex >= 0 {
                     // direction情報から進行方向を判定（優先）
                     if let dir = direction {
-                        print("Using direction info: \(dir)")
-                        
                         // 方向を判定するロジック
                         var isForward = true  // デフォルトは順方向
                         
@@ -801,7 +791,6 @@ private struct ArrivalStationSearchView: View {
                         let directionComponents = dir.split(separator: ":").map { String($0) }
                         let directionValue = directionComponents.last ?? ""
                         
-                        print("Direction value: \(directionValue)")
                         
                         // 一般的な方向名かチェック
                         let generalDirections = ["Northbound", "Southbound", "Eastbound", "Westbound", 
@@ -813,18 +802,14 @@ private struct ArrivalStationSearchView: View {
                         let lastStation = allStationsOnLine.last
                         
                         if isGeneralDirection {
-                            print("General direction detected: \(directionValue)")
-                            
                             // 一般的な方向名の場合の処理
                             switch directionValue.lowercased() {
                             case "northbound", "eastbound", "outbound":
                                 // 通常、路線の順方向（インデックスが増える方向）
                                 isForward = true
-                                print("General direction: forward")
                             case "southbound", "westbound", "inbound":
                                 // 通常、路線の逆方向（インデックスが減る方向）
                                 isForward = false
-                                print("General direction: reverse")
                             case "clockwise":
                                 // 環状線の時計回り（路線により異なる）
                                 isForward = true
@@ -838,11 +823,10 @@ private struct ArrivalStationSearchView: View {
                         } else {
                             // 駅名が含まれている場合の処理
                             let directionStationName = directionValue.split(separator: ".").last.map { String($0) } ?? directionValue
-                            print("Direction station name: \(directionStationName)")
                             
                             // 方向名とマッチングするための正規化関数
                             func normalizeStationName(_ name: String) -> String {
-                                return name.lowercased()
+                                name.lowercased()
                                 .replacingOccurrences(of: "-", with: "")
                                 .replacingOccurrences(of: " ", with: "")
                                 .replacingOccurrences(of: "〈", with: "")
@@ -852,10 +836,9 @@ private struct ArrivalStationSearchView: View {
                         }
                         
                         let normalizedDirectionName = normalizeStationName(directionStationName)
-                        print("Normalized direction name: \(normalizedDirectionName)")
                         
                         // 路線内の全駅をチェックして方向を判定
-                        var directionStationIndex: Int? = nil
+                        var directionStationIndex: Int?
                         for (index, station) in allStationsOnLine.enumerated() {
                             let stationEnName = normalizeStationName(station.stationTitle?.en ?? "")
                             let stationJaName = station.stationTitle?.ja ?? ""
@@ -865,7 +848,6 @@ private struct ArrivalStationSearchView: View {
                                stationJaName.contains(directionStationName) ||
                                stationTitle.contains(normalizedDirectionName) {
                                 directionStationIndex = index
-                                print("Found direction station at index \(index): \(station.stationTitle?.ja ?? station.title)")
                                 break
                             }
                         }
@@ -875,19 +857,15 @@ private struct ArrivalStationSearchView: View {
                             if dirIndex < departureIndex {
                                 // 方向駅が出発駅より前にある場合は逆方向
                                 isForward = false
-                                print("Direction station is before departure: reverse direction")
                             } else if dirIndex > departureIndex {
                                 // 方向駅が出発駅より後にある場合は順方向
                                 isForward = true
-                                print("Direction station is after departure: forward direction")
                             } else {
                                 // 同じ駅の場合（通常はありえない）
-                                print("Direction station is same as departure station")
                                 isForward = true
                             }
                         } else {
                             // 方向駅が見つからない場合のフォールバック
-                            print("Direction station not found, using fallback logic")
                             
                             // 最初と最後の駅でチェック
                             if let first = firstStation {
@@ -896,7 +874,6 @@ private struct ArrivalStationSearchView: View {
                                 if firstEnName.contains(normalizedDirectionName) || 
                                    firstJaName.contains(directionStationName) {
                                     isForward = false
-                                    print("Direction matches first station: reverse direction")
                                 }
                             }
                             
@@ -906,7 +883,6 @@ private struct ArrivalStationSearchView: View {
                                 if lastEnName.contains(normalizedDirectionName) || 
                                    lastJaName.contains(directionStationName) {
                                     isForward = true
-                                    print("Direction matches last station: forward direction")
                                 }
                             }
                         }
@@ -916,19 +892,16 @@ private struct ArrivalStationSearchView: View {
                             // 順方向：出発駅より後の駅
                             if departureIndex < allStationsOnLine.count - 1 {
                                 arrivalStations = Array(allStationsOnLine[(departureIndex + 1)...])
-                                print("Forward direction: showing stations after departure")
                             }
                         } else {
                             // 逆方向：出発駅より前の駅
                             if departureIndex > 0 {
                                 arrivalStations = Array(allStationsOnLine[0..<departureIndex]).reversed()
-                                print("Reverse direction: showing stations before departure")
                             }
                         }
                     } else {
                         // direction情報がない場合は列車の行き先から判定
                         let destinationName = train.destinationStationTitle?.ja ?? ""
-                        print("No direction info, using train destination: \(destinationName)")
                         
                         let destinationIndex = allStationsOnLine.firstIndex { station in
                             let stationName = station.stationTitle?.ja ?? station.title
@@ -936,7 +909,6 @@ private struct ArrivalStationSearchView: View {
                         }
                         
                         if let destIndex = destinationIndex {
-                            print("Found destination at index: \(destIndex)")
                             // 出発駅と行き先駅の位置関係から到着可能駅を決定
                             if destIndex > departureIndex {
                                 // 行き先が後方：出発駅より後の駅
@@ -947,7 +919,6 @@ private struct ArrivalStationSearchView: View {
                             }
                         } else {
                             // 行き先が不明な場合は出発駅以外の全駅
-                            print("Destination not found, showing all stations")
                             arrivalStations = allStationsOnLine.filter { $0.sameAs != departureStation.sameAs }
                         }
                     }
@@ -965,12 +936,6 @@ private struct ArrivalStationSearchView: View {
                     times[station.sameAs] = arrivalTime
                 }
                 
-                print("=== Result ===")
-                print("Total arrival stations: \(arrivalStations.count)")
-                if !arrivalStations.isEmpty {
-                    print("First station: \(arrivalStations.first?.stationTitle?.ja ?? "不明")")
-                    print("Last station: \(arrivalStations.last?.stationTitle?.ja ?? "不明")")
-                }
                 
                 await MainActor.run {
                     self.stations = arrivalStations
@@ -978,7 +943,6 @@ private struct ArrivalStationSearchView: View {
                     self.isLoading = false
                 }
             } catch {
-                print("APIから駅データの取得に失敗: \(error)")
                 // APIエラー時のフォールバック
                 await MainActor.run {
                     self.isLoading = false
@@ -1048,4 +1012,3 @@ struct TrainSelectionView_Previews: PreviewProvider {
         .environmentObject(NotificationManager.shared)
     }
 }
-
