@@ -795,20 +795,54 @@ private struct ArrivalStationSearchView: View {
                         // 方向を判定するロジック
                         var isForward = true  // デフォルトは順方向
                         
-                        // 方向文字列から終点駅名を抽出
+                        // 方向文字列から終点駅名または方向を抽出
                         // 例: "odpt.RailDirection:TokyoMetro.Shibuya" → "Shibuya"
-                        let directionComponents = dir.split(separator: ".").map { String($0) }
-                        let directionStationName = directionComponents.last ?? ""
+                        // 例: "odpt.RailDirection:Northbound" → "Northbound"
+                        let directionComponents = dir.split(separator: ":").map { String($0) }
+                        let directionValue = directionComponents.last ?? ""
                         
-                        print("Direction station name: \(directionStationName)")
+                        print("Direction value: \(directionValue)")
+                        
+                        // 一般的な方向名かチェック
+                        let generalDirections = ["Northbound", "Southbound", "Eastbound", "Westbound", 
+                                               "Inbound", "Outbound", "Clockwise", "Counterclockwise"]
+                        let isGeneralDirection = generalDirections.contains(directionValue)
                         
                         // 路線の最初と最後の駅を確認
                         let firstStation = allStationsOnLine.first
                         let lastStation = allStationsOnLine.last
                         
-                        // 方向名とマッチングするための正規化関数
-                        func normalizeStationName(_ name: String) -> String {
-                            return name.lowercased()
+                        if isGeneralDirection {
+                            print("General direction detected: \(directionValue)")
+                            
+                            // 一般的な方向名の場合の処理
+                            switch directionValue.lowercased() {
+                            case "northbound", "eastbound", "outbound":
+                                // 通常、路線の順方向（インデックスが増える方向）
+                                isForward = true
+                                print("General direction: forward")
+                            case "southbound", "westbound", "inbound":
+                                // 通常、路線の逆方向（インデックスが減る方向）
+                                isForward = false
+                                print("General direction: reverse")
+                            case "clockwise":
+                                // 環状線の時計回り（路線により異なる）
+                                isForward = true
+                            case "counterclockwise":
+                                // 環状線の反時計回り（路線により異なる）
+                                isForward = false
+                            default:
+                                // デフォルトは順方向
+                                isForward = true
+                            }
+                        } else {
+                            // 駅名が含まれている場合の処理
+                            let directionStationName = directionValue.split(separator: ".").last.map { String($0) } ?? directionValue
+                            print("Direction station name: \(directionStationName)")
+                            
+                            // 方向名とマッチングするための正規化関数
+                            func normalizeStationName(_ name: String) -> String {
+                                return name.lowercased()
                                 .replacingOccurrences(of: "-", with: "")
                                 .replacingOccurrences(of: " ", with: "")
                                 .replacingOccurrences(of: "〈", with: "")
@@ -875,6 +909,7 @@ private struct ArrivalStationSearchView: View {
                                     print("Direction matches last station: forward direction")
                                 }
                             }
+                        }
                         }
                         
                         if isForward {

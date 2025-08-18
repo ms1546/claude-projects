@@ -340,12 +340,16 @@ struct TimetableSearchView: View {
             )
             
             // 少し遅延を入れてからsheetを表示（データ設定を確実にする）
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 // データが確実に設定されていることを再確認
                 if self.selectedTrainData != nil {
+                    print("Successfully set selectedTrainData, showing sheet")
                     showingTrainSelection = true
                 } else {
                     print("ERROR: selectedTrainData is nil after setting")
+                    // エラーメッセージを表示
+                    viewModel.errorMessage = "選択した列車の情報を取得できませんでした。もう一度お試しください。"
+                    viewModel.showError = true
                 }
             }
         }) {
