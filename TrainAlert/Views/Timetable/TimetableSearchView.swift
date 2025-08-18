@@ -115,10 +115,12 @@ struct TimetableSearchView: View {
                         }
                 }
             }
-            .sheet(isPresented: $showingTrainSelection) {
-                let _ = print("Sheet is being presented, sheetTrainData = \(sheetTrainData != nil ? "exists" : "nil")")
-                
-                // sheet用の永続的なデータを使用
+            .sheet(isPresented: $showingTrainSelection, onDismiss: {
+                // sheet閉じた後の処理
+                print("Sheet dismissed")
+                // データのクリアは次の選択時に行う
+            }) {
+                // sheet表示時にデータの存在を確認
                 if let data = sheetTrainData {
                     TrainSelectionView(
                         train: data.train,
@@ -132,11 +134,6 @@ struct TimetableSearchView: View {
                             print("  Station: \(data.station.stationTitle?.ja ?? data.station.title)")
                             print("  Railway: \(data.railway)")
                             print("  Direction: \(data.direction ?? "nil")")
-                        }
-                        .onDisappear {
-                            // sheet閉じた後にデータをクリア
-                            sheetTrainData = nil
-                            selectedTrainData = nil
                         }
                 } else {
                     // エラー表示
@@ -317,9 +314,9 @@ struct TimetableSearchView: View {
         let isDisabled = isPastTime || viewModel.isLoading || isDataPreparing
         
         return Button(action: {
-            // データのロード中は何もしない
-            guard !viewModel.isLoading && !isDataPreparing else {
-                print("Data is still loading/preparing, ignoring tap")
+            // データのロード中またはsheet表示中は何もしない
+            guard !viewModel.isLoading && !isDataPreparing && !showingTrainSelection else {
+                print("Data is still loading/preparing or sheet is showing, ignoring tap")
                 return
             }
             
@@ -341,7 +338,11 @@ struct TimetableSearchView: View {
             print("  Direction: \(currentDirection ?? "nil")")
             print("  isNearCurrent: \(isNearCurrent)")
             
-            // 選択データを先に設定（同期的に）
+            // 古いデータをクリア
+            sheetTrainData = nil
+            selectedTrainData = nil
+            
+            // 選択データを作成
             let newTrainData = TrainSelectionData(
                 train: train,
                 station: station,
@@ -349,27 +350,35 @@ struct TimetableSearchView: View {
                 direction: currentDirection
             )
             
-            // 即座にデータを設定
-            selectedTrainData = newTrainData
-            sheetTrainData = newTrainData  // sheet用のデータも設定
-            
-            print("Successfully set train data")
+            print("Setting train data:")
             print("  Train: \(newTrainData.train.departureTime)")
             print("  Station: \(newTrainData.station.stationTitle?.ja ?? newTrainData.station.title)")
             print("  Railway: \(newTrainData.railway)")
             print("  Direction: \(newTrainData.direction ?? "nil")")
             
-            // SwiftUIの更新サイクルを待ってからsheetを表示
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            // sheet用のデータを設定（SwiftUIの更新を確実にするため）
+            DispatchQueue.main.async {
+                self.sheetTrainData = newTrainData
+                self.selectedTrainData = newTrainData
+                print("Data set on main queue")
+            }
+            
+            // より長い遅延を設定して、SwiftUIの状態更新を確実に待つ
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 // データが確実に存在することを再度確認
-                if sheetTrainData != nil {
-                    print("Sheet presentation triggered - data confirmed")
-                    showingTrainSelection = true
-                } else {
+                guard let data = sheetTrainData else {
                     print("ERROR: sheetTrainData is nil when trying to show sheet")
                     viewModel.errorMessage = "データの設定に失敗しました。もう一度お試しください。"
                     viewModel.showError = true
+                    return
                 }
+                
+                print("Sheet presentation triggered - data confirmed:")
+                print("  Train: \(data.train.departureTime)")
+                print("  Station: \(data.station.stationTitle?.ja ?? data.station.title)")
+                
+                // sheet表示をトリガー
+                showingTrainSelection = true
             }
         }) {
             HStack(spacing: 16) {
