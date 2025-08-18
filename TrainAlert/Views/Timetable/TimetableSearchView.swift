@@ -132,8 +132,7 @@ struct TimetableSearchView: View {
                 dataClearTask?.cancel()
                 
                 // 新しいクリアタスクを作成
-                let newTask = DispatchWorkItem { [weak self] in
-                    guard let self = self else { return }
+                let newTask = DispatchWorkItem {
                     // sheet表示中でなければデータをクリア
                     if !self.showingTrainSelection {
                         print("Clearing sheet data after dismiss")
@@ -421,8 +420,8 @@ struct TimetableSearchView: View {
                 // 追加の安全チェック
                 guard let data = self.sheetTrainData else {
                     print("ERROR: sheetTrainData became nil before sheet presentation")
-                    self.errorMessage = "データの設定に失敗しました。もう一度お試しください。"
-                    self.showError = true
+                    self.viewModel.errorMessage = "データの設定に失敗しました。もう一度お試しください。"
+                    self.viewModel.showError = true
                     return
                 }
                 
