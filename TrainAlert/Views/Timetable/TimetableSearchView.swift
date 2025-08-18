@@ -32,6 +32,7 @@ struct TimetableSearchView: View {
     @State private var sheetTrainData: TrainSelectionData?  // sheet表示用の永続的なデータ
     @State private var showingTrainSelection = false
     @State private var isDataPreparing = false
+    @State private var isDataReady = false  // データが完全に準備できているか
     
     var body: some View {
         NavigationView {
@@ -102,6 +103,7 @@ struct TimetableSearchView: View {
                         print("駅選択: \(station.stationTitle?.ja ?? station.title), railway = \(station.railway)")
                         // データ準備中フラグを立てる
                         isDataPreparing = true
+                        isDataReady = false
                         Task {
                             await viewModel.loadTimetable(for: station)
                             await MainActor.run {
@@ -111,6 +113,8 @@ struct TimetableSearchView: View {
                                 }
                                 // データ準備完了
                                 isDataPreparing = false
+                                // データの完全性をチェック
+                                isDataReady = checkDataReadiness()
                             }
                         }
                 }
@@ -178,6 +182,12 @@ struct TimetableSearchView: View {
                 if selectedDirection == nil, let firstDirection = newDirections.first {
                     selectedDirection = firstDirection
                 }
+                // データの完全性をチェック
+                isDataReady = checkDataReadiness()
+            }
+            .onChange(of: viewModel.displayedTrains.count) { _ in
+                // 表示される電車の数が更新されたらデータの完全性をチェック
+                isDataReady = checkDataReadiness()
             }
         }
     }
@@ -241,7 +251,7 @@ struct TimetableSearchView: View {
                     }
                     .padding(.vertical)
                 }
-                .disabled(isDataPreparing || viewModel.isLoading)
+                .disabled(isDataPreparing || viewModel.isLoading || !isDataReady)
                 .onAppear {
                     // 現在時刻に近い電車までスクロール
                     if let nearestTrain = viewModel.nearestTrain {
@@ -276,6 +286,8 @@ struct TimetableSearchView: View {
                             if isDataPreparing && !viewModel.isLoading {
                                 isDataPreparing = false
                             }
+                            // データの完全性をチェック
+                            isDataReady = checkDataReadiness()
                         }
                     }) {
                         Text(viewModel.getDirectionTitle(for: direction))
@@ -311,12 +323,12 @@ struct TimetableSearchView: View {
     private func trainRow(_ train: ODPTTrainTimetableObject) -> some View {
         let isNearCurrent = viewModel.isNearCurrentTime(train)
         let isPastTime = viewModel.isPastTime(train)
-        let isDisabled = isPastTime || viewModel.isLoading || isDataPreparing
+        let isDisabled = isPastTime || viewModel.isLoading || isDataPreparing || !isDataReady
         
         return Button(action: {
-            // データのロード中またはsheet表示中は何もしない
-            guard !viewModel.isLoading && !isDataPreparing && !showingTrainSelection else {
-                print("Data is still loading/preparing or sheet is showing, ignoring tap")
+            // データのロード中、準備中、または準備未完了の場合は何もしない
+            guard !viewModel.isLoading && !isDataPreparing && !showingTrainSelection && isDataReady else {
+                print("Data is not ready: isLoading=\(viewModel.isLoading), isDataPreparing=\(isDataPreparing), isDataReady=\(isDataReady), showingTrainSelection=\(showingTrainSelection)")
                 return
             }
             
@@ -396,6 +408,12 @@ struct TimetableSearchView: View {
                 }
                 .frame(width: 80)
                 
+                // データ準備中インジケーター
+                if !isDataReady && !isPastTime {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                }
+                
                 // 列車情報
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
@@ -425,9 +443,15 @@ struct TimetableSearchView: View {
                 Spacer()
                 
                 // 選択インジケーター
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14))
-                    .foregroundColor(Color.textSecondary.opacity(0.6))
+                if !isDataReady && !isPastTime {
+                    Text("準備中...")
+                        .font(.caption)
+                        .foregroundColor(Color.textSecondary)
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14))
+                        .foregroundColor(Color.textSecondary.opacity(0.6))
+                }
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
@@ -567,6 +591,30 @@ struct TimetableSearchView: View {
         } else {
             return Color.trainSoftBlue
         }
+    }
+    
+    // MARK: - Data Readiness Check
+    
+    /// データが完全に準備できているかチェック
+    private func checkDataReadiness() -> Bool {
+        // 必要な条件をすべてチェック
+        let hasStation = selectedStation != nil
+        let hasDirections = !viewModel.directions.isEmpty
+        let hasSelectedDirection = selectedDirection != nil
+        let hasTrains = !viewModel.displayedTrains.isEmpty
+        let notLoading = !viewModel.isLoading && !isDataPreparing
+        
+        let isReady = hasStation && hasDirections && hasSelectedDirection && hasTrains && notLoading
+        
+        print("Data readiness check:")
+        print("  hasStation: \(hasStation)")
+        print("  hasDirections: \(hasDirections)")
+        print("  hasSelectedDirection: \(hasSelectedDirection)")
+        print("  hasTrains: \(hasTrains)")
+        print("  notLoading: \(notLoading)")
+        print("  isReady: \(isReady)")
+        
+        return isReady
     }
 }
 
