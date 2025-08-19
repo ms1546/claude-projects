@@ -243,4 +243,84 @@ final class FavoriteRouteManager: ObservableObject {
     var isAtMaxCapacity: Bool {
         favoriteCount >= maxFavorites
     }
+    
+    /// 特定の経路のお気に入りを見つける
+    /// - Parameters:
+    ///   - departureStation: 出発駅名
+    ///   - arrivalStation: 到着駅名
+    ///   - departureTime: 出発時刻
+    /// - Returns: 見つかったFavoriteRoute、見つからない場合はnil
+    func findFavoriteRoute(
+        departureStation: String,
+        arrivalStation: String,
+        departureTime: Date?
+    ) -> FavoriteRoute? {
+        guard let newDepartureTime = departureTime else {
+            // 時刻が指定されていない場合は、駅名のみで検索
+            return favoriteRoutes.first { route in
+                route.departureStation == departureStation &&
+                route.arrivalStation == arrivalStation &&
+                route.departureTime == nil
+            }
+        }
+        
+        // 時刻を分単位で比較するためのフォーマッタ
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        let newTimeString = formatter.string(from: newDepartureTime)
+        
+        return favoriteRoutes.first { route in
+            guard let routeDepartureTime = route.departureTime else { return false }
+            let routeTimeString = formatter.string(from: routeDepartureTime)
+            
+            return route.departureStation == departureStation &&
+                   route.arrivalStation == arrivalStation &&
+                   routeTimeString == newTimeString
+        }
+    }
+    
+    /// お気に入りをトグル（登録/解除）
+    /// - Parameters:
+    ///   - departureStation: 出発駅名
+    ///   - arrivalStation: 到着駅名
+    ///   - departureTime: 出発時刻
+    ///   - nickName: ニックネーム（オプション）
+    ///   - routeData: 経路の詳細データ（JSONエンコード済み）
+    /// - Returns: トグル結果（true: 追加、false: 削除、nil: エラー）
+    func toggleFavorite(
+        departureStation: String,
+        arrivalStation: String,
+        departureTime: Date? = nil,
+        nickName: String? = nil,
+        routeData: Data? = nil
+    ) -> Bool? {
+        if let existingRoute = findFavoriteRoute(
+            departureStation: departureStation,
+            arrivalStation: arrivalStation,
+            departureTime: departureTime
+        ) {
+            // 既存のお気に入りを削除
+            delete(existingRoute)
+            logger.info("Toggled favorite (removed): \(departureStation) to \(arrivalStation)")
+            return false
+        } else {
+            // 新規お気に入りを作成
+            let newRoute = createFavoriteRoute(
+                departureStation: departureStation,
+                arrivalStation: arrivalStation,
+                departureTime: departureTime,
+                nickName: nickName,
+                routeData: routeData
+            )
+            
+            if newRoute != nil {
+                logger.info("Toggled favorite (added): \(departureStation) to \(arrivalStation)")
+                return true
+            } else {
+                logger.error("Failed to toggle favorite: \(departureStation) to \(arrivalStation)")
+                return nil
+            }
+        }
+    }
 }

@@ -433,12 +433,12 @@ struct HomeAlertCard: View {
                     }
                     
                     if let lines = alert.station?.lines, !lines.isEmpty {
-                        Text(lines.joined(separator: " • "))
+                        Text(lines.map { $0.railwayDisplayName }.joined(separator: " • "))
                             .font(.footnote)
                             .foregroundColor(.textSecondary)
                             .lineLimit(1)
                     } else if let lineName = alert.lineName {
-                        Text(lineName)
+                        Text(lineName.railwayDisplayName)
                             .font(.footnote)
                             .foregroundColor(.textSecondary)
                     }
