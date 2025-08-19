@@ -389,6 +389,110 @@ class NotificationManager: NSObject, ObservableObject {
         }
     }
     
+    /// Schedule a repeating notification with calendar-based trigger
+    func scheduleRepeatingNotification(
+        for stationName: String,
+        departureStation: String?,
+        arrivalTime: Date,
+        pattern: RepeatPattern,
+        customDays: [Int] = [],
+        characterStyle: CharacterStyle = .healing,
+        notificationMinutes: Int = 5,
+        alertId: String
+    ) async throws {
+        guard isPermissionGranted else {
+            throw NotificationError.permissionDenied
+        }
+        
+        // 繰り返しパターンに基づいて曜日を取得
+        let days = pattern == .custom ? customDays : pattern.getDays()
+        guard !days.isEmpty else { return }
+        
+        // 通知内容を作成
+        let content = UNMutableNotificationContent()
+        content.categoryIdentifier = NotificationCategory.trainAlert.identifier
+        content.sound = getNotificationSound()
+        
+        // 基準となる時刻から通知時刻を計算
+        let notificationTime = arrivalTime.addingTimeInterval(TimeInterval(-notificationMinutes * 60))
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.hour, .minute], from: notificationTime)
+        
+        // メッセージ生成
+        let message: String
+        if openAIClient.hasAPIKey() {
+            do {
+                message = try await openAIClient.generateNotificationMessage(
+                    for: stationName,
+                    arrivalTime: "\(notificationMinutes)分後",
+                    characterStyle: characterStyle
+                )
+            } catch {
+                message = characterStyle.generateDefaultMessage(for: stationName)
+            }
+        } else {
+            message = characterStyle.generateDefaultMessage(for: stationName)
+        }
+        
+        content.title = "🚃 もうすぐ\(stationName)駅です！"
+        content.body = message
+        
+        if let departureStation = departureStation {
+            content.subtitle = "\(departureStation) → \(stationName)"
+        }
+        
+        content.userInfo = [
+            "stationName": stationName,
+            "departureStation": departureStation ?? "",
+            "alertId": alertId,
+            "type": "repeating",
+            "pattern": pattern.rawValue
+        ]
+        
+        content.badge = NSNumber(value: 1)
+        
+        // iOSの制限により、最大64個の通知をスケジュール
+        // 各曜日に対して通知を作成
+        for day in days {
+            var dateComponents = DateComponents()
+            dateComponents.weekday = day
+            dateComponents.hour = components.hour
+            dateComponents.minute = components.minute
+            
+            let trigger = UNCalendarNotificationTrigger(
+                dateMatching: dateComponents,
+                repeats: true
+            )
+            
+            let identifier = "repeat_\(alertId)_day\(day)"
+            
+            let request = UNNotificationRequest(
+                identifier: identifier,
+                content: content,
+                trigger: trigger
+            )
+            
+            try await center.add(request)
+            pendingNotifications.insert(identifier)
+        }
+        
+        print("🔄 繰り返し通知をスケジュールしました: \(stationName)駅 (\(pattern.displayName))")
+    }
+    
+    /// Cancel all repeating notifications for a specific alert
+    func cancelRepeatingNotifications(alertId: String) {
+        // 全ての曜日の通知識別子を作成
+        var identifiers: [String] = []
+        for day in 1...7 {
+            identifiers.append("repeat_\(alertId)_day\(day)")
+        }
+        
+        center.removePendingNotificationRequests(withIdentifiers: identifiers)
+        identifiers.forEach { pendingNotifications.remove($0) }
+        
+        print("🚫 繰り返し通知をキャンセルしました: \(alertId)")
+    }
+    
     // MARK: - Notification Content Creation
     
     private func createTrainAlertContent(
