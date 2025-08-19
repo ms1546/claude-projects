@@ -530,22 +530,25 @@ struct RouteSearchView: View {
                 
                 // お気に入り保存ボタン
                 Button(action: {
-                    if !viewModel.isFavoriteRoute(route) {
-                        let success = viewModel.saveFavoriteRoute(route)
-                        if success {
+                    let result = viewModel.toggleFavoriteRoute(route)
+                    if let wasAdded = result {
+                        if wasAdded {
                             // 保存成功のフィードバック
                             print("お気に入りに保存しました")
                         } else {
-                            // 保存失敗（上限）
-                            print("お気に入りに保存できませんでした（上限に達しています）")
+                            // 削除成功のフィードバック
+                            print("お気に入りから削除しました")
                         }
+                    } else {
+                        // エラー（上限など）
+                        print("お気に入りの操作に失敗しました")
                     }
                 }) {
                     Image(systemName: viewModel.isFavoriteRoute(route) ? "bookmark.fill" : "bookmark")
                         .font(.system(size: 16))
                         .foregroundColor(viewModel.isFavoriteRoute(route) ? Color.warmOrange : Color.trainSoftBlue)
                 }
-                .disabled(viewModel.isFavoriteRoute(route) || !viewModel.canAddFavorite)
+                .disabled(!viewModel.isFavoriteRoute(route) && !viewModel.canAddFavorite)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 10)

@@ -77,7 +77,7 @@ struct FavoriteRoutesView: View {
     }
     
     private func routeRow(_ route: FavoriteRoute) -> some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 12) {
             HStack {
                 // 出発駅
                 VStack(alignment: .leading, spacing: 4) {
@@ -126,10 +126,10 @@ struct FavoriteRoutesView: View {
                     }
                 }
             }
-            .padding(16)
-            .background(Color.backgroundCard)
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
+            
+            // 区切り線
+            Divider()
+                .background(Color.trainLightGray.opacity(0.2))
             
             // ニックネームまたは追加情報
             HStack {
@@ -154,9 +154,17 @@ struct FavoriteRoutesView: View {
                         .foregroundColor(Color.textSecondary)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
         }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.backgroundCard)
+                .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.trainLightGray.opacity(0.2), lineWidth: 1)
+        )
     }
     
     // MARK: - Empty State

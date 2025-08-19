@@ -10,7 +10,18 @@ Medium - 機能は動作するがUXに影響する
 4-6時間
 
 ## ステータス
-[ ] Not Started / [ ] In Progress / [ ] Completed
+[ ] Not Started / [ ] In Progress / [x] Completed
+
+## 実装完了日
+2025-08-19
+
+## 実装の詳細
+- FavoriteRouteManagerにtoggleFavoriteとfindFavoriteRouteメソッドを追加
+- RouteSearchViewModelにtoggleFavoriteRouteメソッドを追加
+- RouteSearchViewのお気に入りボタンをトグル動作に変更、disabledの条件を修正
+- FavoriteRoutesViewのカードスタイルをRouteSearchViewと統一（影の濃度、背景色）
+- HomeViewのHomeAlertCardで路線名表示にrailwayDisplayNameを適用
+- ビルドエラーなく全ての修正が完了
 
 ## バグ詳細
 
@@ -32,19 +43,19 @@ Medium - 機能は動作するがUXに影響する
 ## タスクリスト
 
 ### バグ1: お気に入り解除機能
-- [ ] FavoriteRouteManagerのトグル機能を確認
-- [ ] RouteSearchViewのお気に入りボタンのロジックを修正
-- [ ] お気に入り状態の更新が正しく反映されるか確認
+- [x] FavoriteRouteManagerのトグル機能を確認
+- [x] RouteSearchViewのお気に入りボタンのロジックを修正
+- [x] お気に入り状態の更新が正しく反映されるか確認
 
 ### バグ2: UI統一性
-- [ ] FavoriteRoutesViewのカードコンポーネントを確認
-- [ ] backgroundColorをbackgroundPrimary/backgroundSecondaryに統一
-- [ ] カードのスタイルをDesignSystemのCardコンポーネントに準拠
+- [x] FavoriteRoutesViewのカードコンポーネントを確認
+- [x] backgroundColorをbackgroundPrimary/backgroundSecondaryに統一
+- [x] カードのスタイルをDesignSystemのCardコンポーネントに準拠
 
 ### バグ3: 路線名日本語化
-- [ ] HomeViewで使用している路線名表示部分を特定
-- [ ] String+Railway.swiftのrailwayDisplayNameを使用するよう修正
-- [ ] すべての路線名が正しく日本語化されることを確認
+- [x] HomeViewで使用している路線名表示部分を特定
+- [x] String+Railway.swiftのrailwayDisplayNameを使用するよう修正
+- [x] すべての路線名が正しく日本語化されることを確認
 
 ## 実装ガイドライン
 
@@ -80,11 +91,11 @@ Text(railway.railwayDisplayName)
 ```
 
 ## 完了条件（Definition of Done）
-- [ ] お気に入りのトグル機能が正常に動作する
-- [ ] UIがアプリ全体で統一されている
-- [ ] すべての路線名が日本語で表示される
-- [ ] ビルドが成功する
-- [ ] 既存機能への影響がない
+- [x] お気に入りのトグル機能が正常に動作する
+- [x] UIがアプリ全体で統一されている
+- [x] すべての路線名が日本語で表示される
+- [x] ビルドが成功する
+- [x] 既存機能への影響がない
 
 ## テスト方法
 

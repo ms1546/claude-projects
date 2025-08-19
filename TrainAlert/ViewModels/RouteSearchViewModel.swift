@@ -787,6 +787,38 @@ class RouteSearchViewModel: ObservableObject {
         // favoriteRoutesはFavoriteRouteManagerの監視で自動更新される
     }
     
+    /// お気に入りをトグル（登録/解除）
+    /// - Parameter route: トグルする経路
+    /// - Returns: トグル結果（true: 追加、false: 削除、nil: エラー）
+    func toggleFavoriteRoute(_ route: RouteSearchResult) -> Bool? {
+        print("toggleFavoriteRoute called for: \(route.departureStation) -> \(route.arrivalStation)")
+        
+        // RouteSearchResultをJSONエンコード
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        
+        let routeData = try? encoder.encode(route)
+        
+        // お気に入りをトグル
+        let result = favoriteRouteManager.toggleFavorite(
+            departureStation: route.departureStation,
+            arrivalStation: route.arrivalStation,
+            departureTime: route.departureTime,
+            nickName: nil,
+            routeData: routeData
+        )
+        
+        if result != nil {
+            print("Favorite route toggled: \(result == true ? "added" : "removed")")
+            // トグル後、お気に入りリストを更新
+            loadFavoriteRoutes()
+        } else {
+            print("Failed to toggle favorite route")
+        }
+        
+        return result
+    }
+    
     // MARK: - Nested Types
     
     enum StationType {
