@@ -67,6 +67,14 @@ struct TimetableAlertSetupView: View {
                     // 繰り返し設定
                     repeatSettingsCard
                     
+                    // 駅数ベースの場合は停車駅プレビューを表示
+                    if notificationType == "station" {
+                        StationPreviewView(
+                            route: route,
+                            notificationStations: notificationStations
+                        )
+                    }
+                    
                     // キャラクター設定
                     characterSettingsCard
                     
