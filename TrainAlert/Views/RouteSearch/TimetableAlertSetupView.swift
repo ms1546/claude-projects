@@ -25,6 +25,11 @@ struct TimetableAlertSetupView: View {
     @State private var errorMessage: String?
     @State private var showError = false
     
+    // 繰り返し設定の状態
+    @State private var isRepeating = false
+    @State private var repeatPattern: RepeatPattern = .none
+    @State private var customDays: Set<Int> = []
+    
     // AI設定の状態を監視
     @AppStorage("useAIGeneratedMessages") private var useAIGeneratedMessages = false
     @State private var hasValidAPIKey = false
@@ -58,6 +63,9 @@ struct TimetableAlertSetupView: View {
                     
                     // 通知設定
                     notificationSettingsCard
+                    
+                    // 繰り返し設定
+                    repeatSettingsCard
                     
                     // キャラクター設定
                     characterSettingsCard
@@ -357,6 +365,129 @@ struct TimetableAlertSetupView: View {
         .buttonStyle(PlainButtonStyle())
     }
     
+    // MARK: - Repeat Settings Card
+    
+    private var repeatSettingsCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "repeat")
+                    .foregroundColor(Color.trainSoftBlue)
+                    .font(.system(size: 18))
+                Text("繰り返し設定")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(Color.textPrimary)
+            }
+            
+            // 繰り返しのオン/オフ
+            Toggle(isOn: $isRepeating) {
+                Text("繰り返し通知")
+                    .font(.subheadline)
+                    .foregroundColor(Color.textPrimary)
+            }
+            .tint(.trainSoftBlue)
+            .onChange(of: isRepeating) { newValue in
+                if !newValue {
+                    repeatPattern = .none
+                    customDays = []
+                } else if repeatPattern == .none {
+                    repeatPattern = .daily
+                }
+            }
+            
+            if isRepeating {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("繰り返しパターン")
+                        .font(.subheadline)
+                        .foregroundColor(Color.textSecondary)
+                    
+                    // パターン選択
+                    ForEach([RepeatPattern.daily, .weekdays, .weekends, .custom], id: \.self) { pattern in
+                        Button(action: {
+                            withAnimation {
+                                repeatPattern = pattern
+                                if pattern != .custom {
+                                    customDays = Set(pattern.getDays())
+                                }
+                            }
+                        }) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(pattern.displayName)
+                                        .font(.subheadline)
+                                        .fontWeight(repeatPattern == pattern ? .bold : .regular)
+                                        .foregroundColor(Color.textPrimary)
+                                    Text(pattern.description)
+                                        .font(.caption)
+                                        .foregroundColor(Color.textSecondary)
+                                }
+                                
+                                Spacer()
+                                
+                                if repeatPattern == pattern {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(Color.trainSoftBlue)
+                                }
+                            }
+                            .padding(.vertical, 8)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                    
+                    // カスタム曜日選択
+                    if repeatPattern == .custom {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("曜日を選択")
+                                .font(.caption)
+                                .foregroundColor(Color.textSecondary)
+                            
+                            HStack(spacing: 8) {
+                                ForEach(DayOfWeek.allCases, id: \.self) { day in
+                                    Button(action: {
+                                        withAnimation {
+                                            if customDays.contains(day.rawValue) {
+                                                customDays.remove(day.rawValue)
+                                            } else {
+                                                customDays.insert(day.rawValue)
+                                            }
+                                        }
+                                    }) {
+                                        Text(day.shortName)
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundColor(customDays.contains(day.rawValue) ? .white : Color.textPrimary)
+                                            .frame(width: 36, height: 36)
+                                            .background(
+                                                Circle()
+                                                    .fill(customDays.contains(day.rawValue) ? Color.trainSoftBlue : Color.backgroundSecondary)
+                                            )
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 次回通知予定
+                    if let nextDate = getNextNotificationDate() {
+                        HStack {
+                            Image(systemName: "calendar.badge.clock")
+                                .font(.caption)
+                                .foregroundColor(Color.textSecondary)
+                            Text(formatNextNotificationDate(nextDate))
+                                .font(.caption)
+                                .foregroundColor(Color.textSecondary)
+                        }
+                        .padding(.top, 4)
+                    }
+                }
+            }
+        }
+        .padding(20)
+        .background(Color.backgroundCard)
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
+        .padding(.horizontal)
+    }
+    
     // MARK: - Character Settings Card
     
     private var characterSettingsCard: some View {
@@ -526,6 +657,10 @@ struct TimetableAlertSetupView: View {
                 alert.notificationDistance = 0 // 経路ベースでは距離は使わない
                 alert.createdAt = Date()
                 
+                // 繰り返し設定を保存（TimetableAlert+Extensionで定義）
+                // alert.repeatPattern = isRepeating ? repeatPattern : .none
+                // alert.repeatCustomDays = Array(customDays)
+                
                 // 経路情報を保存
                 alert.departureStation = route.departureStation
                 alert.arrivalTime = route.arrivalTime
@@ -588,14 +723,30 @@ struct TimetableAlertSetupView: View {
                 // 通知をスケジュール
                 // 到着駅の位置情報は暫定的にnil（将来的に駅の座標を取得）
                 do {
-                    try await notificationManager.scheduleTrainAlert(
-                        for: route.arrivalStation,
-                        arrivalTime: route.arrivalTime,
-                        currentLocation: nil,
-                        targetLocation: CLLocation(latitude: station.latitude, longitude: station.longitude),
-                        characterStyle: characterStyle
-                    )
-                    print("✅ 通知スケジュール成功")
+                    if isRepeating && repeatPattern != .none {
+                        // 繰り返し通知をスケジュール
+                        try await notificationManager.scheduleRepeatingNotification(
+                            for: route.arrivalStation,
+                            departureStation: route.departureStation,
+                            arrivalTime: route.arrivalTime,
+                            pattern: repeatPattern,
+                            customDays: Array(customDays),
+                            characterStyle: characterStyle,
+                            notificationMinutes: notificationType == "time" ? Int(notificationMinutes) : 5,
+                            alertId: alert.alertId?.uuidString ?? ""
+                        )
+                        print("✅ 繰り返し通知スケジュール成功")
+                    } else {
+                        // 単発の通知をスケジュール
+                        try await notificationManager.scheduleTrainAlert(
+                            for: route.arrivalStation,
+                            arrivalTime: route.arrivalTime,
+                            currentLocation: nil,
+                            targetLocation: CLLocation(latitude: station.latitude, longitude: station.longitude),
+                            characterStyle: characterStyle
+                        )
+                        print("✅ 通知スケジュール成功")
+                    }
                 } catch {
                     print("⚠️ 通知のスケジュールに失敗: \(error)")
                 }
@@ -694,6 +845,33 @@ struct TimetableAlertSetupView: View {
                 hasValidAPIKey = false
             }
         }
+    }
+    
+    // MARK: - Repeat Settings Helpers
+    
+    private func getNextNotificationDate() -> Date? {
+        guard isRepeating, repeatPattern != .none else { return nil }
+        return repeatPattern.nextNotificationDate(
+            baseTime: route.arrivalTime,
+            customDays: Array(customDays)
+        )
+    }
+    
+    private func formatNextNotificationDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) {
+            formatter.dateFormat = "今日 HH:mm"
+        } else if calendar.isDateInTomorrow(date) {
+            formatter.dateFormat = "明日 HH:mm"
+        } else {
+            formatter.dateFormat = "M月d日(E) HH:mm"
+        }
+        
+        return "次回: " + formatter.string(from: date)
     }
 }
 

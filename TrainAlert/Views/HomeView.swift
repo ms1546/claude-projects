@@ -449,6 +449,20 @@ struct HomeAlertCard: View {
                     Label(notificationText(for: alert), systemImage: "bell")
                         .font(.caption)
                         .foregroundColor(.textSecondary)
+                    
+                    // 繰り返し設定の表示
+                    if alert.isRepeatingEnabled {
+                        Label(alert.repeatSettingDescription(), systemImage: "repeat")
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
+                    }
+                    
+                    // 次回通知予定
+                    if let nextNotification = alert.nextNotificationDescription() {
+                        Text(nextNotification)
+                            .font(.caption2)
+                            .foregroundColor(.textSecondary)
+                    }
                 }
             }
             
