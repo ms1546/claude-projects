@@ -86,7 +86,7 @@ struct TimetableAlertSetupView: View {
                     // 保存ボタン
                     PrimaryButton(
                         "目覚ましを設定",
-                        isEnabled: !isSaving && (notificationType == "station" || !availableNotificationOptions.isEmpty),
+                        isEnabled: !isSaving && isValidNotificationSetting(),
                         action: saveAlert
                     )
                     .padding(.horizontal)
@@ -639,6 +639,18 @@ struct TimetableAlertSetupView: View {
     // MARK: - Actions
     
     private func saveAlert() {
+        // 駅数ベースの場合、通知駅が出発駅でないことを確認
+        if notificationType == "station" {
+            if !actualStations.isEmpty {
+                let notificationIndex = actualStations.count - notificationStations - 1
+                if notificationIndex <= 0 {
+                    errorMessage = "出発駅での通知はできません"
+                    showError = true
+                    return
+                }
+            }
+        }
+        
         isSaving = true
         
         Task {
@@ -791,6 +803,19 @@ struct TimetableAlertSetupView: View {
     
     // MARK: - Helper Methods
     
+    private func isValidNotificationSetting() -> Bool {
+        if notificationType == "time" {
+            return !availableNotificationOptions.isEmpty
+        } else {
+            // 駅数ベースの場合、通知駅が出発駅でないことを確認
+            if !actualStations.isEmpty {
+                let notificationIndex = actualStations.count - notificationStations - 1
+                return notificationIndex > 0 && notificationIndex < actualStations.count
+            }
+            return false
+        }
+    }
+    
     private func formatTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
@@ -829,27 +854,50 @@ struct TimetableAlertSetupView: View {
                 
                 if notificationIndex >= 0 && notificationIndex < actualStations.count {
                     let notificationStation = actualStations[notificationIndex]
-                
-                    HStack {
-                        Image(systemName: "bell.badge")
-                            .foregroundColor(Color.trainSoftBlue)
-                        Text("\(notificationStation.name)駅で通知")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(Color.textPrimary)
-                        
-                        Spacer()
-                        
-                        if let time = notificationStation.time {
-                            Text(formatTime(time))
-                                .font(.subheadline)
+                    
+                    // 通知駅が出発駅の場合はエラー表示
+                    if notificationIndex == 0 {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.orange)
+                                Text("通知できません")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.orange)
+                            }
+                            
+                            Text("出発駅での通知はできません。駅数を減らすか、時間ベースの通知をご利用ください。")
+                                .font(.caption)
                                 .foregroundColor(Color.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(10)
+                    } else {
+                        HStack {
+                            Image(systemName: "bell.badge")
+                                .foregroundColor(Color.trainSoftBlue)
+                            Text("\(notificationStation.name)駅で通知")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(Color.textPrimary)
+                            
+                            Spacer()
+                            
+                            if let time = notificationStation.time {
+                                Text(formatTime(time))
+                                    .font(.subheadline)
+                                    .foregroundColor(Color.textSecondary)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(Color.trainSoftBlue.opacity(0.1))
+                        .cornerRadius(10)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(Color.trainSoftBlue.opacity(0.1))
-                    .cornerRadius(10)
                 } else {
                     // エラー時の詳細表示
                     VStack(alignment: .leading, spacing: 8) {
