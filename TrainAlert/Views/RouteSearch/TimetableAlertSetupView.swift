@@ -944,32 +944,12 @@ struct TimetableAlertSetupView: View {
     }
     
     private func loadDetailedStations(trainNumber: String) {
-        // railwayを取得（trainNumberから推測）
+        // routeのsectionsから路線情報を取得
         let railway: String
-        if trainNumber.hasPrefix("A") {
-            railway = "odpt.Railway:TokyoMetro.Marunouchi"
-        } else if trainNumber.hasPrefix("B") {
-            railway = "odpt.Railway:TokyoMetro.Hibiya"
-        } else if trainNumber.hasPrefix("C") {
-            railway = "odpt.Railway:TokyoMetro.Ginza"
-        } else if trainNumber.hasPrefix("F") {
-            railway = "odpt.Railway:TokyoMetro.Fukutoshin"
-        } else if trainNumber.hasPrefix("G") {
-            railway = "odpt.Railway:TokyoMetro.Ginza"
-        } else if trainNumber.hasPrefix("H") {
-            railway = "odpt.Railway:TokyoMetro.Hibiya"
-        } else if trainNumber.hasPrefix("M") {
-            railway = "odpt.Railway:TokyoMetro.Marunouchi"
-        } else if trainNumber.hasPrefix("N") {
-            railway = "odpt.Railway:TokyoMetro.Namboku"
-        } else if trainNumber.hasPrefix("T") {
-            railway = "odpt.Railway:TokyoMetro.Tozai"
-        } else if trainNumber.hasPrefix("Y") {
-            railway = "odpt.Railway:TokyoMetro.Yurakucho"
-        } else if trainNumber.hasPrefix("Z") {
-            railway = "odpt.Railway:TokyoMetro.Hanzomon"
+        if let firstSection = route.sections.first {
+            railway = firstSection.railway
         } else {
-            // 他の路線の場合は既存のactualStationsを使用
+            // sectionsがない場合は既存のactualStationsを使用
             return
         }
         
@@ -995,11 +975,8 @@ struct TimetableAlertSetupView: View {
                 }
             } catch {
                 await MainActor.run {
-                    // エラー時は簡易的な駅リストを使用
-                    actualStations = [
-                        (name: route.departureStation, time: route.departureTime),
-                        (name: route.arrivalStation, time: route.arrivalTime)
-                    ]
+                    // エラー時は既存のactualStationsを維持
+                    print("詳細な駅情報の取得に失敗: \(error)")
                     isLoadingStations = false
                 }
             }
