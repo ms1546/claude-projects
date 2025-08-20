@@ -811,14 +811,11 @@ struct TimetableAlertSetupView: View {
             
             // 通知駅の情報を表示
             if let stations = getStationsFromRoute() {
-                print("DEBUG: notificationStations = \(notificationStations), total stations = \(stations.count)")
-                
                 // 通知駅のインデックスを計算（到着駅から数えて何駅前か）
                 let notificationIndex = stations.count - notificationStations - 1
                 
                 if notificationIndex >= 0 && notificationIndex < stations.count {
                     let notificationStation = stations[notificationIndex]
-                    print("DEBUG: Notification station = \(notificationStation.name) at index \(notificationIndex)")
                 
                     HStack {
                         Image(systemName: "bell.badge")
@@ -889,12 +886,6 @@ struct TimetableAlertSetupView: View {
             if route.arrivalStation != route.departureStation {
                 stations.append((name: route.arrivalStation, time: route.arrivalTime))
             }
-        }
-        
-        // デバッグ用
-        print("DEBUG: Total stations found: \(stations.count)")
-        for (index, station) in stations.enumerated() {
-            print("  [\(index)] \(station.name) - \(station.time != nil ? formatTime(station.time!) : "N/A")")
         }
         
         return stations.isEmpty ? nil : stations
