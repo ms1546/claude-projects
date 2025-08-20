@@ -810,31 +810,42 @@ struct TimetableAlertSetupView: View {
             }
             
             // 通知駅の情報を表示
-            if let stations = getStationsFromRoute(), 
-               stations.count > notificationStations {
-                let notificationIndex = max(0, stations.count - notificationStations - 1)
-                let notificationStation = stations[notificationIndex]
+            if let stations = getStationsFromRoute() {
+                print("DEBUG: notificationStations = \(notificationStations), total stations = \(stations.count)")
                 
-                HStack {
-                    Image(systemName: "bell.badge")
-                        .foregroundColor(Color.trainSoftBlue)
-                    Text("\(notificationStation.name)駅で通知")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(Color.textPrimary)
-                    
-                    Spacer()
-                    
-                    if let time = notificationStation.time {
-                        Text(formatTime(time))
+                // 通知駅のインデックスを計算（到着駅から数えて何駅前か）
+                let notificationIndex = stations.count - notificationStations - 1
+                
+                if notificationIndex >= 0 && notificationIndex < stations.count {
+                    let notificationStation = stations[notificationIndex]
+                    print("DEBUG: Notification station = \(notificationStation.name) at index \(notificationIndex)")
+                
+                    HStack {
+                        Image(systemName: "bell.badge")
+                            .foregroundColor(Color.trainSoftBlue)
+                        Text("\(notificationStation.name)駅で通知")
                             .font(.subheadline)
-                            .foregroundColor(Color.textSecondary)
+                            .fontWeight(.medium)
+                            .foregroundColor(Color.textPrimary)
+                        
+                        Spacer()
+                        
+                        if let time = notificationStation.time {
+                            Text(formatTime(time))
+                                .font(.subheadline)
+                                .foregroundColor(Color.textSecondary)
+                        }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.trainSoftBlue.opacity(0.1))
+                    .cornerRadius(10)
+                } else {
+                    Text("指定された駅数が経路上の駅数を超えています")
+                        .font(.caption)
+                        .foregroundColor(Color.textSecondary)
+                        .padding()
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.trainSoftBlue.opacity(0.1))
-                .cornerRadius(10)
             } else {
                 Text("経路情報から駅を取得できません")
                     .font(.caption)
@@ -857,17 +868,34 @@ struct TimetableAlertSetupView: View {
         
         // セクションから中間駅を抽出
         if !route.sections.isEmpty {
-            for section in route.sections {
-                // 各セクションの到着駅を追加（重複を避ける）
-                if section.arrivalStation != route.arrivalStation && 
-                   !stations.contains(where: { $0.name == section.arrivalStation }) {
-                    stations.append((name: section.arrivalStation, time: section.arrivalTime))
+            // 各セクションの出発駅と到着駅を順番に追加
+            for (index, section) in route.sections.enumerated() {
+                // 最初のセクション以外の出発駅を追加（乗換駅）
+                if index > 0 {
+                    let sectionDepartureStation = section.departureStation
+                    if !stations.contains(where: { $0.name == sectionDepartureStation }) {
+                        stations.append((name: sectionDepartureStation, time: section.departureTime))
+                    }
                 }
+                
+                // セクションの到着駅を追加
+                let sectionArrivalStation = section.arrivalStation
+                if !stations.contains(where: { $0.name == sectionArrivalStation }) {
+                    stations.append((name: sectionArrivalStation, time: section.arrivalTime))
+                }
+            }
+        } else {
+            // セクションがない場合は、到着駅を追加
+            if route.arrivalStation != route.departureStation {
+                stations.append((name: route.arrivalStation, time: route.arrivalTime))
             }
         }
         
-        // 到着駅を追加
-        stations.append((name: route.arrivalStation, time: route.arrivalTime))
+        // デバッグ用
+        print("DEBUG: Total stations found: \(stations.count)")
+        for (index, station) in stations.enumerated() {
+            print("  [\(index)] \(station.name) - \(station.time != nil ? formatTime(station.time!) : "N/A")")
+        }
         
         return stations.isEmpty ? nil : stations
     }
