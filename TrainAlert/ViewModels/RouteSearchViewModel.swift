@@ -303,7 +303,8 @@ class RouteSearchViewModel: ObservableObject {
                 let departureLineName = departureStation.railwayTitle?.ja ?? departureStation.railway ?? ""
                 print("Departure line name: \(departureLineName)")
                 if !departureLineName.isEmpty {
-                    self.odptDepartureStationId = StationIDMapper.convertToODPTStationIDWithCache(
+                    // 非同期版を使用して正しい駅IDを取得
+                    self.odptDepartureStationId = await StationIDMapper.convertToODPTStationIDAsync(
                         stationName: departureStation.stationTitle?.ja ?? departureStation.title,
                         lineName: departureLineName
                     )
@@ -315,7 +316,8 @@ class RouteSearchViewModel: ObservableObject {
                 // 到着駅のID変換（メンバ変数に保存）
                 let arrivalLineName = arrivalStation.railwayTitle?.ja ?? arrivalStation.railway ?? ""
                 if !arrivalLineName.isEmpty {
-                    self.odptArrivalStationId = StationIDMapper.convertToODPTStationIDWithCache(
+                    // 非同期版を使用して正しい駅IDを取得
+                    self.odptArrivalStationId = await StationIDMapper.convertToODPTStationIDAsync(
                         stationName: arrivalStation.stationTitle?.ja ?? arrivalStation.title,
                         lineName: arrivalLineName
                     )
