@@ -82,9 +82,21 @@ class RouteSearchViewModel: ObservableObject {
     
     var formattedDepartureTime: String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
+        formatter.locale = Locale(identifier: "ja_JP")
         formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
-        return formatter.string(from: departureTime)
+        
+        let calendar = Calendar.current
+        if calendar.isDateInToday(departureTime) {
+            formatter.dateFormat = "HH:mm"
+            return formatter.string(from: departureTime)
+        } else if calendar.isDateInTomorrow(departureTime) {
+            formatter.dateFormat = "'明日' HH:mm"
+            return formatter.string(from: departureTime)
+        } else {
+            // 2日以上先の場合は日付も表示
+            formatter.dateFormat = "M/d HH:mm"
+            return formatter.string(from: departureTime)
+        }
     }
     
     // MARK: - Public Methods
@@ -728,20 +740,10 @@ class RouteSearchViewModel: ObservableObject {
         return parsedDate
     }
     
-    /// 現在の曜日に応じたカレンダータイプを取得
+    /// 選択された出発日時に応じたカレンダータイプを取得
     private func getCalendarType() -> String {
-        let calendar = Calendar(identifier: .gregorian)
-        let weekday = calendar.component(.weekday, from: Date())
-        
-        // 日本の祝日判定は複雑なため、簡易的に土日のみ判定
-        switch weekday {
-        case 1: // 日曜日
-            return "odpt.Calendar:SundayHoliday"
-        case 7: // 土曜日
-            return "odpt.Calendar:SaturdayHoliday"  // Saturdayではなく、SaturdayHolidayを使用
-        default: // 平日
-            return "odpt.Calendar:Weekday"
-        }
+        // CalendarHelperを使用して、出発日時に応じたカレンダーIDを取得
+        CalendarHelper.shared.getODPTCalendarId(for: departureTime)
     }
     
     private func handleError(_ error: Error) {
