@@ -52,12 +52,29 @@ class StationCountCalculator {
         // 時刻表オブジェクトから停車駅を抽出
         for obj in timetable.trainTimetableObject {
             let stationId = obj.departureStation ?? obj.arrivalStation ?? ""
-            let stationName = obj.departureStationTitle?.ja ?? 
-                            obj.arrivalStationTitle?.ja ?? 
-                            stationId.components(separatedBy: ".").last ?? ""
+            
+            // まず時刻表に含まれる駅名を使用
+            var stationName = obj.departureStationTitle?.ja ?? obj.arrivalStationTitle?.ja ?? ""
+            
+            // 駅名が取得できなかった場合は、駅IDから個別に取得を試みる
+            if stationName.isEmpty && !stationId.isEmpty {
+                if let station = try? await apiClient.getStation(stationId: stationId) {
+                    stationName = station.stationTitle?.ja ?? station.title
+                } else {
+                    // それでも取得できない場合は、IDの最後の部分を使用（英語名）
+                    stationName = stationId.components(separatedBy: ".").last ?? ""
+                }
+            }
             
             // 出発駅から到着駅までの区間を抽出
-            if stationName.contains(departureStation) || stationId.contains(departureStation) {
+            // 駅名の正規化（「駅」を除去して比較）
+            let normalizedStationName = stationName.replacingOccurrences(of: "駅", with: "")
+            let normalizedDepartureStation = departureStation.replacingOccurrences(of: "駅", with: "")
+            let normalizedArrivalStation = arrivalStation.replacingOccurrences(of: "駅", with: "")
+            
+            if normalizedStationName == normalizedDepartureStation || 
+               stationName == departureStation ||
+               stationId.lowercased().contains(normalizedDepartureStation.lowercased()) {
                 foundDeparture = true
             }
             
@@ -75,7 +92,9 @@ class StationCountCalculator {
                 ))
             }
             
-            if stationName.contains(arrivalStation) || stationId.contains(arrivalStation) {
+            if normalizedStationName == normalizedArrivalStation ||
+               stationName == arrivalStation ||
+               stationId.lowercased().contains(normalizedArrivalStation.lowercased()) {
                 foundArrival = true
                 break
             }

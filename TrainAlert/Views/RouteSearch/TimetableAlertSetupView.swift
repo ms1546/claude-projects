@@ -798,6 +798,9 @@ struct TimetableAlertSetupView: View {
         return formatter.string(from: date)
     }
     
+    @State private var actualStations: [(name: String, time: Date?)] = []
+    @State private var isLoadingStations = false
+    
     private var notificationStationCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
@@ -810,12 +813,22 @@ struct TimetableAlertSetupView: View {
             }
             
             // 通知駅の情報を表示
-            if let stations = getStationsFromRoute() {
+            if isLoadingStations {
+                HStack {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .trainSoftBlue))
+                    Text("駅情報を取得中...")
+                        .font(.caption)
+                        .foregroundColor(Color.textSecondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+            } else if !actualStations.isEmpty {
                 // 通知駅のインデックスを計算（到着駅から数えて何駅前か）
-                let notificationIndex = stations.count - notificationStations - 1
+                let notificationIndex = actualStations.count - notificationStations - 1
                 
-                if notificationIndex >= 0 && notificationIndex < stations.count {
-                    let notificationStation = stations[notificationIndex]
+                if notificationIndex >= 0 && notificationIndex < actualStations.count {
+                    let notificationStation = actualStations[notificationIndex]
                 
                     HStack {
                         Image(systemName: "bell.badge")
@@ -855,41 +868,116 @@ struct TimetableAlertSetupView: View {
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
         .padding(.horizontal)
-    }
-    
-    private func getStationsFromRoute() -> [(name: String, time: Date?)]? {
-        var stations: [(name: String, time: Date?)] = []
-        
-        // 出発駅を追加
-        stations.append((name: route.departureStation, time: route.departureTime))
-        
-        // セクションから中間駅を抽出
-        if !route.sections.isEmpty {
-            // 各セクションの出発駅と到着駅を順番に追加
-            for (index, section) in route.sections.enumerated() {
-                // 最初のセクション以外の出発駅を追加（乗換駅）
-                if index > 0 {
-                    let sectionDepartureStation = section.departureStation
-                    if !stations.contains(where: { $0.name == sectionDepartureStation }) {
-                        stations.append((name: sectionDepartureStation, time: section.departureTime))
-                    }
-                }
-                
-                // セクションの到着駅を追加
-                let sectionArrivalStation = section.arrivalStation
-                if !stations.contains(where: { $0.name == sectionArrivalStation }) {
-                    stations.append((name: sectionArrivalStation, time: section.arrivalTime))
-                }
-            }
-        } else {
-            // セクションがない場合は、到着駅を追加
-            if route.arrivalStation != route.departureStation {
-                stations.append((name: route.arrivalStation, time: route.arrivalTime))
+        .onChange(of: notificationType) { newType in
+            if newType == "station" {
+                loadActualStations()
             }
         }
-        
-        return stations.isEmpty ? nil : stations
+        .onAppear {
+            if notificationType == "station" {
+                loadActualStations()
+            }
+        }
     }
+    
+    private func loadActualStations() {
+        guard let trainNumber = route.trainNumber,
+              !trainNumber.isEmpty else {
+            // trainNumberがない場合は簡易的な駅リストを使用
+            actualStations = [
+                (name: route.departureStation, time: route.departureTime),
+                (name: route.arrivalStation, time: route.arrivalTime)
+            ]
+            return
+        }
+        
+        // railwayを取得（trainNumberから推測）
+        let railway: String
+        if trainNumber.hasPrefix("A") {
+            railway = "odpt.Railway:TokyoMetro.Marunouchi"
+        } else if trainNumber.hasPrefix("B") {
+            railway = "odpt.Railway:TokyoMetro.Hibiya"
+        } else if trainNumber.hasPrefix("C") {
+            railway = "odpt.Railway:TokyoMetro.Ginza"
+        } else if trainNumber.hasPrefix("F") {
+            railway = "odpt.Railway:TokyoMetro.Fukutoshin"
+        } else if trainNumber.hasPrefix("G") {
+            railway = "odpt.Railway:TokyoMetro.Marunouchi"  // 銀座線
+        } else if trainNumber.hasPrefix("H") {
+            railway = "odpt.Railway:TokyoMetro.Hibiya"
+        } else if trainNumber.hasPrefix("M") {
+            railway = "odpt.Railway:TokyoMetro.Marunouchi"
+        } else if trainNumber.hasPrefix("N") {
+            railway = "odpt.Railway:TokyoMetro.Namboku"
+        } else if trainNumber.hasPrefix("T") {
+            railway = "odpt.Railway:TokyoMetro.Tozai"
+        } else if trainNumber.hasPrefix("Y") {
+            railway = "odpt.Railway:TokyoMetro.Yurakucho"
+        } else if trainNumber.hasPrefix("Z") {
+            railway = "odpt.Railway:TokyoMetro.Hanzomon"
+        } else {
+            // 他の路線の場合は簡易リストを使用
+            actualStations = [
+                (name: route.departureStation, time: route.departureTime),
+                (name: route.arrivalStation, time: route.arrivalTime)
+            ]
+            return
+        }
+        
+        isLoadingStations = true
+        
+        Task {
+            let calculator = StationCountCalculator()
+            do {
+                let stopStations = try await calculator.getStopStations(
+                    trainNumber: trainNumber,
+                    railwayId: railway,
+                    departureStation: route.departureStation,
+                    arrivalStation: route.arrivalStation
+                )
+                
+                await MainActor.run {
+                    // 通過駅を除外して実際の停車駅のみを取得
+                    let actualStopStations = stopStations.filter { !$0.isPassingStation }
+                    actualStations = actualStopStations.map { station in
+                        (name: station.stationName, time: parseTimeString(station.departureTime ?? station.arrivalTime))
+                    }
+                    isLoadingStations = false
+                }
+            } catch {
+                await MainActor.run {
+                    // エラー時は簡易的な駅リストを使用
+                    actualStations = [
+                        (name: route.departureStation, time: route.departureTime),
+                        (name: route.arrivalStation, time: route.arrivalTime)
+                    ]
+                    isLoadingStations = false
+                }
+            }
+        }
+    }
+    
+    private func parseTimeString(_ timeString: String?) -> Date? {
+        guard let timeString = timeString else { return nil }
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        
+        if let time = formatter.date(from: timeString) {
+            let calendar = Calendar.current
+            let now = Date()
+            var components = calendar.dateComponents([.year, .month, .day], from: now)
+            let timeComponents = calendar.dateComponents([.hour, .minute], from: time)
+            components.hour = timeComponents.hour
+            components.minute = timeComponents.minute
+            
+            return calendar.date(from: components)
+        }
+        
+        return nil
+    }
+    
     
     private func formatNotificationTime() -> String {
         let notificationTime = route.arrivalTime.addingTimeInterval(TimeInterval(-notificationMinutes * 60))

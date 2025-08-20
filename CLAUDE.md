@@ -236,15 +236,19 @@ xcodebuild -exportArchive -archivePath ./build/TrainAlert.xcarchive -exportPath 
    - Mock data generators should be clearly marked as development-only features
    - Prefer proper error handling over mock data substitution
 8. **Data Management Policy**:
-   - AVOID hardcoding any data that might change (station names, travel times, routes, etc.) in the app
+   - **CRITICAL**: NEVER hardcode any data that might change (station names, travel times, routes, etc.) in the app
+   - **CRITICAL**: DO NOT create dictionaries, mappings, or lookup tables for station names or any transit data
    - Always fetch dynamic data from APIs rather than storing it locally
    - DO NOT create local databases or mappings for:
+     - Station names (日本語/英語の変換含む)
      - Station-to-station travel times
      - Route information
      - Timetable data
      - Station relationships
+     - Railway line information
    - Reason: When data changes (e.g., new stations, changed schedules), hardcoded data requires app updates and becomes a maintenance burden
-   - Exception: Only minimal mapping data (like station name romanization) that rarely changes may be included
+   - **NO EXCEPTIONS**: Even for "common" station names or "well-known" routes - always use API data
+   - If API doesn't provide needed data (e.g., Japanese station names), display what's available or show appropriate error
    - Prefer real-time API calls even if it means showing "estimated" or "unavailable" for some data
 
 ## Common Issues & Solutions

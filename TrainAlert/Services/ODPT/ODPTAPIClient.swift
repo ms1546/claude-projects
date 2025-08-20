@@ -21,6 +21,9 @@ final class ODPTAPIClient {
         diskPath: "odpt_cache"
     )
     
+    // 駅情報のメモリキャッシュ
+    private var stationCache: [String: ODPTStation] = [:]
+    
     private init() {
         let config = URLSessionConfiguration.default
         config.urlCache = cache
@@ -307,6 +310,39 @@ final class ODPTAPIClient {
         
         let railways: [ODPTRailway] = try await request(url: url)
         return railways.first
+    }
+    
+    /// 駅IDから駅情報を取得
+    func getStation(stationId: String) async throws -> ODPTStation? {
+        // キャッシュをチェック
+        if let cachedStation = stationCache[stationId] {
+            return cachedStation
+        }
+        
+        guard configuration.hasAPIKey else {
+            // APIキーがない場合はnil返す（ハードコーディングは禁止）
+            return nil
+        }
+        
+        // API呼び出し
+        var components = URLComponents(string: "\(configuration.baseURL)/odpt:Station")!
+        components.queryItems = [
+            URLQueryItem(name: "acl:consumerKey", value: configuration.apiKey),
+            URLQueryItem(name: "owl:sameAs", value: stationId)
+        ]
+        
+        guard let url = components.url else {
+            throw ODPTAPIError.invalidResponse
+        }
+        
+        let stations: [ODPTStation] = try await request(url: url)
+        if let station = stations.first {
+            // キャッシュに保存
+            stationCache[stationId] = station
+            return station
+        }
+        
+        return nil
     }
     
     /// 同じ路線の全駅を順序付きで取得
