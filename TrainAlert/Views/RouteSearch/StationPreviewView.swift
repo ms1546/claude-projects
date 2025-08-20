@@ -207,12 +207,10 @@ struct StationPreviewView: View {
     
     private func loadStationData() {
         Task {
-            // 現在は列車番号が取得できないため、モックデータを使用
-            // 実際の実装では route.trainNumber を使用
-            let mockStations = createMockStations()
+            let stations = createStationsFromRoute()
             
             await MainActor.run {
-                self.stopStations = mockStations
+                self.stopStations = stations
                 self.isLoading = false
                 updateNotificationStation()
             }
@@ -222,58 +220,70 @@ struct StationPreviewView: View {
     private func updateNotificationStation() {
         guard !stopStations.isEmpty else { return }
         
-        notificationStation = calculator.calculateNotificationWithMockData(
-            route: route,
+        print("=== Debug Info ===")
+        print("Total stations: \(stopStations.count)")
+        print("Stations before arrival setting: \(notificationStations)")
+        for (index, station) in stopStations.enumerated() {
+            print("[\(index)] \(station.stationName)")
+        }
+        
+        // 実際の停車駅から通知駅を計算
+        notificationStation = calculator.getNotificationStation(
+            stopStations: stopStations,
             stationsBeforeArrival: notificationStations
         )
+        
+        if let notification = notificationStation {
+            print("Notification station: \(notification.station.stationName)")
+        }
+        print("=================")
     }
     
-    // MARK: - Mock Data
+    // MARK: - Route Data Processing
     
-    private func createMockStations() -> [StationCountCalculator.StopStation] {
-        // 実際のAPIが利用可能になるまでのモックデータ
-        let stationNames = generateMockStationNames()
+    private func createStationsFromRoute() -> [StationCountCalculator.StopStation] {
         var stations: [StationCountCalculator.StopStation] = []
+        var addedStations = Set<String>() // 重複チェック用
         
-        let startTime = route.departureTime
-        let totalDuration = route.arrivalTime.timeIntervalSince(route.departureTime)
-        let stationCount = stationNames.count
-        let intervalPerStation = totalDuration / Double(stationCount - 1)
-        
-        for (index, name) in stationNames.enumerated() {
-            let stationTime = startTime.addingTimeInterval(intervalPerStation * Double(index))
-            let timeString = formatTime(stationTime)
-            
-            // ランダムに通過駅を設定（最初と最後以外）
-            let isPassingStation = index != 0 && index != stationNames.count - 1 && index % 4 == 2
-            
+        // 最初の駅（出発駅）を追加
+        if !route.departureStation.isEmpty {
             stations.append(StationCountCalculator.StopStation(
-                stationId: "mock.station.\(index)",
-                stationName: name,
-                arrivalTime: index == 0 ? nil : timeString,
-                departureTime: index == stationNames.count - 1 ? nil : timeString,
-                isPassingStation: isPassingStation
+                stationId: "station_\(route.departureStation)",
+                stationName: route.departureStation,
+                arrivalTime: nil,
+                departureTime: formatTime(route.departureTime),
+                isPassingStation: false
+            ))
+            addedStations.insert(route.departureStation)
+        }
+        
+        // 各セクションから中間駅を抽出
+        for (index, section) in route.sections.enumerated() {
+            // セクションの到着駅を追加（最後のセクションでない場合は中間駅）
+            if !addedStations.contains(section.arrivalStation) {
+                let isLastSection = index == route.sections.count - 1
+                stations.append(StationCountCalculator.StopStation(
+                    stationId: "station_\(section.arrivalStation)",
+                    stationName: section.arrivalStation,
+                    arrivalTime: formatTime(section.arrivalTime),
+                    departureTime: isLastSection ? nil : formatTime(section.arrivalTime),
+                    isPassingStation: false
+                ))
+                addedStations.insert(section.arrivalStation)
+            }
+        }
+        
+        // 最終駅が含まれていない場合は追加
+        if !addedStations.contains(route.arrivalStation) {
+            stations.append(StationCountCalculator.StopStation(
+                stationId: "station_\(route.arrivalStation)",
+                stationName: route.arrivalStation,
+                arrivalTime: formatTime(route.arrivalTime),
+                departureTime: nil,
+                isPassingStation: false
             ))
         }
         
         return stations
-    }
-    
-    private func generateMockStationNames() -> [String] {
-        // 出発駅から到着駅までの仮想的な駅名を生成
-        var names: [String] = [route.departureStation]
-        
-        // 中間駅を追加（駅数に応じて調整）
-        let intermediateStations = ["中央", "新町", "本町", "駅前", "公園前", "市役所前", "大学前", "病院前"]
-        let stationCount = min(notificationStations + 3, 8) // 最大8駅
-        
-        for i in 0..<(stationCount - 2) {
-            if i < intermediateStations.count {
-                names.append(intermediateStations[i])
-            }
-        }
-        
-        names.append(route.arrivalStation)
-        return names
     }
 }
