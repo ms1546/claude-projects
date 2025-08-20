@@ -177,12 +177,41 @@ struct StationIDMapper {
         guard operatorAndLine.count >= 2 else { return nil }
         
         let operatorName = operatorAndLine[0]
-        let lineName = operatorAndLine[1]
+        let lineNameComponent = operatorAndLine[1]
         
         // ODPT形式の駅IDを生成
-        let stationId = "odpt.Station:\(operatorName).\(lineName).\(romanizedName)"
+        let stationId = "odpt.Station:\(operatorName).\(lineNameComponent).\(romanizedName)"
         print("StationIDMapper: Generated station ID: \(stationId) from \(stationName) on \(lineName)")
         return stationId
+    }
+    
+    /// HeartRails形式の駅情報をODPT形式に変換（非同期版）
+    /// - Parameters:
+    ///   - stationName: 駅名（日本語）
+    ///   - lineName: 路線名（日本語）
+    /// - Returns: ODPT形式の駅ID（例: odpt.Station:JR-East.Yamanote.Tokyo）
+    static func convertToODPTStationIDAsync(stationName: String, lineName: String) async -> String? {
+        // 路線IDを取得
+        guard let railwayID = railwayMapping[lineName] else {
+            print("StationIDMapper: Unknown railway - \(lineName)")
+            return nil
+        }
+        
+        // ODPT APIから正しい駅IDを取得
+        do {
+            if let stationId = try await ODPTAPIClient.shared.findStationOnRailway(
+                stationName: stationName,
+                railwayId: railwayID
+            ) {
+                print("StationIDMapper: Found station ID from API: \(stationId)")
+                return stationId
+            }
+        } catch {
+            print("StationIDMapper: Failed to find station from API: \(error)")
+        }
+        
+        // APIから取得できなかった場合は、フォールバックとして既存のメソッドを使用
+        return convertToODPTStationID(stationName: stationName, lineName: lineName)
     }
     
     /// ODPT路線IDを取得

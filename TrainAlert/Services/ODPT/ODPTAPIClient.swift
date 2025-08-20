@@ -21,6 +21,11 @@ final class ODPTAPIClient {
         diskPath: "odpt_cache"
     )
     
+    // 駅情報のメモリキャッシュ
+    private var stationCache: [String: ODPTStation] = [:]
+    // 路線と駅名の組み合わせで駅IDをキャッシュ
+    private var railwayStationCache: [String: String] = [:]
+    
     private init() {
         let config = URLSessionConfiguration.default
         config.urlCache = cache
@@ -307,6 +312,83 @@ final class ODPTAPIClient {
         
         let railways: [ODPTRailway] = try await request(url: url)
         return railways.first
+    }
+    
+    /// 駅IDから駅情報を取得
+    func getStation(stationId: String) async throws -> ODPTStation? {
+        // キャッシュをチェック
+        if let cachedStation = stationCache[stationId] {
+            return cachedStation
+        }
+        
+        guard configuration.hasAPIKey else {
+            // APIキーがない場合はnil返す（ハードコーディングは禁止）
+            return nil
+        }
+        
+        // API呼び出し
+        var components = URLComponents(string: "\(configuration.baseURL)/odpt:Station")!
+        components.queryItems = [
+            URLQueryItem(name: "acl:consumerKey", value: configuration.apiKey),
+            URLQueryItem(name: "owl:sameAs", value: stationId)
+        ]
+        
+        guard let url = components.url else {
+            throw ODPTAPIError.invalidResponse
+        }
+        
+        let stations: [ODPTStation] = try await request(url: url)
+        if let station = stations.first {
+            // キャッシュに保存
+            stationCache[stationId] = station
+            return station
+        }
+        
+        return nil
+    }
+    
+    /// 路線IDと駅名から正しい駅IDを取得
+    func findStationOnRailway(stationName: String, railwayId: String) async throws -> String? {
+        guard configuration.hasAPIKey else {
+            return nil
+        }
+        
+        // まずキャッシュをチェック
+        let cacheKey = "\(railwayId):\(stationName)"
+        if let cachedId = railwayStationCache[cacheKey] {
+            return cachedId
+        }
+        
+        // 路線上の全駅を取得
+        var components = URLComponents(string: "\(configuration.baseURL)/odpt:Station")!
+        components.queryItems = [
+            URLQueryItem(name: "acl:consumerKey", value: configuration.apiKey),
+            URLQueryItem(name: "odpt:railway", value: railwayId)
+        ]
+        
+        guard let url = components.url else {
+            throw ODPTAPIError.invalidResponse
+        }
+        
+        let stations: [ODPTStation] = try await request(url: url)
+        
+        // 駅名でマッチする駅を探す（「駅」を除去して比較）
+        let normalizedStationName = stationName.replacingOccurrences(of: "駅", with: "")
+        
+        for station in stations {
+            let apiStationName = station.stationTitle?.ja ?? station.title
+            let normalizedApiName = apiStationName.replacingOccurrences(of: "駅", with: "")
+            
+            if normalizedApiName == normalizedStationName {
+                let stationId = station.sameAs
+                // キャッシュに保存
+                railwayStationCache[cacheKey] = stationId
+                return stationId
+            }
+        }
+        
+        print("ODPT API: Station '\(stationName)' not found on railway '\(railwayId)'")
+        return nil
     }
     
     /// 同じ路線の全駅を順序付きで取得
