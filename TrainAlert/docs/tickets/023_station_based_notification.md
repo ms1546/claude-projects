@@ -12,10 +12,11 @@
 
 ## 実装の詳細
 - StationCountCalculatorクラスを新規作成し、停車駅リストの取得と通知駅の計算ロジックを実装
-- StationPreviewViewコンポーネントを作成し、路線図風の停車駅リストと通知駅のハイライト表示を実装
-- TimetableAlertSetupViewに駅数ベース通知選択時のプレビュー表示を統合
+- TimetableAlertSetupViewに駅数ベース通知選択時の通知駅表示を統合
 - Core Dataには既存のnotificationStationsBeforeプロパティを使用
-- 実際のODPT APIとの連携は将来的に実装予定（現在はモックデータで動作）
+- ODPT APIから実際の停車駅データを取得して使用
+- モックデータ/ハードコーディングを削除し、APIからの動的データ取得に変更
+- 出発駅での通知を無効化し、適切なエラーメッセージを表示
 
 ## タスク
 ### API実装
