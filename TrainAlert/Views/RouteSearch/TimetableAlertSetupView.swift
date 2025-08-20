@@ -946,6 +946,9 @@ struct TimetableAlertSetupView: View {
     private func loadActualStations() {
         // まずrouteのsectionsから駅リストを構築
         if !route.sections.isEmpty {
+            print("[DEBUG] loadActualStations: Building from sections")
+            print("[DEBUG] route.sections count: \(route.sections.count)")
+            print("[DEBUG] route.sections: \(route.sections.map { "\($0.departureStation) -> \($0.arrivalStation)" })")
             var stations: [(name: String, time: Date?)] = []
             var addedStations = Set<String>()
             
@@ -968,12 +971,16 @@ struct TimetableAlertSetupView: View {
                 }
             }
             
+            print("[DEBUG] stations from sections: \(stations.map { $0.name })")
             actualStations = stations
             
             // trainNumberがある場合は、より詳細な情報を取得
             if let trainNumber = route.trainNumber,
                !trainNumber.isEmpty {
+                print("[DEBUG] trainNumber found: \(trainNumber), loading detailed stations")
                 loadDetailedStations(trainNumber: trainNumber)
+            } else {
+                print("[DEBUG] No trainNumber, using sections data only")
             }
             return
         }
@@ -1016,10 +1023,23 @@ struct TimetableAlertSetupView: View {
                 await MainActor.run {
                     // 通過駅を除外して実際の停車駅のみを取得
                     let actualStopStations = stopStations.filter { !$0.isPassingStation }
+                    print("[DEBUG] getStopStations returned: \(stopStations.count) stations")
+                    print("[DEBUG] actualStopStations after filter: \(actualStopStations.count) stations")
+                    print("[DEBUG] actualStopStations names: \(actualStopStations.map { $0.stationName })")
                     actualStations = actualStopStations.map { station in
                         (name: station.stationName, time: parseTimeString(station.departureTime ?? station.arrivalTime))
                     }
                     isLoadingStations = false
+                    
+                    // デバッグ: 通知駅の確認
+                    let notificationIndex = actualStations.count - notificationStations - 1
+                    print("[DEBUG] Notification calculation:")
+                    print("  actualStations.count: \(actualStations.count)")
+                    print("  notificationStations: \(notificationStations)")
+                    print("  notificationIndex: \(notificationIndex)")
+                    if notificationIndex >= 0 && notificationIndex < actualStations.count {
+                        print("  notification will be at: \(actualStations[notificationIndex].name)")
+                    }
                 }
             } catch {
                 await MainActor.run {

@@ -50,19 +50,33 @@ class StationCountCalculator {
         var foundArrival = false
         
         // 時刻表オブジェクトから停車駅を抽出
-        for obj in timetable.trainTimetableObject {
+        // DEBUG: Total stops in timetable
+        // print("[DEBUG] Total stops in timetable: \(timetable.trainTimetableObject.count)")
+        for (index, obj) in timetable.trainTimetableObject.enumerated() {
             let stationId = obj.departureStation ?? obj.arrivalStation ?? ""
             
             // まず時刻表に含まれる駅名を使用
             var stationName = obj.departureStationTitle?.ja ?? obj.arrivalStationTitle?.ja ?? ""
             
+            // デバッグログで取得した駅名情報を表示
+            // DEBUG: Station name extraction
+            // print("[DEBUG] Station \(index): stationId=\(stationId)")
+            // print("  departureStationTitle.ja: \(obj.departureStationTitle?.ja ?? "nil")")
+            // print("  arrivalStationTitle.ja: \(obj.arrivalStationTitle?.ja ?? "nil")")
+            // print("  extracted stationName: \(stationName)")
+            
             // 駅名が取得できなかった場合は、駅IDから個別に取得を試みる
             if stationName.isEmpty && !stationId.isEmpty {
                 if let station = try? await apiClient.getStation(stationId: stationId) {
                     stationName = station.stationTitle?.ja ?? station.title
+                    // DEBUG: Fetched from API
+                    // print("  fetched from API: \(stationName)")
                 } else {
                     // それでも取得できない場合は、IDの最後の部分を使用（英語名）
+                    // TODO: これは暫定対応で、実際にはAPIから日本語名を取得すべき
                     stationName = stationId.components(separatedBy: ".").last ?? ""
+                    // DEBUG: Fallback to English name
+                    // print("  fallback to English name: \(stationName)")
                 }
             }
             
@@ -76,13 +90,20 @@ class StationCountCalculator {
                stationName == departureStation ||
                stationId.lowercased().contains(normalizedDepartureStation.lowercased()) {
                 foundDeparture = true
+                // DEBUG: Found departure station
+                // print("[DEBUG] Found departure station at index \(index): \(stationName)")
             }
             
             if foundDeparture && !foundArrival {
-                // 通過駅の判定：到着時刻と出発時刻が同じ、または時刻がない場合
-                let isPassingStation = (obj.arrivalTime == nil && obj.departureTime == nil) ||
-                                     (obj.arrivalTime == obj.departureTime && obj.arrivalTime != nil)
+                // 通過駅の判定：両方の時刻がnilの場合のみ通過駅とする
+                // 注：ODPTデータでは、多くの駅で到着時刻と出発時刻が同じ値になることがある
+                // これは必ずしも通過駅を意味しない
+                let isPassingStation = (obj.arrivalTime == nil && obj.departureTime == nil)
                 
+                // DEBUG: Adding stop
+                // print("[DEBUG] Adding stop \(index): \(stationName) (\(stationId))")
+                // print("  arrivalTime: \(obj.arrivalTime ?? "nil"), departureTime: \(obj.departureTime ?? "nil")")
+                // print("  isPassingStation: \(isPassingStation)")
                 stopStations.append(StopStation(
                     stationId: stationId,
                     stationName: stationName,

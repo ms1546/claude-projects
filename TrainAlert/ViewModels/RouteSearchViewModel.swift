@@ -598,6 +598,78 @@ class RouteSearchViewModel: ObservableObject {
                                     actualArrivalTime = arrivalTime
                                     print("✅ Found actual arrival time: \(timeString) at station index \(arrivalIndex)")
                                     print("   Duration: \((arrivalTime.timeIntervalSince(trainDepartureTime) / 60)) minutes")
+                                    
+                                    // 中間駅情報を保存（後でsections作成に使用）
+                                    var stopStations: [(name: String, depTime: Date?, arrTime: Date?)] = []
+                                    for i in departureIndex...arrivalIndex {
+                                        let stop = trainTimetable.trainTimetableObject[i]
+                                        
+                                        // 駅名を取得（日本語名がなければ駅IDから抽出）
+                                        var stationName = stop.departureStationTitle?.ja ?? stop.arrivalStationTitle?.ja ?? ""
+                                        
+                                        // 日本語名が取得できない場合は、駅IDから取得を試みる
+                                        if stationName.isEmpty {
+                                            let stationId = stop.departureStation ?? stop.arrivalStation ?? ""
+                                            if !stationId.isEmpty {
+                                                // APIから駅情報を取得（非同期だが、ここでは同期的に処理）
+                                                stationName = stationId.components(separatedBy: ".").last ?? ""
+                                            }
+                                        }
+                                        
+                                        let depTimeStr = stop.departureTime ?? stop.arrivalTime ?? ""
+                                        let arrTimeStr = stop.arrivalTime ?? stop.departureTime ?? ""
+                                        
+                                        let depTime = depTimeStr.isEmpty ? nil : parseTime(depTimeStr, baseDate: trainDepartureTime)
+                                        let arrTime = arrTimeStr.isEmpty ? nil : parseTime(arrTimeStr, baseDate: trainDepartureTime)
+                                        
+                                        stopStations.append((name: stationName, depTime: depTime, arrTime: arrTime))
+                                    }
+                                    
+                                    // 中間駅情報を sections に変換
+                                    var sections: [RouteSection] = []
+                                    if stopStations.count > 1 {
+                                        for i in 0..<(stopStations.count - 1) {
+                                            let currentStop = stopStations[i]
+                                            let nextStop = stopStations[i + 1]
+                                            
+                                            if let depTime = currentStop.depTime ?? currentStop.arrTime,
+                                               let arrTime = nextStop.arrTime ?? nextStop.depTime {
+                                                sections.append(RouteSection(
+                                                    departureStation: currentStop.name,
+                                                    arrivalStation: nextStop.name,
+                                                    departureTime: depTime,
+                                                    arrivalTime: arrTime,
+                                                    trainType: train.trainTypeTitle?.ja,
+                                                    trainNumber: train.trainNumber,
+                                                    railway: timetable.railway
+                                                ))
+                                            }
+                                        }
+                                    }
+                                    
+                                    // sections が作成できた場合は result に含める
+                                    if !sections.isEmpty {
+                                        let result = RouteSearchResult(
+                                            departureStation: selectedDepartureStation?.stationTitle?.ja ?? "",
+                                            arrivalStation: selectedArrivalStation?.stationTitle?.ja ?? "",
+                                            departureTime: trainDepartureTime,
+                                            arrivalTime: arrivalTime,
+                                            trainType: train.trainTypeTitle?.ja,
+                                            trainNumber: train.trainNumber,
+                                            transferCount: 0,
+                                            sections: sections,
+                                            isActualArrivalTime: true
+                                        )
+                                        print("✅ Created route with \(sections.count) sections")
+                                        for (idx, section) in sections.enumerated() {
+                                            print("   Section \(idx): \(section.departureStation) -> \(section.arrivalStation)")
+                                        }
+                                        results.append(result)
+                                        // 最大10件まで
+                                        if results.count >= 10 {
+                                            return results
+                                        }
+                                    }
                                     break
                                 }
                             } else if foundDeparture && departureIndex >= 0 && arrivalIndex >= 0 {
@@ -618,40 +690,6 @@ class RouteSearchViewModel: ObservableObject {
                     print("⚠️ Skipping train \(train.trainNumber ?? "unknown") - no arrival time available")
                     continue
                 }
-                
-                // デバッグ：最初の列車の詳細をログ出力
-                if results.isEmpty {
-                    print("First train details:")
-                    print("  Departure time: \(train.departureTime)")
-                    print("  Train type: \(train.trainTypeTitle?.ja ?? "nil")")
-                    print("  Train number: \(train.trainNumber ?? "nil")")
-                    print("  Destination: \(train.destinationStationTitle?.ja ?? "nil")")
-                    print("  Actual arrival time: \(actualArrivalTime != nil ? "取得成功" : "推定値使用")")
-                }
-                
-                let result = RouteSearchResult(
-                    departureStation: selectedDepartureStation?.stationTitle?.ja ?? "",
-                    arrivalStation: selectedArrivalStation?.stationTitle?.ja ?? "",
-                    departureTime: trainDepartureTime,
-                    arrivalTime: arrivalTime,
-                    trainType: train.trainTypeTitle?.ja,
-                    trainNumber: train.trainNumber,
-                    transferCount: 0,
-                    sections: [
-                        RouteSection(
-                            departureStation: selectedDepartureStation?.stationTitle?.ja ?? "",
-                            arrivalStation: selectedArrivalStation?.stationTitle?.ja ?? "",
-                            departureTime: trainDepartureTime,
-                            arrivalTime: arrivalTime,
-                            trainType: train.trainTypeTitle?.ja,
-                            trainNumber: train.trainNumber,
-                            railway: timetable.railway
-                        )
-                    ],
-                    isActualArrivalTime: actualArrivalTime != nil
-                )
-                
-                results.append(result)
                 
                 // 最大10件まで
                 if results.count >= 10 {
