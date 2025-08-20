@@ -38,6 +38,10 @@ struct StationPreviewView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 20)
+            } else if stopStations.isEmpty {
+                Text("DEBUG: 停車駅データがありません")
+                    .foregroundColor(.red)
+                    .padding()
             } else if let error = errorMessage {
                 HStack {
                     Image(systemName: "exclamationmark.triangle")
@@ -245,6 +249,25 @@ struct StationPreviewView: View {
         var stations: [StationCountCalculator.StopStation] = []
         var addedStations = Set<String>() // 重複チェック用
         
+        // セクションが空の場合は、出発駅と到着駅のみを追加
+        if route.sections.isEmpty {
+            stations.append(StationCountCalculator.StopStation(
+                stationId: "station_\(route.departureStation)",
+                stationName: route.departureStation,
+                arrivalTime: nil,
+                departureTime: formatTime(route.departureTime),
+                isPassingStation: false
+            ))
+            stations.append(StationCountCalculator.StopStation(
+                stationId: "station_\(route.arrivalStation)",
+                stationName: route.arrivalStation,
+                arrivalTime: formatTime(route.arrivalTime),
+                departureTime: nil,
+                isPassingStation: false
+            ))
+            return stations
+        }
+        
         // 最初の駅（出発駅）を追加
         if !route.departureStation.isEmpty {
             stations.append(StationCountCalculator.StopStation(
@@ -259,7 +282,19 @@ struct StationPreviewView: View {
         
         // 各セクションから中間駅を抽出
         for (index, section) in route.sections.enumerated() {
-            // セクションの到着駅を追加（最後のセクションでない場合は中間駅）
+            // セクションの出発駅を追加（最初のセクションは既に追加済みなのでスキップ）
+            if index > 0 && !addedStations.contains(section.departureStation) {
+                stations.append(StationCountCalculator.StopStation(
+                    stationId: "station_\(section.departureStation)",
+                    stationName: section.departureStation,
+                    arrivalTime: formatTime(section.departureTime),
+                    departureTime: formatTime(section.departureTime),
+                    isPassingStation: false
+                ))
+                addedStations.insert(section.departureStation)
+            }
+            
+            // セクションの到着駅を追加
             if !addedStations.contains(section.arrivalStation) {
                 let isLastSection = index == route.sections.count - 1
                 stations.append(StationCountCalculator.StopStation(

@@ -69,10 +69,15 @@ struct TimetableAlertSetupView: View {
                     
                     // 駅数ベースの場合は停車駅プレビューを表示
                     if notificationType == "station" {
+                        Text("DEBUG: 停車駅プレビューを表示")
+                            .foregroundColor(.red)
+                            .padding()
+                        
                         StationPreviewView(
                             route: route,
                             notificationStations: notificationStations
                         )
+                        .padding(.vertical, 8)
                     }
                     
                     // キャラクター設定
