@@ -851,7 +851,22 @@ struct TimetableAlertSetupView: View {
                     .background(Color.trainSoftBlue.opacity(0.1))
                     .cornerRadius(10)
                 } else {
-                    Text("指定された駅数が経路上の駅数を超えています")
+                    // エラー時の詳細表示
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("通知駅を計算できません")
+                            .font(.subheadline)
+                            .foregroundColor(.orange)
+                        
+                        if actualStations.count <= 2 {
+                            Text("経路の詳細情報が不足しています")
+                                .font(.caption)
+                                .foregroundColor(Color.textSecondary)
+                        } else {
+                            Text("到着駅まで\(actualStations.count - 1)駅です")
+                                .font(.caption)
+                                .foregroundColor(Color.textSecondary)
+                        }
+                    }
                         .font(.caption)
                         .foregroundColor(Color.textSecondary)
                         .padding()
@@ -881,9 +896,43 @@ struct TimetableAlertSetupView: View {
     }
     
     private func loadActualStations() {
+        // まずrouteのsectionsから駅リストを構築
+        if !route.sections.isEmpty {
+            var stations: [(name: String, time: Date?)] = []
+            var addedStations = Set<String>()
+            
+            // 最初の駅（出発駅）を追加
+            stations.append((name: route.departureStation, time: route.departureTime))
+            addedStations.insert(route.departureStation)
+            
+            // 各セクションから中間駅を抽出
+            for (index, section) in route.sections.enumerated() {
+                // セクションの出発駅（最初のセクション以外）
+                if index > 0 && !addedStations.contains(section.departureStation) {
+                    stations.append((name: section.departureStation, time: section.departureTime))
+                    addedStations.insert(section.departureStation)
+                }
+                
+                // セクションの到着駅（最後のセクション以外は中間駅）
+                if !addedStations.contains(section.arrivalStation) {
+                    stations.append((name: section.arrivalStation, time: section.arrivalTime))
+                    addedStations.insert(section.arrivalStation)
+                }
+            }
+            
+            actualStations = stations
+            
+            // trainNumberがある場合は、より詳細な情報を取得
+            if let trainNumber = route.trainNumber,
+               !trainNumber.isEmpty {
+                loadDetailedStations(trainNumber: trainNumber)
+            }
+            return
+        }
+        
+        // sectionsもtrainNumberもない場合は簡易的な駅リストを使用
         guard let trainNumber = route.trainNumber,
               !trainNumber.isEmpty else {
-            // trainNumberがない場合は簡易的な駅リストを使用
             actualStations = [
                 (name: route.departureStation, time: route.departureTime),
                 (name: route.arrivalStation, time: route.arrivalTime)
@@ -891,6 +940,10 @@ struct TimetableAlertSetupView: View {
             return
         }
         
+        loadDetailedStations(trainNumber: trainNumber)
+    }
+    
+    private func loadDetailedStations(trainNumber: String) {
         // railwayを取得（trainNumberから推測）
         let railway: String
         if trainNumber.hasPrefix("A") {
@@ -902,7 +955,7 @@ struct TimetableAlertSetupView: View {
         } else if trainNumber.hasPrefix("F") {
             railway = "odpt.Railway:TokyoMetro.Fukutoshin"
         } else if trainNumber.hasPrefix("G") {
-            railway = "odpt.Railway:TokyoMetro.Marunouchi"  // 銀座線
+            railway = "odpt.Railway:TokyoMetro.Ginza"
         } else if trainNumber.hasPrefix("H") {
             railway = "odpt.Railway:TokyoMetro.Hibiya"
         } else if trainNumber.hasPrefix("M") {
@@ -916,11 +969,7 @@ struct TimetableAlertSetupView: View {
         } else if trainNumber.hasPrefix("Z") {
             railway = "odpt.Railway:TokyoMetro.Hanzomon"
         } else {
-            // 他の路線の場合は簡易リストを使用
-            actualStations = [
-                (name: route.departureStation, time: route.departureTime),
-                (name: route.arrivalStation, time: route.arrivalTime)
-            ]
+            // 他の路線の場合は既存のactualStationsを使用
             return
         }
         
