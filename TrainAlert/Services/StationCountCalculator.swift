@@ -121,34 +121,6 @@ class StationCountCalculator {
         )
     }
     
-    /// 現在の列車の停車駅を使用して通知設定を計算（モックデータ版）
-    func calculateNotificationWithMockData(
-        route: RouteSearchResult,
-        stationsBeforeArrival: Int
-    ) -> NotificationStation? {
-        // 実際のAPIが利用できない間は、シンプルな計算を行う
-        // 仮に5分ごとに1駅進むと仮定
-        let minutesPerStation = 5
-        let notificationMinutes = stationsBeforeArrival * minutesPerStation
-        
-        let notificationTime = route.arrivalTime.addingTimeInterval(TimeInterval(-notificationMinutes * 60))
-        
-        // モック駅情報を作成
-        let mockStation = StopStation(
-            stationId: "mock.station",
-            stationName: "\(stationsBeforeArrival)駅前",
-            arrivalTime: nil,
-            departureTime: nil,
-            isPassingStation: false
-        )
-        
-        return NotificationStation(
-            station: mockStation,
-            stationsBeforeArrival: stationsBeforeArrival,
-            estimatedTime: notificationTime
-        )
-    }
-    
     // MARK: - Private Methods
     
     private func parseTime(_ timeString: String?) -> Date? {

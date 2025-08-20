@@ -38,10 +38,6 @@ struct StationPreviewView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 20)
-            } else if stopStations.isEmpty {
-                Text("DEBUG: 停車駅データがありません")
-                    .foregroundColor(.red)
-                    .padding()
             } else if let error = errorMessage {
                 HStack {
                     Image(systemName: "exclamationmark.triangle")
@@ -224,23 +220,11 @@ struct StationPreviewView: View {
     private func updateNotificationStation() {
         guard !stopStations.isEmpty else { return }
         
-        print("=== Debug Info ===")
-        print("Total stations: \(stopStations.count)")
-        print("Stations before arrival setting: \(notificationStations)")
-        for (index, station) in stopStations.enumerated() {
-            print("[\(index)] \(station.stationName)")
-        }
-        
         // 実際の停車駅から通知駅を計算
         notificationStation = calculator.getNotificationStation(
             stopStations: stopStations,
             stationsBeforeArrival: notificationStations
         )
-        
-        if let notification = notificationStation {
-            print("Notification station: \(notification.station.stationName)")
-        }
-        print("=================")
     }
     
     // MARK: - Route Data Processing

@@ -69,15 +69,7 @@ struct TimetableAlertSetupView: View {
                     
                     // 駅数ベースの場合は停車駅プレビューを表示
                     if notificationType == "station" {
-                        Text("DEBUG: 停車駅プレビューを表示")
-                            .foregroundColor(.red)
-                            .padding()
-                        
-                        StationPreviewView(
-                            route: route,
-                            notificationStations: notificationStations
-                        )
-                        .padding(.vertical, 8)
+                        notificationStationCard
                     }
                     
                     // キャラクター設定
@@ -804,6 +796,80 @@ struct TimetableAlertSetupView: View {
         formatter.dateFormat = "HH:mm"
         formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
         return formatter.string(from: date)
+    }
+    
+    private var notificationStationCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "tram.fill")
+                    .foregroundColor(Color.trainSoftBlue)
+                    .font(.system(size: 18))
+                Text("通知される駅")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(Color.textPrimary)
+            }
+            
+            // 通知駅の情報を表示
+            if let stations = getStationsFromRoute(), 
+               stations.count > notificationStations {
+                let notificationIndex = max(0, stations.count - notificationStations - 1)
+                let notificationStation = stations[notificationIndex]
+                
+                HStack {
+                    Image(systemName: "bell.badge")
+                        .foregroundColor(Color.trainSoftBlue)
+                    Text("\(notificationStation.name)駅で通知")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(Color.textPrimary)
+                    
+                    Spacer()
+                    
+                    if let time = notificationStation.time {
+                        Text(formatTime(time))
+                            .font(.subheadline)
+                            .foregroundColor(Color.textSecondary)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color.trainSoftBlue.opacity(0.1))
+                .cornerRadius(10)
+            } else {
+                Text("経路情報から駅を取得できません")
+                    .font(.caption)
+                    .foregroundColor(Color.textSecondary)
+                    .padding()
+            }
+        }
+        .padding(20)
+        .background(Color.backgroundCard)
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
+        .padding(.horizontal)
+    }
+    
+    private func getStationsFromRoute() -> [(name: String, time: Date?)]? {
+        var stations: [(name: String, time: Date?)] = []
+        
+        // 出発駅を追加
+        stations.append((name: route.departureStation, time: route.departureTime))
+        
+        // セクションから中間駅を抽出
+        if !route.sections.isEmpty {
+            for section in route.sections {
+                // 各セクションの到着駅を追加（重複を避ける）
+                if section.arrivalStation != route.arrivalStation && 
+                   !stations.contains(where: { $0.name == section.arrivalStation }) {
+                    stations.append((name: section.arrivalStation, time: section.arrivalTime))
+                }
+            }
+        }
+        
+        // 到着駅を追加
+        stations.append((name: route.arrivalStation, time: route.arrivalTime))
+        
+        return stations.isEmpty ? nil : stations
     }
     
     private func formatNotificationTime() -> String {
