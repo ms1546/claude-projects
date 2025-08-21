@@ -82,9 +82,21 @@ class RouteSearchViewModel: ObservableObject {
     
     var formattedDepartureTime: String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
+        formatter.locale = Locale(identifier: "ja_JP")
         formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
-        return formatter.string(from: departureTime)
+        
+        let calendar = Calendar.current
+        if calendar.isDateInToday(departureTime) {
+            formatter.dateFormat = "HH:mm"
+            return formatter.string(from: departureTime)
+        } else if calendar.isDateInTomorrow(departureTime) {
+            formatter.dateFormat = "'明日' HH:mm"
+            return formatter.string(from: departureTime)
+        } else {
+            // 2日以上先の場合は日付も表示
+            formatter.dateFormat = "M/d HH:mm"
+            return formatter.string(from: departureTime)
+        }
     }
     
     // MARK: - Public Methods
@@ -374,16 +386,31 @@ class RouteSearchViewModel: ObservableObject {
                     let calendarType = getCalendarType()
                     print("Using calendar type: \(calendarType)")
                     
-                    var timetables = try await apiClient.getStationTimetable(
+                    // 出発駅の時刻表を取得
+                    var departureTimetables = try await apiClient.getStationTimetable(
                         stationId: stationId,
                         railwayId: railwayId,
                         calendar: calendarType
                     )
                     
-                    print("ODPT API: Received \(timetables.count) timetables")
+                    print("ODPT API: Received \(departureTimetables.count) departure timetables")
+                    
+                    // 到着駅の時刻表も取得（同じ路線の場合のみ）
+                    guard let arrivalStationId = odptArrivalStationId else {
+                        print("Error: Arrival station ID is nil")
+                        return
+                    }
+                    
+                    var arrivalTimetables = try await apiClient.getStationTimetable(
+                        stationId: arrivalStationId,
+                        railwayId: railwayId,
+                        calendar: calendarType
+                    )
+                    
+                    print("ODPT API: Received \(arrivalTimetables.count) arrival timetables")
                     
                     // もし時刻表が取得できなかった場合、他のカレンダータイプも試す
-                    if timetables.isEmpty {
+                    if departureTimetables.isEmpty || arrivalTimetables.isEmpty {
                         // 全てのカレンダータイプを試す（最も可能性の高い順）
                         let allCalendarTypes: [String]
                         if calendarType == "odpt.Calendar:SundayHoliday" {
@@ -396,20 +423,36 @@ class RouteSearchViewModel: ObservableObject {
                         }
                         
                         for tryCalendarType in allCalendarTypes {
-                            let tryTimetables = try await apiClient.getStationTimetable(
-                                stationId: stationId,
-                                railwayId: railwayId,
-                                calendar: tryCalendarType
-                            )
-                            if !tryTimetables.isEmpty {
-                                timetables = tryTimetables
+                            if departureTimetables.isEmpty {
+                                let tryDepartureTimetables = try await apiClient.getStationTimetable(
+                                    stationId: stationId,
+                                    railwayId: railwayId,
+                                    calendar: tryCalendarType
+                                )
+                                if !tryDepartureTimetables.isEmpty {
+                                    departureTimetables = tryDepartureTimetables
+                                }
+                            }
+                            
+                            if arrivalTimetables.isEmpty {
+                                let tryArrivalTimetables = try await apiClient.getStationTimetable(
+                                    stationId: arrivalStationId,
+                                    railwayId: railwayId,
+                                    calendar: tryCalendarType
+                                )
+                                if !tryArrivalTimetables.isEmpty {
+                                    arrivalTimetables = tryArrivalTimetables
+                                }
+                            }
+                            
+                            if !departureTimetables.isEmpty && !arrivalTimetables.isEmpty {
                                 break
                             }
                         }
                     }
                     
                     // 空の結果の場合はエラーとして扱う
-                    if timetables.isEmpty {
+                    if departureTimetables.isEmpty || arrivalTimetables.isEmpty {
                         print("⚠️ ERROR: ODPT API returned empty timetables")
                         print("  Station ID: \(stationId)")
                         print("  Railway ID: \(railwayId)")
@@ -435,13 +478,45 @@ class RouteSearchViewModel: ObservableObject {
                             self.searchResults = []
                         }
                         return
-                    } else {
-                        // 正常な結果のみキャッシュに保存
-                        cacheManager.cacheTimetable(timetables, forStation: stationId, railway: railwayId)
                     }
                     
+                    // 正しい方向の電車を抽出（両方の駅に停車する電車のみ）
+                    var validTrainNumbers = Set<String>()
+                    
+                    // 出発駅の時刻表から電車番号を収集
+                    for depTimetable in departureTimetables {
+                        for train in depTimetable.stationTimetableObject {
+                            if let trainNumber = train.trainNumber {
+                                validTrainNumbers.insert(trainNumber)
+                            }
+                        }
+                    }
+                    
+                    // 到着駅の時刻表と照合して、共通の電車番号のみを残す
+                    var arrivalTrainNumbers = Set<String>()
+                    for arrTimetable in arrivalTimetables {
+                        for train in arrTimetable.stationTimetableObject {
+                            if let trainNumber = train.trainNumber {
+                                arrivalTrainNumbers.insert(trainNumber)
+                            }
+                        }
+                    }
+                    
+                    // 両方の駅に停車する電車のみを有効とする
+                    validTrainNumbers = validTrainNumbers.intersection(arrivalTrainNumbers)
+                    print("Found \(validTrainNumbers.count) trains that stop at both stations")
+                    
+                    // 出発駅の時刻表を使用（フィルタリングは後で行う）
+                    // validTrainNumbersは createRouteResults に渡して、そこでフィルタリング
+                    let filteredTimetables = departureTimetables
+                    
+                    print("Will process \(validTrainNumbers.count) valid trains from \(filteredTimetables.map { $0.stationTimetableObject.count }.reduce(0, +)) total trains")
+                    
+                    // 正常な結果のみキャッシュに保存
+                    cacheManager.cacheTimetable(filteredTimetables, forStation: stationId, railway: railwayId)
+                    
                     // 時刻表から経路を生成（TrainTimetableも取得）
-                    let results = await createRouteResults(from: timetables)
+                    let results = await createRouteResults(from: filteredTimetables, validTrainNumbers: validTrainNumbers)
                     print("Setting search results from API: \(results.count) routes")
                     print("Source: REAL API DATA (ODPT)")
                     await MainActor.run {
@@ -515,7 +590,7 @@ class RouteSearchViewModel: ObservableObject {
         return stations
     }
     
-    private func createRouteResults(from timetables: [ODPTStationTimetable]) async -> [RouteSearchResult] {
+    private func createRouteResults(from timetables: [ODPTStationTimetable], validTrainNumbers: Set<String>? = nil) async -> [RouteSearchResult] {
         print("Creating route results from \(timetables.count) timetables")
         
         // 時刻表から指定時刻以降の列車を抽出
@@ -530,10 +605,17 @@ class RouteSearchViewModel: ObservableObject {
             print("Timetable direction: \(timetable.railDirectionTitle?.ja ?? "不明")")
             print("Rail direction ID: \(timetable.railDirection ?? "nil")")
             
-            // 方向の確認（将来的には駅の順序から判定する必要がある）
-            // 現在は全ての方向を試す
+            // validTrainNumbersが指定されている場合は、既に方向が確認済み
+            // 指定されていない場合は、全ての方向を試す（後方互換性のため）
             
             for train in timetable.stationTimetableObject {
+                // validTrainNumbersが指定されている場合は、それに含まれる電車のみを処理
+                if let validNumbers = validTrainNumbers,
+                   let trainNumber = train.trainNumber,
+                   !validNumbers.contains(trainNumber) {
+                    continue
+                }
+                
                 // 出発時刻をパース
                 let components = train.departureTime.split(separator: ":").compactMap { Int($0) }
                 guard components.count == 2 else { 
@@ -728,20 +810,10 @@ class RouteSearchViewModel: ObservableObject {
         return parsedDate
     }
     
-    /// 現在の曜日に応じたカレンダータイプを取得
+    /// 選択された出発日時に応じたカレンダータイプを取得
     private func getCalendarType() -> String {
-        let calendar = Calendar(identifier: .gregorian)
-        let weekday = calendar.component(.weekday, from: Date())
-        
-        // 日本の祝日判定は複雑なため、簡易的に土日のみ判定
-        switch weekday {
-        case 1: // 日曜日
-            return "odpt.Calendar:SundayHoliday"
-        case 7: // 土曜日
-            return "odpt.Calendar:SaturdayHoliday"  // Saturdayではなく、SaturdayHolidayを使用
-        default: // 平日
-            return "odpt.Calendar:Weekday"
-        }
+        // CalendarHelperを使用して、出発日時に応じたカレンダーIDを取得
+        CalendarHelper.shared.getODPTCalendarId(for: departureTime)
     }
     
     private func handleError(_ error: Error) {

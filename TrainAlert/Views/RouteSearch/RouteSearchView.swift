@@ -306,15 +306,10 @@ struct RouteSearchView: View {
             .disabled(!viewModel.canSearch || viewModel.isSearching)
         }
         .sheet(isPresented: $showingDatePicker) {
-            DatePicker(
-                "出発時刻を選択",
-                selection: $viewModel.departureTime,
-                displayedComponents: [.hourAndMinute]
+            DateTimePickerView(
+                selectedDateTime: $viewModel.departureTime,
+                isPresented: $showingDatePicker
             )
-            .datePickerStyle(WheelDatePickerStyle())
-            .labelsHidden()
-            .padding()
-            .presentationDetents([.height(300)])
         }
     }
     
