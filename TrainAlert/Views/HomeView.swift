@@ -103,11 +103,26 @@ struct HomeView: View {
                     coreDataManager: appState.coreDataManager
                 )
                 checkLocationPermission()
+                
+                // RouteAlertの遅延情報監視を開始
+                Task {
+                    let context = CoreDataManager.shared.viewContext
+                    do {
+                        let activeRouteAlerts = try RouteAlert.fetchActiveRouteAlerts(context: context)
+                        DelayNotificationManager.shared.startPeriodicUpdates(for: activeRouteAlerts)
+                    } catch {
+                        print("Failed to fetch active route alerts: \(error)")
+                    }
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RefreshHomeView"))) { _ in
                 Task {
                     await viewModel.refresh()
                 }
+            }
+            .onDisappear {
+                // 遅延情報の監視を停止
+                DelayNotificationManager.shared.stopPeriodicUpdates()
             }
         }
     }

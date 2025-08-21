@@ -135,6 +135,36 @@ struct TimetableAlertSetupView: View {
                     .foregroundColor(Color.textPrimary)
             }
             
+            // 列車情報と遅延状況
+            if let trainNumber = route.trainNumber {
+                HStack(spacing: 12) {
+                    // 列車番号
+                    HStack(spacing: 6) {
+                        Image(systemName: "tram.fill")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text(trainNumber)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(Color.textPrimary)
+                        if let trainType = route.trainType {
+                            Text("(\(trainType))")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // 遅延情報
+                    DelayStatusView(
+                        trainNumber: trainNumber,
+                        railwayId: route.sections.first?.railway
+                    )
+                }
+                .padding(.bottom, 8)
+            }
+            
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 8) {
                     // 出発
