@@ -35,7 +35,6 @@ final class DelayNotificationManager: ObservableObject {
     // MARK: - Initialization
     
     private init() {
-        setupBackgroundTask()
         loadSettings()
     }
     
@@ -231,17 +230,7 @@ final class DelayNotificationManager: ObservableObject {
     
     // MARK: - Background Task
     
-    private func setupBackgroundTask() {
-        BGTaskScheduler.shared.register(
-            forTaskWithIdentifier: "com.trainAlert.delayCheck",
-            using: nil
-        ) { task in
-            guard let refreshTask = task as? BGAppRefreshTask else { return }
-            self.handleBackgroundDelayCheck(task: refreshTask)
-        }
-    }
-    
-    private func handleBackgroundDelayCheck(task: BGAppRefreshTask) {
+    func handleBackgroundDelayCheck(task: BGAppRefreshTask) {
         task.expirationHandler = {
             self.stopPeriodicUpdates()
         }
@@ -266,7 +255,7 @@ final class DelayNotificationManager: ObservableObject {
         }
     }
     
-    private func scheduleBackgroundDelayCheck() {
+    func scheduleBackgroundDelayCheck() {
         let request = BGAppRefreshTaskRequest(identifier: "com.trainAlert.delayCheck")
         request.earliestBeginDate = Date(timeIntervalSinceNow: updateInterval)
         
