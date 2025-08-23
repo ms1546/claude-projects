@@ -5,7 +5,7 @@
 
 ## 優先度: High
 ## 見積もり: 8h
-## ステータス: [ ] Not Started / [ ] In Progress / [ ] Completed
+## ステータス: [ ] Not Started / [x] In Progress / [ ] Completed
 
 ## 問題の詳細
 - 通知は正常に発火するが、Core Dataへの履歴保存が失敗している
