@@ -9,6 +9,9 @@ import Foundation
 
 /// 駅名ローマ字変換クラス
 struct StationNameRomanizer {
+    // MARK: - Singleton
+    static let shared = StationNameRomanizer()
+    
     // MARK: - 主要駅名の完全マッピング
     
     /// よく使われる駅名の正確なローマ字表記
@@ -433,5 +436,49 @@ struct StationNameRomanizer {
         }
         
         return result
+    }
+    
+    // MARK: - 逆変換（英語名から日本語名へ）
+    
+    /// 英語名から日本語名への逆引き辞書（遅延初期化）
+    private static let reverseMapping: [String: String] = {
+        var mapping: [String: String] = [:]
+        for (japanese, english) in exactMapping {
+            // 大文字小文字を無視して比較できるように、小文字をキーとする
+            mapping[english.lowercased()] = japanese
+            
+            // ハイフンをマイナスに置き換えたバージョンも追加（Aoyama-itchome対応）
+            let englishWithMinus = english.replacingOccurrences(of: "-", with: "")
+            if englishWithMinus != english {
+                mapping[englishWithMinus.lowercased()] = japanese
+            }
+        }
+        return mapping
+    }()
+    
+    /// 英語名から日本語名に変換
+    /// - Parameter englishName: 英語の駅名
+    /// - Returns: 日本語の駅名（見つからない場合はnil）
+    func toJapanese(_ englishName: String) -> String? {
+        // 大文字小文字を無視して検索
+        let key = englishName.lowercased()
+        
+        // 完全一致を優先
+        if let japanese = StationNameRomanizer.reverseMapping[key] {
+            return japanese
+        }
+        
+        // ハイフンを除去したバージョンでも検索
+        let keyWithoutHyphen = key.replacingOccurrences(of: "-", with: "")
+        if let japanese = StationNameRomanizer.reverseMapping[keyWithoutHyphen] {
+            return japanese
+        }
+        
+        // 特殊なケース: "Aoyama-itchome" -> "青山一丁目"
+        if englishName.lowercased() == "aoyama-itchome" || englishName.lowercased() == "aoyamaitchome" {
+            return "青山一丁目"
+        }
+        
+        return nil
     }
 }

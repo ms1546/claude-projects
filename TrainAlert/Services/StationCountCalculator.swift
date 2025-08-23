@@ -76,7 +76,14 @@ class StationCountCalculator {
                     // TODO: これは暫定対応で、実際にはAPIから日本語名を取得すべき
                     stationName = stationId.components(separatedBy: ".").last ?? ""
                     // DEBUG: Fallback to English name
-                    // print("  fallback to English name: \(stationName)")
+                    // print("[STATION NAME DEBUG] Fallback to English name from ID: '\(stationId)' -> '\(stationName)'")
+                    
+                    // 英語名を日本語名に変換する試み
+                    let romanizer = StationNameRomanizer.shared
+                    if let japaneseName = romanizer.toJapanese(stationName) {
+                        // print("[STATION NAME DEBUG] Found Japanese name: '\(japaneseName)'")
+                        stationName = japaneseName
+                    }
                 }
             }
             
