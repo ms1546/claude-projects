@@ -5,7 +5,7 @@
 
 ## 優先度: Low
 ## 見積もり: 16h
-## ステータス: [ ] Not Started / [ ] In Progress / [ ] Completed
+## ステータス: [ ] Not Started / [ ] In Progress / [x] Completed
 
 ## タスク
 ### データモデル実装
@@ -82,3 +82,14 @@
 ## 備考
 - 初期版はシンプルな実装
 - 将来的には乗り換え時間も考慮
+
+## 実装完了日
+2025-08-24
+
+## 実装の詳細
+- TransferRouteモデルを作成（RouteSectionを活用）
+- TransferAlert Core Dataエンティティを追加
+- 乗り換え経路設定UIを実装（最大5区間まで）
+- 乗り換え駅での通知機能を実装
+- HomeViewに「乗り換え経路から設定」ボタンを追加
+- ビルドエラーを修正し、ビルド成功を確認

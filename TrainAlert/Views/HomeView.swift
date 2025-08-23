@@ -19,6 +19,7 @@ struct HomeView: View {
     @State private var showingAlertSetup = false
     @State private var showingRouteSearch = false
     @State private var showingTimetableSearch = false
+    @State private var showingTransferSetup = false
     @State private var selectedAlert: Alert?
     @State private var showingLocationPermission = false
     @State private var mapRegion = MKCoordinateRegion(
@@ -84,6 +85,10 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showingTimetableSearch) {
                 TimetableSearchView()
+                    .environmentObject(locationManager)
+            }
+            .sheet(isPresented: $showingTransferSetup) {
+                TransferSetupView()
                     .environmentObject(locationManager)
             }
             .alert("位置情報の許可が必要です", isPresented: $showingLocationPermission) {
@@ -154,6 +159,9 @@ struct HomeView: View {
                         }
                         Button(action: { showingTimetableSearch = true }) {
                             Label("時刻表から設定", systemImage: "tram.fill")
+                        }
+                        Button(action: { showingTransferSetup = true }) {
+                            Label("乗り換え経路から設定", systemImage: "arrow.triangle.2.circlepath")
                         }
                     } label: {
                         Image(systemName: "plus")
@@ -267,6 +275,34 @@ struct HomeView: View {
                                 .font(.headline)
                                 .foregroundColor(.textPrimary)
                             Text("具体的な列車を選んで通知設定")
+                                .font(.caption)
+                                .foregroundColor(.textSecondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14))
+                            .foregroundColor(.textSecondary)
+                    }
+                    .padding()
+                    .background(Color.backgroundCard)
+                    .cornerRadius(12)
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                // 乗り換え経路から設定
+                Button(action: { showingTransferSetup = true }) {
+                    HStack(spacing: 16) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 32))
+                            .foregroundColor(.trainSoftBlue)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("乗り換え経路から設定")
+                                .font(.headline)
+                                .foregroundColor(.textPrimary)
+                            Text("乗り換えが必要な経路で通知設定")
                                 .font(.caption)
                                 .foregroundColor(.textSecondary)
                         }
