@@ -30,6 +30,8 @@ enum LocationError: Error {
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     // MARK: - Properties
     
+    static var shared: LocationManager?
+    
     private let locationManager = CLLocationManager()
     private var targetStation: CLLocation?
     private var updateTimer: Timer?
@@ -64,6 +66,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         setupLocationManager()
         loadSettings()
         observeSettingsChanges()
+        
+        // Set shared instance for hybrid notification
+        LocationManager.shared = self
     }
     
     deinit {

@@ -38,6 +38,7 @@
         <attribute name="trainNumber" optional="YES" attributeType="String"/>
         <attribute name="trainType" optional="YES" attributeType="String"/>
         <attribute name="updatedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="locationHistories" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="LocationHistory" inverseName="routeAlert" inverseEntity="LocationHistory"/>
     </entity>
     <entity name="FavoriteRoute" representedClassName="FavoriteRoute" syncable="YES">
         <attribute name="arrivalStation" optional="YES" attributeType="String"/>
@@ -52,6 +53,22 @@
         <relationship name="arrivalStationEntity" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Station" inverseName="favoriteRoutesAsArrival" inverseEntity="Station"/>
         <relationship name="departureStationEntity" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Station" inverseName="favoriteRoutesAsDeparture" inverseEntity="Station"/>
     </entity>
+    <entity name="LocationHistory" representedClassName="LocationHistory" syncable="YES">
+        <attribute name="accuracy" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="altitude" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="confidence" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="course" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="environment" optional="YES" attributeType="String"/>
+        <attribute name="historyId" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="latitude" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="longitude" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="mode" optional="YES" attributeType="String"/>
+        <attribute name="speed" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="timestamp" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="routeAlert" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="RouteAlert" inverseName="locationHistories" inverseEntity="RouteAlert"/>
+        <relationship name="station" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Station" inverseName="locationHistories" inverseEntity="Station"/>
+    </entity>
     <entity name="Station" representedClassName="Station" syncable="YES">
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="isFavorite" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
@@ -64,5 +81,6 @@
         <relationship name="alerts" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Alert" inverseName="station" inverseEntity="Alert"/>
         <relationship name="favoriteRoutesAsArrival" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="FavoriteRoute" inverseName="arrivalStationEntity" inverseEntity="FavoriteRoute"/>
         <relationship name="favoriteRoutesAsDeparture" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="FavoriteRoute" inverseName="departureStationEntity" inverseEntity="FavoriteRoute"/>
+        <relationship name="locationHistories" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="LocationHistory" inverseName="station" inverseEntity="LocationHistory"/>
     </entity>
 </model>
