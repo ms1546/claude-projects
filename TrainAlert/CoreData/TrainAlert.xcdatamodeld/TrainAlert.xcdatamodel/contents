@@ -11,6 +11,14 @@
         <attribute name="snoozeCount" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="snoozeInterval" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="updatedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="departureStation" optional="YES" attributeType="String"/>
+        <attribute name="arrivalTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="notificationStationsBefore" optional="YES" attributeType="Integer 16" defaultValueString="2" usesScalarValueType="YES"/>
+        <attribute name="notificationType" optional="YES" attributeType="String"/>
+        <attribute name="lineName" optional="YES" attributeType="String"/>
+        <attribute name="stationName" optional="YES" attributeType="String"/>
+        <attribute name="repeatPatternString" optional="YES" attributeType="String"/>
+        <attribute name="repeatCustomDaysData" optional="YES" attributeType="Binary"/>
         <relationship name="histories" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="History" inverseName="alert" inverseEntity="History"/>
         <relationship name="station" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Station" inverseName="alerts" inverseEntity="Station"/>
     </entity>
@@ -68,6 +76,20 @@
         <attribute name="timestamp" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="routeAlert" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="RouteAlert" inverseName="locationHistories" inverseEntity="RouteAlert"/>
         <relationship name="station" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Station" inverseName="locationHistories" inverseEntity="Station"/>
+    </entity>
+    <entity name="TransferAlert" representedClassName="TransferAlert" syncable="YES">
+        <attribute name="arrivalStation" optional="YES" attributeType="String"/>
+        <attribute name="arrivalTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="characterStyle" optional="YES" attributeType="String"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="departureStation" optional="YES" attributeType="String"/>
+        <attribute name="departureTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="isActive" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="notificationTime" optional="YES" attributeType="Integer 16" defaultValueString="5" usesScalarValueType="YES"/>
+        <attribute name="totalDuration" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="transferAlertId" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="transferCountValue" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="transferRouteData" optional="YES" attributeType="Binary"/>
     </entity>
     <entity name="Station" representedClassName="Station" syncable="YES">
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
