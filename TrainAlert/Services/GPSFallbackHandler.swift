@@ -394,7 +394,7 @@ final class GPSFallbackHandler: ObservableObject {
                 count += 1
             }
             
-            return !isEmpty ? totalConfidence / Double(count) : 0.5
+            return count > 0 ? totalConfidence / Double(count) : 0.5
         }
     }
     
