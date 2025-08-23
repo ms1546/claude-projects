@@ -83,3 +83,15 @@
 - HybridNotificationManagerの通知にもuserInfoを追加して履歴保存を可能に
 - 保存失敗時は最大3回まで5秒間隔でリトライする機能を実装
 - HistoryViewModelは既にCore Data変更を監視してリアルタイム更新する仕組みがあることを確認
+
+### 追加修正（2025-08-23）
+- **重複通知問題の修正**:
+  - NotificationHistoryManagerの重複チェックをisUserInteractionフラグに関係なく常に実行
+  - チェック期間を5秒から30秒に延長
+  - 駅名と通知タイプの組み合わせで重複を判定
+- **通知の重複送信防止**:
+  - AlertMonitoringServiceでnotifiedAlertsのチェックを追加
+  - 一度通知したアラートは同じセッション中に再送信しない
+- **「不明な駅」問題の修正**:
+  - 複数のキー名（stationName、arrivalStation）から駅名を取得
+  - 通知作成時にalertIdを確実に含めるよう修正
