@@ -60,5 +60,11 @@
 			</dict>
 		</dict>
 	</dict>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.trainalert.location-refresh</string>
+		<string>com.trainalert.data-processing</string>
+		<string>com.trainAlert.delayCheck</string>
+	</array>
 </dict>
 </plist>

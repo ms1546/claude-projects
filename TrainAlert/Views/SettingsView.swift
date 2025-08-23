@@ -175,6 +175,11 @@ struct SettingsView: View {
                 Label("バイブレーション", systemImage: "waveform")
             }
             
+            // Delay Notification Settings
+            NavigationLink(destination: DelayNotificationSettingsView()) {
+                Label("遅延通知設定", systemImage: "clock.badge.exclamationmark")
+            }
+            
             // Notification Preview
             Toggle(isOn: $viewModel.notificationPreviewEnabled) {
                 Label("通知プレビュー", systemImage: "eye")

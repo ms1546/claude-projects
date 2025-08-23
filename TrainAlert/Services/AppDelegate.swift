@@ -54,6 +54,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // Configure app appearance early
         configureAppearance()
         
+        // Initialize delay notification manager early to ensure it's ready
+        _ = DelayNotificationManager.shared
+        
         // Register background tasks
         registerBackgroundTasks()
         
@@ -118,6 +121,15 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             using: nil
         ) { [weak self] task in
             self?.handleDataProcessingTask(task: task as! BGProcessingTask)
+        }
+        
+        // Register delay check task
+        BGTaskScheduler.shared.register(
+            forTaskWithIdentifier: "com.trainAlert.delayCheck",
+            using: nil
+        ) { task in
+            guard let refreshTask = task as? BGAppRefreshTask else { return }
+            DelayNotificationManager.shared.handleBackgroundDelayCheck(task: refreshTask)
         }
         
         performanceMonitor.endTimer(for: "Background Tasks Registration")
