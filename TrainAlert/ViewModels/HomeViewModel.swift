@@ -175,7 +175,9 @@ class HomeViewModel: ObservableObject {
             do {
                 try await coreDataManager.performBackgroundTask { context in
                     // Get the alert in the background context
-                    let backgroundAlert = try context.existingObject(with: alert.objectID) as! Alert
+                    guard let backgroundAlert = try context.existingObject(with: alert.objectID) as? Alert else {
+                        throw NSError(domain: "HomeViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "Alert not found"])
+                    }
                     backgroundAlert.toggleActive()
                 }
                 
@@ -203,13 +205,11 @@ class HomeViewModel: ObservableObject {
         
         Task {
             do {
-                try await coreDataManager.performBackgroundTask { context in
-                    let backgroundAlert = try context.existingObject(with: alert.objectID) as! Alert
-                    context.delete(backgroundAlert)
-                }
+                // AlertDeletionManagerを使用して完全な削除を実行
+                try await AlertDeletionManager.shared.deleteAlert(alert)
                 
                 await loadActiveAlerts()
-                logger.info("Alert deleted successfully")
+                logger.info("Alert deleted successfully with all notifications cancelled")
                 
                 // アラート監視サービスを更新
                 await MainActor.run {

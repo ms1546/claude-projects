@@ -80,6 +80,20 @@ class AlertMonitoringService: NSObject, ObservableObject {
         }
     }
     
+    /// 特定のアラートを監視対象から削除
+    /// - Parameter alertId: 削除するアラートのID
+    func removeAlert(with alertId: UUID?) {
+        guard let alertId = alertId else { return }
+        
+        // activeAlertsから削除
+        activeAlerts.removeAll { $0.alertId == alertId }
+        
+        // 通知済みリストからも削除
+        notifiedAlerts.remove(alertId)
+        
+        print("🗑️ アラートを監視対象から削除しました: \(alertId.uuidString)")
+    }
+    
     // MARK: - Private Methods
     
     private func setupLocationUpdates() {
