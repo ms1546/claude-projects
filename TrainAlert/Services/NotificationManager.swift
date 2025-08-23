@@ -193,7 +193,8 @@ class NotificationManager: NSObject, ObservableObject {
         arrivalTime: Date,
         currentLocation: CLLocation?,
         targetLocation: CLLocation,
-        characterStyle: CharacterStyle = .healing
+        characterStyle: CharacterStyle = .healing,
+        alertId: String? = nil
     ) async throws {
         guard isPermissionGranted else {
             throw NotificationError.permissionDenied
@@ -210,7 +211,8 @@ class NotificationManager: NSObject, ObservableObject {
             arrivalTime: arrivalTime,
             currentLocation: currentLocation,
             targetLocation: targetLocation,
-            characterStyle: characterStyle
+            characterStyle: characterStyle,
+            alertId: alertId
         )
         
         let trigger = UNTimeIntervalNotificationTrigger(
@@ -234,7 +236,8 @@ class NotificationManager: NSObject, ObservableObject {
     func scheduleLocationBasedAlert(
         for stationName: String,
         targetLocation: CLLocation,
-        radius: CLLocationDistance = 500
+        radius: CLLocationDistance = 500,
+        alertId: String? = nil
     ) async throws {
         guard isPermissionGranted else {
             throw NotificationError.permissionDenied
@@ -245,7 +248,7 @@ class NotificationManager: NSObject, ObservableObject {
         // Cancel existing location notification
         cancelNotification(identifier: identifier)
         
-        let content = await createLocationAlertContent(stationName: stationName, characterStyle: settings.characterStyle)
+        let content = await createLocationAlertContent(stationName: stationName, characterStyle: settings.characterStyle, alertId: alertId)
         
         let region = CLCircularRegion(
             center: targetLocation.coordinate,
@@ -501,7 +504,8 @@ class NotificationManager: NSObject, ObservableObject {
         arrivalTime: Date,
         currentLocation: CLLocation?,
         targetLocation: CLLocation,
-        characterStyle: CharacterStyle
+        characterStyle: CharacterStyle,
+        alertId: String? = nil
     ) async -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         content.categoryIdentifier = NotificationCategory.trainAlert.identifier
@@ -549,18 +553,24 @@ class NotificationManager: NSObject, ObservableObject {
             content.body += "\n距離: \(distanceText)"
         }
         
-        content.userInfo = [
+        var userInfo: [String: Any] = [
             "stationName": stationName,
             "arrivalTime": arrivalTime.timeIntervalSince1970,
             "notificationType": "trainAlert"
         ]
+        
+        if let alertId = alertId {
+            userInfo["alertId"] = alertId
+        }
+        
+        content.userInfo = userInfo
         
         content.badge = NSNumber(value: 1)
         
         return content
     }
     
-    private func createLocationAlertContent(stationName: String, characterStyle: CharacterStyle) async -> UNMutableNotificationContent {
+    private func createLocationAlertContent(stationName: String, characterStyle: CharacterStyle, alertId: String? = nil) async -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         content.categoryIdentifier = NotificationCategory.trainAlert.identifier
         content.sound = getNotificationSound()
@@ -586,10 +596,16 @@ class NotificationManager: NSObject, ObservableObject {
             content.body = messages.body
         }
         
-        content.userInfo = [
+        var userInfo: [String: Any] = [
             "stationName": stationName,
             "notificationType": "locationAlert"
         ]
+        
+        if let alertId = alertId {
+            userInfo["alertId"] = alertId
+        }
+        
+        content.userInfo = userInfo
         
         content.badge = NSNumber(value: 1)
         
@@ -820,11 +836,12 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
         let message = notification.request.content.body
         
         Task { @MainActor in
-            // 履歴を保存
+            // 履歴を保存（willPresentは常に表示時なのでisUserInteraction=false）
             historyManager.saveNotificationHistory(
                 userInfo: userInfo,
                 notificationType: notificationType,
-                message: message
+                message: message,
+                isUserInteraction: false
             )
             
             // ハプティックフィードバック
@@ -849,11 +866,12 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
         // （willPresentで既に保存されている場合もあるが、バックグラウンドから
         // 直接タップされた場合のために、ここでも保存する）
         Task { @MainActor in
-            // 履歴を保存（重複チェックはNotificationHistoryManager側で行う想定）
+            // 履歴を保存（ユーザーインタラクションなのでisUserInteraction=true）
             historyManager.saveNotificationHistory(
                 userInfo: userInfo,
                 notificationType: notificationType,
-                message: message
+                message: message,
+                isUserInteraction: true
             )
         }
         
@@ -898,3 +916,4 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
         }
     }
 }
+

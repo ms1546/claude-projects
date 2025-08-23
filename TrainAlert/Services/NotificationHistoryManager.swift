@@ -39,13 +39,31 @@ class NotificationHistoryManager {
     ///   - userInfo: 通知のuserInfo
     ///   - notificationType: 通知タイプ（trainAlert, locationAlert, snoozeAlert, route）
     ///   - message: 通知メッセージ
+    ///   - isUserInteraction: ユーザーインタラクション（タップ）による呼び出しかどうか
     /// - Returns: 保存された履歴、エラーの場合はnil
     @discardableResult
     func saveNotificationHistory(
         userInfo: [AnyHashable: Any],
         notificationType: String,
-        message: String? = nil
+        message: String? = nil,
+        isUserInteraction: Bool = false
     ) -> History? {
+        // 重複チェック: フォアグラウンドでの表示時に既に保存されている場合はスキップ
+        if isUserInteraction {
+            // 直近の履歴を確認（過去5秒以内に同じメッセージがあればスキップ）
+            let recentHistories = coreDataManager.fetchHistory(limit: 10)
+            let fiveSecondsAgo = Date().addingTimeInterval(-5)
+            
+            for history in recentHistories {
+                if let historyDate = history.notifiedAt,
+                   historyDate > fiveSecondsAgo,
+                   history.message == message {
+                    print("⚠️ 重複通知を検出したためスキップします")
+                    return nil
+                }
+            }
+        }
+        
         // アラートIDを取得
         var alertId: UUID?
         
@@ -56,12 +74,23 @@ class NotificationHistoryManager {
             alertId = UUID(uuidString: routeAlertIdString)
         }
         
-        // 駅名を取得
-        let stationName = userInfo["stationName"] as? String ?? "不明な駅"
+        // 駅名を取得（複数のキー名に対応）
+        var stationName = userInfo["stationName"] as? String
+        
+        // 他のキー名も試す
+        if stationName == nil {
+            stationName = userInfo["arrivalStation"] as? String
+        }
+        
+        // デバッグログ
+        print("📱 通知履歴保存: stationName=\(stationName ?? "nil"), type=\(notificationType), userInfo keys=\(userInfo.keys)")
+        
+        // 最終的な駅名（String型）
+        let finalStationName = stationName ?? "不明な駅"
         
         // 履歴メッセージを構築
         let historyMessage = buildHistoryMessage(
-            stationName: stationName,
+            stationName: finalStationName,
             notificationType: notificationType,
             customMessage: message,
             userInfo: userInfo
@@ -73,14 +102,14 @@ class NotificationHistoryManager {
                 alertId: alertId,
                 message: historyMessage,
                 notificationType: notificationType,
-                stationName: stationName
+                stationName: finalStationName
             )
         } else {
             // アラートIDがない場合は独立した履歴として保存
             return saveStandaloneHistory(
                 message: historyMessage,
                 notificationType: notificationType,
-                stationName: stationName
+                stationName: finalStationName
             )
         }
     }
@@ -361,3 +390,4 @@ class NotificationHistoryManager {
         retryTimer = nil
     }
 }
+

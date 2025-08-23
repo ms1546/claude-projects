@@ -186,7 +186,8 @@ class AlertMonitoringService: NSObject, ObservableObject {
                         arrivalTime: arrivalTime,
                         currentLocation: locationManager.location,
                         targetLocation: targetLocation,
-                        characterStyle: characterStyle
+                        characterStyle: characterStyle,
+                        alertId: alert.alertId?.uuidString
                     )
                     print("✅ 時間ベースの通知をスケジュールしました: \(stationName) - \(reason)")
                 }
@@ -203,7 +204,8 @@ class AlertMonitoringService: NSObject, ObservableObject {
                 try await notificationManager.scheduleLocationBasedAlert(
                     for: stationName,
                     targetLocation: targetLocation,
-                    radius: alert.notificationDistance
+                    radius: alert.notificationDistance,
+                    alertId: alert.alertId?.uuidString
                 )
                 print("✅ 位置ベースの通知をスケジュールしました: \(stationName) - \(reason)")
             } catch {
@@ -277,11 +279,9 @@ class AlertMonitoringService: NSObject, ObservableObject {
             notificationType = "trainAlert"
         }
         
-        NotificationHistoryManager.shared.saveNotificationHistory(
-            userInfo: userInfo,
-            notificationType: notificationType,
-            message: "\(reason)で通知: \(stationName)"
-        )
+        // 履歴の保存はNotificationManagerに任せる（重複を防ぐため）
+        // NotificationManagerのwillPresent/didReceiveで自動的に保存される
+        print("📱 通知送信: \(reason) - \(stationName)")
     }
     
     /// キャラクタースタイルに応じたメッセージを生成
@@ -382,4 +382,3 @@ extension AlertMonitoringService: CLLocationManagerDelegate {
         // LocationManagerが既にハンドリングしているため、ここでは何もしない
     }
 }
-
