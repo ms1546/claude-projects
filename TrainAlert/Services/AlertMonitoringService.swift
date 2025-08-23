@@ -257,9 +257,31 @@ class AlertMonitoringService: NSObject, ObservableObject {
             }
         }
         
-        // 履歴に追加
-        let history = alert.addHistory(message: "\(reason)で通知: \(stationName)")
-        try? viewContext.save()
+        // 履歴に追加（NotificationHistoryManagerを使用）
+        var userInfo: [AnyHashable: Any] = [
+            "stationName": stationName,
+            "reason": reason
+        ]
+        
+        if let alertId = alert.alertId {
+            userInfo["alertId"] = alertId.uuidString
+        }
+        
+        // 通知タイプを判定
+        let notificationType: String
+        if reason.contains("時間ベース") {
+            notificationType = "trainAlert"
+        } else if reason.contains("距離ベース") {
+            notificationType = "locationAlert"
+        } else {
+            notificationType = "trainAlert"
+        }
+        
+        NotificationHistoryManager.shared.saveNotificationHistory(
+            userInfo: userInfo,
+            notificationType: notificationType,
+            message: "\(reason)で通知: \(stationName)"
+        )
     }
     
     /// キャラクタースタイルに応じたメッセージを生成
@@ -360,3 +382,4 @@ extension AlertMonitoringService: CLLocationManagerDelegate {
         // LocationManagerが既にハンドリングしているため、ここでは何もしない
     }
 }
+

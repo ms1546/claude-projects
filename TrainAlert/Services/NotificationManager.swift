@@ -99,6 +99,7 @@ class NotificationManager: NSObject, ObservableObject {
     
     internal let center = UNUserNotificationCenter.current()
     private let openAIClient = OpenAIClient.shared
+    private let historyManager = NotificationHistoryManager.shared
     private var pendingNotifications: Set<String> = []
     private var snoozeCounters: [String: Int] = [:]
     private var settingsObserver: NSObjectProtocol?
@@ -813,10 +814,24 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        // Show notification even when app is in foreground
+        // 通知が表示される際に履歴を保存
+        let userInfo = notification.request.content.userInfo
+        let notificationType = userInfo["notificationType"] as? String ?? userInfo["type"] as? String ?? "unknown"
+        let message = notification.request.content.body
+        
         Task { @MainActor in
+            // 履歴を保存
+            historyManager.saveNotificationHistory(
+                userInfo: userInfo,
+                notificationType: notificationType,
+                message: message
+            )
+            
+            // ハプティックフィードバック
             generateNotificationHapticPattern()
         }
+        
+        // Show notification even when app is in foreground
         completionHandler([.alert, .sound, .badge])
     }
     
@@ -827,6 +842,20 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
     ) {
         let userInfo = response.notification.request.content.userInfo
         let identifier = response.notification.request.identifier
+        let notificationType = userInfo["notificationType"] as? String ?? userInfo["type"] as? String ?? "unknown"
+        let message = response.notification.request.content.body
+        
+        // ユーザーが通知をタップまたはアクションを実行した際に履歴を保存
+        // （willPresentで既に保存されている場合もあるが、バックグラウンドから
+        // 直接タップされた場合のために、ここでも保存する）
+        Task { @MainActor in
+            // 履歴を保存（重複チェックはNotificationHistoryManager側で行う想定）
+            historyManager.saveNotificationHistory(
+                userInfo: userInfo,
+                notificationType: notificationType,
+                message: message
+            )
+        }
         
         switch response.actionIdentifier {
         case NotificationAction.snooze.identifier:
