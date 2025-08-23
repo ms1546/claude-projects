@@ -320,7 +320,7 @@ class NotificationManager: NSObject, ObservableObject {
         at notificationTime: Date
     ) async {
         guard isPermissionGranted else {
-            print("通知の許可がありません")
+            // 通知の許可がありません
             return
         }
         
@@ -387,9 +387,9 @@ class NotificationManager: NSObject, ObservableObject {
         do {
             try await center.add(request)
             pendingNotifications.insert(identifier)
-            print("🚆 時刻表ベースの通知をスケジュールしました: \(arrivalStation)駅")
+            // 時刻表ベースの通知をスケジュール
         } catch {
-            print("通知のスケジュールに失敗しました: \(error)")
+            // 通知のスケジュールに失敗
         }
     }
     
@@ -480,7 +480,7 @@ class NotificationManager: NSObject, ObservableObject {
             pendingNotifications.insert(identifier)
         }
         
-        print("🔄 繰り返し通知をスケジュールしました: \(stationName)駅 (\(pattern.displayName))")
+        // 繰り返し通知をスケジュール
     }
     
     /// Cancel all repeating notifications for a specific alert
@@ -494,7 +494,7 @@ class NotificationManager: NSObject, ObservableObject {
         center.removePendingNotificationRequests(withIdentifiers: identifiers)
         identifiers.forEach { pendingNotifications.remove($0) }
         
-        print("🚫 繰り返し通知をキャンセルしました: \(alertId)")
+        // 繰り返し通知をキャンセル
     }
     
     // MARK: - Notification Content Creation

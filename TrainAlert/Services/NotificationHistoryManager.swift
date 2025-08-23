@@ -66,7 +66,7 @@ class NotificationHistoryManager {
                 if let historyMessage = history.message,
                    historyMessage.contains(finalStationName) &&
                    historyMessage.contains(getNotificationTypeEmoji(notificationType)) {
-                    print("⚠️ 重複通知を検出したためスキップします: \(finalStationName) - \(notificationType)")
+                    // 重複通知を検出したためスキップ
                     return nil
                 }
             }
@@ -82,8 +82,6 @@ class NotificationHistoryManager {
             alertId = UUID(uuidString: routeAlertIdString)
         }
         
-        // デバッグログ
-        print("📱 通知履歴保存: stationName=\(finalStationName), type=\(notificationType), userInfo keys=\(userInfo.keys)")
         
         // 履歴メッセージを構築
         let historyMessage = buildHistoryMessage(
@@ -132,10 +130,10 @@ class NotificationHistoryManager {
         // 保存
         do {
             try context.save()
-            print("✅ RouteAlert通知履歴を保存しました: \(routeAlert.arrivalStation ?? "不明")")
+            // RouteAlert通知履歴を保存
             return history
         } catch {
-            print("❌ RouteAlert通知履歴の保存に失敗しました: \(error.localizedDescription)")
+            // RouteAlert通知履歴の保存に失敗
             return nil
         }
     }
@@ -179,10 +177,10 @@ class NotificationHistoryManager {
                 
                 // 保存
                 try context.save()
-                print("✅ 通知履歴を保存しました (Alert: \(alertId.uuidString))")
+                // 通知履歴を保存
                 return history
             } else {
-                print("⚠️ アラートが見つかりません: \(alertId.uuidString)")
+                // アラートが見つからない
                 // アラートが見つからない場合も独立した履歴として保存
                 return saveStandaloneHistory(
                     message: message,
@@ -191,7 +189,7 @@ class NotificationHistoryManager {
                 )
             }
         } catch {
-            print("❌ 通知履歴の保存に失敗しました: \(error.localizedDescription)")
+            // 通知履歴の保存に失敗
             // リトライキューに追加
             addToPendingSaves(
                 alertId: alertId,
@@ -218,10 +216,10 @@ class NotificationHistoryManager {
         
         do {
             try context.save()
-            print("✅ 独立した通知履歴を保存しました")
+            // 独立した通知履歴を保存
             return history
         } catch {
-            print("❌ 独立した通知履歴の保存に失敗しました: \(error.localizedDescription)")
+            // 独立した通知履歴の保存に失敗
             return nil
         }
     }
@@ -293,30 +291,16 @@ class NotificationHistoryManager {
             
             if !oldHistories.isEmpty {
                 try context.save()
-                print("✅ \(oldHistories.count)件の古い履歴を削除しました")
+                // 古い履歴を削除
             }
         } catch {
-            print("❌ 古い履歴の削除に失敗しました: \(error.localizedDescription)")
+            // 古い履歴の削除に失敗
         }
     }
     
     /// デバッグ用：すべての履歴をログ出力
     func debugPrintAllHistory() {
-        let histories = coreDataManager.fetchHistory(limit: 100)
-        
-        print("===== 通知履歴一覧 =====")
-        for history in histories {
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateStyle = .short
-            dateFormatter.timeStyle = .medium
-            
-            let dateString = history.notifiedAt.map { dateFormatter.string(from: $0) } ?? "不明"
-            let stationName = history.stationName ?? "不明"
-            let message = history.message ?? "メッセージなし"
-            
-            print("[\(dateString)] \(stationName): \(message)")
-        }
-        print("======================")
+        // デバッグログは削除済み
     }
     
     // MARK: - Retry Mechanism
@@ -340,7 +324,7 @@ class NotificationHistoryManager {
     ) {
         // 最大リトライ回数を超えていない場合のみ追加
         guard attemptCount < maxRetryAttempts else {
-            print("⚠️ 通知履歴の保存が最大リトライ回数を超えました: \(stationName)")
+            // 通知履歴の保存が最大リトライ回数を超えた
             return
         }
         
@@ -354,14 +338,14 @@ class NotificationHistoryManager {
         }
         
         pendingSaves.append((userInfo: userInfo, type: notificationType, message: message))
-        print("🔄 通知履歴をリトライキューに追加しました: \(stationName) (試行回数: \(attemptCount + 1))")
+        // 通知履歴をリトライキューに追加
     }
     
     /// 保存待ち履歴を処理
     private func processPendingSaves() {
         guard !pendingSaves.isEmpty else { return }
         
-        print("🔄 保存待ち履歴を処理中: \(pendingSaves.count)件")
+        // 保存待ち履歴を処理中
         
         let currentPendingSaves = pendingSaves
         pendingSaves.removeAll()

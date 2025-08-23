@@ -58,7 +58,7 @@ class AlertMonitoringService: NSObject, ObservableObject {
         // 初回チェック
         checkAllAlerts()
         
-        print("🔔 アラート監視を開始しました")
+        // アラート監視を開始
     }
     
     /// 監視を停止
@@ -69,7 +69,7 @@ class AlertMonitoringService: NSObject, ObservableObject {
         locationUpdateTimer?.invalidate()
         locationUpdateTimer = nil
         
-        print("🔕 アラート監視を停止しました")
+        // アラート監視を停止
     }
     
     /// アクティブなアラートを再読み込み
@@ -91,7 +91,7 @@ class AlertMonitoringService: NSObject, ObservableObject {
         // 通知済みリストからも削除
         notifiedAlerts.remove(alertId)
         
-        print("🗑️ アラートを監視対象から削除しました: \(alertId.uuidString)")
+        // アラートを監視対象から削除
     }
     
     // MARK: - Private Methods
@@ -111,9 +111,9 @@ class AlertMonitoringService: NSObject, ObservableObject {
         let request = Alert.activeAlertsFetchRequest()
         do {
             activeAlerts = try viewContext.fetch(request)
-            print("📍 アクティブなアラート: \(activeAlerts.count)件")
+            // アクティブなアラート
         } catch {
-            print("❌ アラートの読み込みエラー: \(error)")
+            // アラートの読み込みエラー
             monitoringError = error
         }
     }
@@ -189,10 +189,10 @@ class AlertMonitoringService: NSObject, ObservableObject {
                         characterStyle: characterStyle,
                         alertId: alert.alertId?.uuidString
                     )
-                    print("✅ 時間ベースの通知をスケジュールしました: \(stationName) - \(reason)")
+                    // 時間ベースの通知をスケジュール
                 }
             } catch {
-                print("❌ 通知スケジュールエラー: \(error)")
+                // 通知スケジュールエラー
                 monitoringError = error
             }
         }
@@ -207,9 +207,9 @@ class AlertMonitoringService: NSObject, ObservableObject {
                     radius: alert.notificationDistance,
                     alertId: alert.alertId?.uuidString
                 )
-                print("✅ 位置ベースの通知をスケジュールしました: \(stationName) - \(reason)")
+                // 位置ベースの通知をスケジュール
             } catch {
-                print("❌ 通知スケジュールエラー: \(error)")
+                // 通知スケジュールエラー
                 monitoringError = error
             }
         }
@@ -252,9 +252,9 @@ class AlertMonitoringService: NSObject, ObservableObject {
             do {
                 try await UNUserNotificationCenter.current().add(request)
                 lastNotificationTime = Date()
-                print("✅ 即座の通知を送信しました: \(stationName) - \(reason)")
+                // 即座の通知を送信
             } catch {
-                print("❌ 通知送信エラー: \(error)")
+                // 通知送信エラー
                 monitoringError = error
             }
         }
@@ -281,7 +281,7 @@ class AlertMonitoringService: NSObject, ObservableObject {
         
         // 履歴の保存はNotificationManagerに任せる（重複を防ぐため）
         // NotificationManagerのwillPresent/didReceiveで自動的に保存される
-        print("📱 通知送信: \(reason) - \(stationName)")
+        // 通知送信
     }
     
     /// キャラクタースタイルに応じたメッセージを生成
@@ -298,7 +298,7 @@ class AlertMonitoringService: NSObject, ObservableObject {
                 do {
                     aiMessage = try await generateAIMessage(for: alert, stationName: stationName)
                 } catch {
-                    print("⚠️ AI生成エラー: \(error)")
+                    // AI生成エラー
                 }
                 semaphore.signal()
             }
