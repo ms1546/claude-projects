@@ -97,7 +97,7 @@ class NotificationManager: NSObject, ObservableObject {
     @Published var lastError: NotificationError?
     @Published var settings = NotificationSettings()
     
-    private let center = UNUserNotificationCenter.current()
+    internal let center = UNUserNotificationCenter.current()
     private let openAIClient = OpenAIClient.shared
     private var pendingNotifications: Set<String> = []
     private var snoozeCounters: [String: Int] = [:]
