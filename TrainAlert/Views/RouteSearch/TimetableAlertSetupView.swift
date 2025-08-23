@@ -64,6 +64,9 @@ struct TimetableAlertSetupView: View {
                     // 通知設定
                     notificationSettingsCard
                     
+                    // ハイブリッド通知設定
+                    hybridNotificationCard
+                    
                     // 繰り返し設定
                     repeatSettingsCard
                     
@@ -812,6 +815,39 @@ struct TimetableAlertSetupView: View {
                     // 目覚まし監視サービスを更新
                     AlertMonitoringService.shared.reloadAlerts()
                     
+                    // ハイブリッド通知の監視を開始（RouteAlertではなく通常のAlertで代用）
+                    if HybridNotificationManager.shared.isEnabled {
+                        // RouteAlertの代わりに、保存した情報から仮のRouteAlertオブジェクトを作成
+                        let tempRouteAlert = RouteAlert(context: viewContext)
+                        tempRouteAlert.routeId = alert.alertId
+                        tempRouteAlert.departureStation = route.departureStation
+                        tempRouteAlert.arrivalStation = route.arrivalStation
+                        tempRouteAlert.departureTime = route.departureTime
+                        tempRouteAlert.arrivalTime = route.arrivalTime
+                        tempRouteAlert.trainNumber = route.trainNumber
+                        tempRouteAlert.trainType = route.trainType
+                        tempRouteAlert.notificationMinutes = Int16(notificationMinutes)
+                        tempRouteAlert.isActive = true
+                        
+                        // 位置情報サービスが有効な場合のみ監視を開始
+                        if let locationManager = LocationManager.shared {
+                            HybridNotificationManager.shared.startMonitoring(
+                                for: tempRouteAlert,
+                                locationManager: locationManager,
+                                notificationManager: notificationManager
+                            )
+                            
+                            // GPS精度管理も開始
+                            LocationAccuracyManager.shared.startManaging(locationManager: locationManager)
+                            
+                            // GPSフォールバック監視も開始
+                            GPSFallbackHandler.shared.startMonitoring(
+                                locationManager: locationManager,
+                                routeAlert: tempRouteAlert
+                            )
+                        }
+                    }
+                    
                     // 少し遅延させてから経路検索画面を閉じる
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         NotificationCenter.default.post(name: NSNotification.Name("CloseRouteSearch"), object: nil)
@@ -1155,6 +1191,93 @@ struct TimetableAlertSetupView: View {
                 hasValidAPIKey = false
             }
         }
+    }
+    
+    // MARK: - Hybrid Notification Card
+    
+    private var hybridNotificationCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "link.circle.fill")
+                    .foregroundColor(Color.trainSoftBlue)
+                    .font(.system(size: 18))
+                Text("ハイブリッド通知")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(Color.textPrimary)
+                
+                Spacer()
+                
+                // 設定画面へのリンク
+                NavigationLink(destination: HybridStatusView()) {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(.textSecondary)
+                        .font(.system(size: 16))
+                }
+            }
+            
+            VStack(spacing: 12) {
+                // ハイブリッド通知の有効/無効
+                HStack {
+                    Label("位置情報連携", systemImage: "location.circle")
+                        .font(.system(size: 14))
+                        .foregroundColor(.textPrimary)
+                    
+                    Spacer()
+                    
+                    Toggle("", isOn: .constant(HybridNotificationManager.shared.isEnabled))
+                        .labelsHidden()
+                        .tint(.trainSoftBlue)
+                        .disabled(true) // 読み取り専用表示
+                }
+                
+                if HybridNotificationManager.shared.isEnabled {
+                    // 現在のモード表示
+                    HStack {
+                        Text("優先モード")
+                            .font(.system(size: 14))
+                            .foregroundColor(.textSecondary)
+                        
+                        Spacer()
+                        
+                        HStack(spacing: 4) {
+                            Image(systemName: HybridNotificationManager.shared.currentMode.icon)
+                                .font(.caption)
+                            Text(HybridNotificationManager.shared.currentMode.displayName)
+                                .font(.system(size: 14))
+                        }
+                        .foregroundColor(.trainSoftBlue)
+                    }
+                    
+                    // GPS精度表示
+                    HStack {
+                        Text("GPS精度")
+                            .font(.system(size: 14))
+                            .foregroundColor(.textSecondary)
+                        
+                        Spacer()
+                        
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(LocationAccuracyManager.shared.accuracyLevel.color)
+                                .frame(width: 8, height: 8)
+                            Text(LocationAccuracyManager.shared.accuracyLevel.displayName)
+                                .font(.system(size: 14))
+                                .foregroundColor(.textPrimary)
+                        }
+                    }
+                    
+                    Text("時刻表と位置情報を組み合わせて、より正確な通知タイミングを実現します")
+                        .font(.system(size: 12))
+                        .foregroundColor(.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 4)
+                }
+            }
+        }
+        .padding(16)
+        .background(Color.backgroundCard)
+        .cornerRadius(12)
+        .padding(.horizontal)
     }
     
     // MARK: - Repeat Settings Helpers

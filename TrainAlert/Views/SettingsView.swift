@@ -29,6 +29,9 @@ struct SettingsView: View {
                 // App Settings Section
                 appSettingsSection
                 
+                // Hybrid Notification Section
+                hybridNotificationSection
+                
                 // Privacy Settings Section
                 privacySettingsSection
                 
@@ -262,6 +265,46 @@ struct SettingsView: View {
             
             Toggle(isOn: $viewModel.crashReportsEnabled) {
                 Label("クラッシュレポートの送信", systemImage: "exclamationmark.triangle.fill")
+            }
+        }
+    }
+    
+    // MARK: - Hybrid Notification Section
+    
+    private var hybridNotificationSection: some View {
+        Section(header: Text("ハイブリッド通知")) {
+            // 有効/無効設定
+            Toggle(isOn: Binding(
+                get: { HybridNotificationManager.shared.isEnabled },
+                set: { HybridNotificationManager.shared.isEnabled = $0 }
+            )) {
+                Label("位置情報連携", systemImage: "link.circle.fill")
+            }
+            
+            if HybridNotificationManager.shared.isEnabled {
+                // 優先モード設定
+                Picker("優先モード", selection: Binding(
+                    get: { HybridNotificationManager.shared.preferredMode },
+                    set: { HybridNotificationManager.shared.preferredMode = $0 }
+                )) {
+                    ForEach(HybridNotificationManager.NotificationMode.allCases, id: \.self) { mode in
+                        Label(mode.displayName, systemImage: mode.icon)
+                            .tag(mode)
+                    }
+                }
+                
+                // 低精度しきい値
+                HStack {
+                    Label("低精度しきい値", systemImage: "location.slash")
+                    Spacer()
+                    Text("\(Int(HybridNotificationManager.shared.lowAccuracyThreshold))m")
+                        .foregroundColor(.secondary)
+                }
+                
+                // 詳細設定画面へのリンク
+                NavigationLink(destination: HybridStatusView()) {
+                    Label("詳細設定", systemImage: "info.circle")
+                }
             }
         }
     }
