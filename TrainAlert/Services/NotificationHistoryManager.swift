@@ -48,17 +48,25 @@ class NotificationHistoryManager {
         message: String? = nil,
         isUserInteraction: Bool = false
     ) -> History? {
-        // 重複チェック: フォアグラウンドでの表示時に既に保存されている場合はスキップ
-        if isUserInteraction {
-            // 直近の履歴を確認（過去5秒以内に同じメッセージがあればスキップ）
-            let recentHistories = coreDataManager.fetchHistory(limit: 10)
-            let fiveSecondsAgo = Date().addingTimeInterval(-5)
-            
-            for history in recentHistories {
-                if let historyDate = history.notifiedAt,
-                   historyDate > fiveSecondsAgo,
-                   history.message == message {
-                    print("⚠️ 重複通知を検出したためスキップします")
+        // 駅名を先に取得
+        var stationName = userInfo["stationName"] as? String
+        if stationName == nil {
+            stationName = userInfo["arrivalStation"] as? String
+        }
+        let finalStationName = stationName ?? "不明な駅"
+        
+        // 重複チェック: 同じ駅・同じタイプの通知が短時間に複数回保存されるのを防ぐ
+        let recentHistories = coreDataManager.fetchHistory(limit: 20)
+        let thirtySecondsAgo = Date().addingTimeInterval(-30)
+        
+        for history in recentHistories {
+            if let historyDate = history.notifiedAt,
+               historyDate > thirtySecondsAgo {
+                // 駅名と通知タイプが同じ場合は重複とみなす
+                if let historyMessage = history.message,
+                   historyMessage.contains(finalStationName) &&
+                   historyMessage.contains(getNotificationTypeEmoji(notificationType)) {
+                    print("⚠️ 重複通知を検出したためスキップします: \(finalStationName) - \(notificationType)")
                     return nil
                 }
             }
@@ -74,19 +82,8 @@ class NotificationHistoryManager {
             alertId = UUID(uuidString: routeAlertIdString)
         }
         
-        // 駅名を取得（複数のキー名に対応）
-        var stationName = userInfo["stationName"] as? String
-        
-        // 他のキー名も試す
-        if stationName == nil {
-            stationName = userInfo["arrivalStation"] as? String
-        }
-        
         // デバッグログ
-        print("📱 通知履歴保存: stationName=\(stationName ?? "nil"), type=\(notificationType), userInfo keys=\(userInfo.keys)")
-        
-        // 最終的な駅名（String型）
-        let finalStationName = stationName ?? "不明な駅"
+        print("📱 通知履歴保存: stationName=\(finalStationName), type=\(notificationType), userInfo keys=\(userInfo.keys)")
         
         // 履歴メッセージを構築
         let historyMessage = buildHistoryMessage(
@@ -144,6 +141,24 @@ class NotificationHistoryManager {
     }
     
     // MARK: - Private Methods
+    
+    /// 通知タイプに対応する絵文字を取得
+    private func getNotificationTypeEmoji(_ type: String) -> String {
+        switch type {
+        case "trainAlert":
+            return "🚃"
+        case "locationAlert":
+            return "📍"
+        case "snoozeAlert":
+            return "😴"
+        case "route":
+            return "🚆"
+        case "repeating":
+            return "🔄"
+        default:
+            return "📱"
+        }
+    }
     
     /// 既存のアラートに履歴を追加
     private func saveHistoryForAlert(

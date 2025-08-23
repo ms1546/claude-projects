@@ -139,8 +139,8 @@ class AlertMonitoringService: NSObject, ObservableObject {
             if let arrivalTime = alert.arrivalTime {
                 let notificationTime = arrivalTime.addingTimeInterval(-Double(alert.notificationTime) * 60)
                 
-                // 通知時刻を過ぎていて、到着時刻はまだの場合
-                if now >= notificationTime && now < arrivalTime {
+                // 通知時刻を過ぎていて、到着時刻はまだの場合、かつまだ通知していない場合
+                if now >= notificationTime && now < arrivalTime && !notifiedAlerts.contains(alertId) {
                     await sendNotification(for: alert, reason: "時間ベース")
                     notifiedAlerts.insert(alertId)
                 }
@@ -161,8 +161,8 @@ class AlertMonitoringService: NSObject, ObservableObject {
             let stationLocation = CLLocation(latitude: station.latitude, longitude: station.longitude)
             let distance = currentLocation.distance(from: stationLocation)
             
-            // 設定距離以内に入った場合
-            if distance <= alert.notificationDistance {
+            // 設定距離以内に入っていて、まだ通知していない場合
+            if distance <= alert.notificationDistance && !notifiedAlerts.contains(alertId) {
                 Task {
                     await sendNotification(for: alert, reason: "距離ベース（\(Int(distance))m）")
                     notifiedAlerts.insert(alertId)
