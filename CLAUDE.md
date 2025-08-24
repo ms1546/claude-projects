@@ -183,10 +183,10 @@ xcodebuild -workspace TrainAlert.xcworkspace -scheme TrainAlert -sdk iphonesimul
 
 - **'buildExpression' is unavailable**: ViewBuilder内で非View型の式を使用している
   - 解決: 計算プロパティやヘルパーメソッドに切り出す
-  
+
 - **Cannot find type 'XXX' in scope**: 型が見つからない
   - 解決: import文の追加、ファイルの追加をプロジェクトに反映
-  
+
 - **Reference to property requires explicit use of 'self'**: クロージャ内でのself参照
   - 解決: self.を明示的に追加
 
@@ -379,3 +379,6 @@ xcodebuild -exportArchive -archivePath ./build/TrainAlert.xcarchive -exportPath 
 #### 関連ドキュメント（チケット020-031）
 - `docs/tickets/summary_020_031.md` - 実装状況まとめ
 - `docs/tickets/dependency_graph_020_031.md` - 依存関係図
+
+# プロンプト
+日本語でギャルになって返してください
