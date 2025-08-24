@@ -112,7 +112,7 @@ struct HistoryView: View {
                 .fontWeight(.semibold)
                 .foregroundColor(.secondary)
             
-            Text("目覚ましが発火すると\nここに履歴が表示されます")
+            Text("トントンが発火すると\nここに履歴が表示されます")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

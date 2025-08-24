@@ -43,13 +43,13 @@ struct AlertReviewView: View {
             .background(Color.backgroundPrimary)
             .navigationBarHidden(true)
         }
-        .alert("目覚ましを作成しますか？", isPresented: $showConfirmation) {
+        .alert("トントンを作成しますか？", isPresented: $showConfirmation) {
             Button("キャンセル", role: .cancel) { }
             Button("作成する") {
                 createAlert()
             }
         } message: {
-            Text("設定した内容で目覚ましを作成します。")
+            Text("設定した内容でトントンを作成します。")
         }
     }
     
@@ -191,7 +191,7 @@ struct AlertReviewView: View {
                         .foregroundColor(.textPrimary)
                 }
                 
-                Text("上記の設定で目覚ましを作成します。必要に応じて後から設定を変更することも可能です。")
+                Text("上記の設定でトントンを作成します。必要に応じて後から設定を変更することも可能です。")
                     .font(.body)
                     .foregroundColor(.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -203,7 +203,7 @@ struct AlertReviewView: View {
     private var navigationButtons: some View {
         VStack(spacing: 12) {
             PrimaryButton(
-                "目覚ましを作成",
+                "トントンを作成",
                 size: .fullWidth,
                 isEnabled: setupData.isFormValid && !isCreatingAlert, isLoading: isCreatingAlert
             ) {

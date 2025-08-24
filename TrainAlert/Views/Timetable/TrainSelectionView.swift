@@ -67,7 +67,7 @@ struct TrainSelectionView: View {
                         
                         // 保存ボタン
                         PrimaryButton(
-                            "目覚ましを設定",
+                            "トントンを設定",
                             isEnabled: !isSaving && selectedArrivalStation != nil && estimatedArrivalTime != nil,
                             action: saveAlert
                         )
@@ -507,7 +507,7 @@ struct TrainSelectionView: View {
                     // HomeViewを更新
                     NotificationCenter.default.post(name: NSNotification.Name("RefreshHomeView"), object: nil)
                     
-                    // 目覚まし監視サービスを更新
+                    // トントン監視サービスを更新
                     AlertMonitoringService.shared.reloadAlerts()
                     
                     // 時刻表画面も閉じるための通知

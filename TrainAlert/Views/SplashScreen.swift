@@ -87,7 +87,7 @@ struct SplashScreen: View {
                 )
             
             // App title
-            Text("トレ眠")
+            Text("駅トントン")
                 .font(.largeTitle)
                 .fontWeight(.thin)
                 .foregroundColor(.white)
@@ -127,7 +127,7 @@ struct SplashScreen: View {
     
     private var brandingText: some View {
         VStack(spacing: 4) {
-            Text("電車の目覚ましアプリ")
+            Text("電車のトントンアプリ")
                 .font(.caption)
                 .foregroundColor(.trainLightGray)
         }
@@ -217,4 +217,3 @@ struct SplashScreen_Previews: PreviewProvider {
     }
 }
 #endif
-
