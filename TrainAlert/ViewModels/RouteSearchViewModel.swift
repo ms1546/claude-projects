@@ -46,6 +46,7 @@ class RouteSearchViewModel: ObservableObject {
     private let cacheManager = APICacheManager.shared
     private let favoriteRouteManager = FavoriteRouteManager.shared
     private let routeSearchAlgorithm = RouteSearchAlgorithm()
+    private let dynamicRouteSearchAlgorithm = DynamicRouteSearchAlgorithm()
     private var searchTask: Task<Void, Never>?
     private var stationSearchTask: Task<Void, Never>?
     private var departureSearchWorkItem: DispatchWorkItem?
@@ -852,7 +853,21 @@ class RouteSearchViewModel: ObservableObject {
                 arrivalLine: arrivalStation.railwayTitle?.ja ?? arrivalStation.railway
             )
             
-            print("Found \(searchResults.count) transfer routes")
+            print("Static algorithm found \(searchResults.count) transfer routes")
+            
+            // 結果が見つからない場合は動的アルゴリズムを試す
+            var dynamicResults: [DynamicRouteSearchAlgorithm.DynamicSearchResult] = []
+            if searchResults.isEmpty {
+                print("🔄 Trying dynamic algorithm...")
+                
+                dynamicResults = try await dynamicRouteSearchAlgorithm.searchRoute(
+                    from: departureStation.stationTitle?.ja ?? departureStation.title,
+                    departureRailway: departureStation.railwayTitle?.ja ?? departureStation.railway ?? "",
+                    to: arrivalStation.stationTitle?.ja ?? arrivalStation.title
+                )
+                
+                print("Dynamic algorithm found \(dynamicResults.count) routes (API calls: \(dynamicResults.first?.apiCallCount ?? 0))")
+            }
             
             // RouteSearchResultに変換
             var routeResults: [RouteSearchResult] = []
@@ -924,6 +939,19 @@ class RouteSearchViewModel: ObservableObject {
                 if routeResults.count >= 5 {
                     break
                 }
+            }
+            
+            // 動的アルゴリズムの結果を変換
+            for (index, result) in dynamicResults.enumerated() {
+                if routeResults.count >= 5 { break }
+                
+                print("Converting dynamic route \(index + 1):")
+                print("  Total time: \(result.totalTime) minutes")
+                print("  Transfer count: \(result.transferCount)")
+                print("  API calls used: \(result.apiCallCount)")
+                
+                let routeResult = convertDynamicToRouteSearchResult(result, departureStation: departureStation, arrivalStation: arrivalStation)
+                routeResults.append(routeResult)
             }
             
             // 結果を設定
@@ -1058,5 +1086,59 @@ class RouteSearchViewModel: ObservableObject {
     enum StationType {
         case departure
         case arrival
+    }
+    
+    // MARK: - Dynamic Route Search Methods
+    
+    /// 動的アルゴリズムの結果を変換
+    private func convertDynamicToRouteSearchResult(
+        _ result: DynamicRouteSearchAlgorithm.DynamicSearchResult,
+        departureStation: ODPTStation,
+        arrivalStation: ODPTStation
+    ) -> RouteSearchResult {
+        let calendar = Calendar.current
+        var dateComponents = calendar.dateComponents([.year, .month, .day], from: departureTime)
+        dateComponents.hour = calendar.component(.hour, from: departureTime)
+        dateComponents.minute = calendar.component(.minute, from: departureTime)
+        
+        let baseTime = calendar.date(from: dateComponents) ?? departureTime
+        let arrivalTime = baseTime.addingTimeInterval(TimeInterval(result.totalTime * 60))
+        
+        var routeSections: [RouteSection] = []
+        var currentTime = baseTime
+        
+        for section in result.sections {
+            let sectionDepartureTime = currentTime
+            let sectionArrivalTime = currentTime.addingTimeInterval(TimeInterval(section.duration * 60))
+            
+            routeSections.append(RouteSection(
+                departureStation: section.fromStation,
+                arrivalStation: section.toStation,
+                departureTime: sectionDepartureTime,
+                arrivalTime: sectionArrivalTime,
+                trainType: nil,
+                trainNumber: nil,
+                railway: section.railway
+            ))
+            
+            if section != result.sections.last {
+                let transferTime = StationConnectionManager.shared.getTransferTime(for: section.toStation)
+                currentTime = sectionArrivalTime.addingTimeInterval(TimeInterval(transferTime * 60))
+            } else {
+                currentTime = sectionArrivalTime
+            }
+        }
+        
+        return RouteSearchResult(
+            departureStation: departureStation.stationTitle?.ja ?? departureStation.title,
+            arrivalStation: arrivalStation.stationTitle?.ja ?? arrivalStation.title,
+            departureTime: baseTime,
+            arrivalTime: arrivalTime,
+            trainType: "(動的探索)",  // 動的探索であることを示す
+            trainNumber: nil,
+            transferCount: result.transferCount,
+            sections: routeSections,
+            isActualArrivalTime: false
+        )
     }
 }
