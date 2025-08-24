@@ -58,7 +58,7 @@ class AlertMonitoringService: NSObject, ObservableObject {
         // 初回チェック
         checkAllAlerts()
         
-        print("🔔 アラート監視を開始しました")
+        // アラート監視を開始
     }
     
     /// 監視を停止
@@ -69,7 +69,7 @@ class AlertMonitoringService: NSObject, ObservableObject {
         locationUpdateTimer?.invalidate()
         locationUpdateTimer = nil
         
-        print("🔕 アラート監視を停止しました")
+        // アラート監視を停止
     }
     
     /// アクティブなアラートを再読み込み
@@ -91,7 +91,7 @@ class AlertMonitoringService: NSObject, ObservableObject {
         // 通知済みリストからも削除
         notifiedAlerts.remove(alertId)
         
-        print("🗑️ アラートを監視対象から削除しました: \(alertId.uuidString)")
+        // アラートを監視対象から削除
     }
     
     // MARK: - Private Methods
@@ -111,9 +111,9 @@ class AlertMonitoringService: NSObject, ObservableObject {
         let request = Alert.activeAlertsFetchRequest()
         do {
             activeAlerts = try viewContext.fetch(request)
-            print("📍 アクティブなアラート: \(activeAlerts.count)件")
+            // アクティブなアラート
         } catch {
-            print("❌ アラートの読み込みエラー: \(error)")
+            // アラートの読み込みエラー
             monitoringError = error
         }
     }
@@ -139,8 +139,8 @@ class AlertMonitoringService: NSObject, ObservableObject {
             if let arrivalTime = alert.arrivalTime {
                 let notificationTime = arrivalTime.addingTimeInterval(-Double(alert.notificationTime) * 60)
                 
-                // 通知時刻を過ぎていて、到着時刻はまだの場合
-                if now >= notificationTime && now < arrivalTime {
+                // 通知時刻を過ぎていて、到着時刻はまだの場合、かつまだ通知していない場合
+                if now >= notificationTime && now < arrivalTime && !notifiedAlerts.contains(alertId) {
                     await sendNotification(for: alert, reason: "時間ベース")
                     notifiedAlerts.insert(alertId)
                 }
@@ -161,8 +161,8 @@ class AlertMonitoringService: NSObject, ObservableObject {
             let stationLocation = CLLocation(latitude: station.latitude, longitude: station.longitude)
             let distance = currentLocation.distance(from: stationLocation)
             
-            // 設定距離以内に入った場合
-            if distance <= alert.notificationDistance {
+            // 設定距離以内に入っていて、まだ通知していない場合
+            if distance <= alert.notificationDistance && !notifiedAlerts.contains(alertId) {
                 Task {
                     await sendNotification(for: alert, reason: "距離ベース（\(Int(distance))m）")
                     notifiedAlerts.insert(alertId)
@@ -186,12 +186,13 @@ class AlertMonitoringService: NSObject, ObservableObject {
                         arrivalTime: arrivalTime,
                         currentLocation: locationManager.location,
                         targetLocation: targetLocation,
-                        characterStyle: characterStyle
+                        characterStyle: characterStyle,
+                        alertId: alert.alertId?.uuidString
                     )
-                    print("✅ 時間ベースの通知をスケジュールしました: \(stationName) - \(reason)")
+                    // 時間ベースの通知をスケジュール
                 }
             } catch {
-                print("❌ 通知スケジュールエラー: \(error)")
+                // 通知スケジュールエラー
                 monitoringError = error
             }
         }
@@ -203,11 +204,12 @@ class AlertMonitoringService: NSObject, ObservableObject {
                 try await notificationManager.scheduleLocationBasedAlert(
                     for: stationName,
                     targetLocation: targetLocation,
-                    radius: alert.notificationDistance
+                    radius: alert.notificationDistance,
+                    alertId: alert.alertId?.uuidString
                 )
-                print("✅ 位置ベースの通知をスケジュールしました: \(stationName) - \(reason)")
+                // 位置ベースの通知をスケジュール
             } catch {
-                print("❌ 通知スケジュールエラー: \(error)")
+                // 通知スケジュールエラー
                 monitoringError = error
             }
         }
@@ -250,16 +252,36 @@ class AlertMonitoringService: NSObject, ObservableObject {
             do {
                 try await UNUserNotificationCenter.current().add(request)
                 lastNotificationTime = Date()
-                print("✅ 即座の通知を送信しました: \(stationName) - \(reason)")
+                // 即座の通知を送信
             } catch {
-                print("❌ 通知送信エラー: \(error)")
+                // 通知送信エラー
                 monitoringError = error
             }
         }
         
-        // 履歴に追加
-        let history = alert.addHistory(message: "\(reason)で通知: \(stationName)")
-        try? viewContext.save()
+        // 履歴に追加（NotificationHistoryManagerを使用）
+        var userInfo: [AnyHashable: Any] = [
+            "stationName": stationName,
+            "reason": reason
+        ]
+        
+        if let alertId = alert.alertId {
+            userInfo["alertId"] = alertId.uuidString
+        }
+        
+        // 通知タイプを判定
+        let notificationType: String
+        if reason.contains("時間ベース") {
+            notificationType = "trainAlert"
+        } else if reason.contains("距離ベース") {
+            notificationType = "locationAlert"
+        } else {
+            notificationType = "trainAlert"
+        }
+        
+        // 履歴の保存はNotificationManagerに任せる（重複を防ぐため）
+        // NotificationManagerのwillPresent/didReceiveで自動的に保存される
+        // 通知送信
     }
     
     /// キャラクタースタイルに応じたメッセージを生成
@@ -276,7 +298,7 @@ class AlertMonitoringService: NSObject, ObservableObject {
                 do {
                     aiMessage = try await generateAIMessage(for: alert, stationName: stationName)
                 } catch {
-                    print("⚠️ AI生成エラー: \(error)")
+                    // AI生成エラー
                 }
                 semaphore.signal()
             }
