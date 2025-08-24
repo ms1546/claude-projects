@@ -269,6 +269,7 @@ struct TimetableAlertSetupView: View {
                     Button(action: {
                         withAnimation {
                             notificationType = "time"
+                            updateMaxSnoozeStations()
                         }
                     }) {
                         HStack {
@@ -290,6 +291,7 @@ struct TimetableAlertSetupView: View {
                     Button(action: {
                         withAnimation {
                             notificationType = "station"
+                            updateMaxSnoozeStations()
                         }
                     }) {
                         HStack {
@@ -405,6 +407,8 @@ struct TimetableAlertSetupView: View {
         Button(action: {
             withAnimation {
                 notificationStations = count
+                // スヌーズの最大駅数を更新
+                updateMaxSnoozeStations()
             }
         }) {
             Text("\(count)駅前")
@@ -493,10 +497,18 @@ struct TimetableAlertSetupView: View {
                                 .foregroundColor(Color.textSecondary)
                         }
                     
-                        Text("各駅で段階的に通知し、寝過ごしを防ぎます")
-                            .font(.caption2)
-                            .foregroundColor(Color.textSecondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                        // 駅数ベースの通知設定の場合、その制限を説明
+                        if notificationType == "station" && maxSnoozeStations < notificationStations {
+                            Text("通知設定（\(notificationStations)駅前）より前から段階的に通知します")
+                                .font(.caption2)
+                                .foregroundColor(Color.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        } else {
+                            Text("各駅で段階的に通知し、寝過ごしを防ぎます")
+                                .font(.caption2)
+                                .foregroundColor(Color.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
@@ -1543,7 +1555,13 @@ struct TimetableAlertSetupView: View {
         // 実際の駅数から最大スヌーズ駅数を計算
         // 出発駅を除いた駅数が最大値（到着駅の1駅前まで通知可能）
         let availableStations = max(1, actualStations.count - 2)
-        maxSnoozeStations = min(5, availableStations)  // 最大5駅前まで
+        
+        // 通知設定が駅数ベースの場合、その設定値を上限とする
+        if notificationType == "station" {
+            maxSnoozeStations = min(notificationStations, availableStations)
+        } else {
+            maxSnoozeStations = min(5, availableStations)  // 最大5駅前まで
+        }
         
         // 現在の設定値が最大値を超えている場合は調整
         if snoozeStartStations > maxSnoozeStations {
