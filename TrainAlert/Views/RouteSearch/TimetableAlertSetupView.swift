@@ -34,7 +34,7 @@ struct TimetableAlertSetupView: View {
     @State private var isSnoozeEnabled = false
     @State private var snoozeStartStations: Int = 3
     @State private var snoozeStartStationsDouble: Double = 3.0  // Slider用
-    @State private var maxSnoozeStations: Int = 5  // 実際の駅数に基づいて更新
+    @State private var maxSnoozeStations: Int = 3  // 実際の駅数に基づいて更新（初期値を安全な値に）
     
     // AI設定の状態を監視
     @AppStorage("useAIGeneratedMessages") private var useAIGeneratedMessages = false
@@ -133,7 +133,9 @@ struct TimetableAlertSetupView: View {
             checkAPIKeyStatus()
             
             // スヌーズ設定の初期化
-            snoozeStartStationsDouble = Double(snoozeStartStations)
+            let validSnoozeValue = min(snoozeStartStations, max(1, maxSnoozeStations))
+            snoozeStartStations = validSnoozeValue
+            snoozeStartStationsDouble = Double(validSnoozeValue)
             
             // 初期のmaxSnoozeStationsを設定
             if actualStations.isEmpty {
@@ -452,7 +454,9 @@ struct TimetableAlertSetupView: View {
             .onChange(of: isSnoozeEnabled) { newValue in
                 if newValue {
                     // スヌーズが有効になった時、値を同期
-                    snoozeStartStationsDouble = Double(snoozeStartStations)
+                    let validValue = min(snoozeStartStations, max(1, maxSnoozeStations))
+                    snoozeStartStations = validValue
+                    snoozeStartStationsDouble = Double(validValue)
                 }
             }
             
@@ -487,25 +491,26 @@ struct TimetableAlertSetupView: View {
                                 .foregroundColor(Color.trainSoftBlue)
                         }
                         
-                        HStack {
-                            Text("1駅前")
-                                .font(.caption2)
-                                .foregroundColor(Color.textSecondary)
-                            
-                            Slider(
-                                value: $snoozeStartStationsDouble,
-                                in: 1...Double(max(1, maxSnoozeStations)),
-                                step: 1
-                            )
-                            .tint(.trainSoftBlue)
-                            .disabled(maxSnoozeStations < 1)
-                            .onChange(of: snoozeStartStationsDouble) { newValue in
-                                snoozeStartStations = Int(newValue)
+                        if maxSnoozeStations >= 1 {
+                            HStack {
+                                Text("1駅前")
+                                    .font(.caption2)
+                                    .foregroundColor(Color.textSecondary)
+                                
+                                Slider(
+                                    value: $snoozeStartStationsDouble,
+                                    in: 1...Double(maxSnoozeStations),
+                                    step: 1
+                                )
+                                .tint(.trainSoftBlue)
+                                .onChange(of: snoozeStartStationsDouble) { newValue in
+                                    snoozeStartStations = min(Int(newValue), maxSnoozeStations)
+                                }
+                                
+                                Text("\(maxSnoozeStations)駅前")
+                                    .font(.caption2)
+                                    .foregroundColor(Color.textSecondary)
                             }
-                            
-                            Text("\(maxSnoozeStations)駅前")
-                                .font(.caption2)
-                                .foregroundColor(Color.textSecondary)
                         }
                     
                         // 駅数ベースの通知設定の場合、その制限を説明
@@ -1576,8 +1581,8 @@ struct TimetableAlertSetupView: View {
         
         // 現在の設定値が最大値を超えている場合は調整
         if snoozeStartStations > maxSnoozeStations {
-            snoozeStartStations = maxSnoozeStations
-            snoozeStartStationsDouble = Double(maxSnoozeStations)
+            snoozeStartStations = max(1, maxSnoozeStations)
+            snoozeStartStationsDouble = Double(max(1, maxSnoozeStations))
         }
     }
     
