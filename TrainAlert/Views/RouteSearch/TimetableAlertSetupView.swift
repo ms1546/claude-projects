@@ -30,6 +30,10 @@ struct TimetableAlertSetupView: View {
     @State private var repeatPattern: RepeatPattern = .none
     @State private var customDays: Set<Int> = []
     
+    // スヌーズ設定の状態
+    @State private var isSnoozeEnabled = false
+    @State private var snoozeStartStations: Int = 3
+    
     // AI設定の状態を監視
     @AppStorage("useAIGeneratedMessages") private var useAIGeneratedMessages = false
     @State private var hasValidAPIKey = false
@@ -66,6 +70,9 @@ struct TimetableAlertSetupView: View {
                     
                     // ハイブリッド通知設定
                     hybridNotificationCard
+                    
+                    // スヌーズ設定
+                    snoozeSettingsCard
                     
                     // 繰り返し設定
                     repeatSettingsCard
@@ -403,6 +410,126 @@ struct TimetableAlertSetupView: View {
         .buttonStyle(PlainButtonStyle())
     }
     
+    // MARK: - Snooze Settings Card
+    
+    private var snoozeSettingsCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "bell.badge")
+                    .foregroundColor(Color.trainSoftBlue)
+                    .font(.system(size: 18))
+                Text("スヌーズ設定")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(Color.textPrimary)
+            }
+            
+            // スヌーズのオン/オフ
+            Toggle(isOn: $isSnoozeEnabled) {
+                Text("駅ごと通知（スヌーズ）")
+                    .font(.subheadline)
+                    .foregroundColor(Color.textPrimary)
+            }
+            .tint(.trainSoftBlue)
+            
+            if isSnoozeEnabled {
+                VStack(spacing: 12) {
+                    // 開始駅数の設定
+                    HStack {
+                        Text("通知開始")
+                            .font(.caption)
+                            .foregroundColor(Color.textSecondary)
+                        
+                        Spacer()
+                        
+                        Text("\(snoozeStartStations)駅前から")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(Color.trainSoftBlue)
+                    }
+                    
+                    HStack {
+                        Text("1駅前")
+                            .font(.caption2)
+                            .foregroundColor(Color.textSecondary)
+                        
+                        Slider(
+                            value: Binding(
+                                get: { Double(snoozeStartStations) },
+                                set: { snoozeStartStations = Int($0) }
+                            ),
+                            in: 1...5,
+                            step: 1
+                        )
+                        .tint(.trainSoftBlue)
+                        
+                        Text("5駅前")
+                            .font(.caption2)
+                            .foregroundColor(Color.textSecondary)
+                    }
+                    
+                    // 通知される駅のプレビュー
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("通知される駅（予定）")
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(Color.textSecondary)
+                            .padding(.top, 4)
+                        
+                        ForEach((1...snoozeStartStations).reversed(), id: \.self) { station in
+                            HStack(spacing: 8) {
+                                Circle()
+                                    .fill(station == 1 ? Color.orange : Color.trainSoftBlue)
+                                    .frame(width: 6, height: 6)
+                                
+                                Text(getSnoozePreviewText(for: station))
+                                    .font(.caption2)
+                                    .foregroundColor(station == 1 ? .orange : .textSecondary)
+                                
+                                Spacer()
+                            }
+                            .padding(.vertical, 2)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.backgroundSecondary)
+                    )
+                    
+                    Text("各駅で段階的に通知し、寝過ごしを防ぎます")
+                        .font(.caption2)
+                        .foregroundColor(Color.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+                .animation(.easeInOut(duration: 0.3), value: isSnoozeEnabled)
+            }
+        }
+        .padding(20)
+        .background(Color.backgroundCard)
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
+        .padding(.horizontal)
+    }
+    
+    private func getSnoozePreviewText(for stationsRemaining: Int) -> String {
+        switch stationsRemaining {
+        case 1:
+            return "次の駅で降車です！"
+        case 2:
+            return "あと2駅で到着です"
+        case 3:
+            return "あと3駅で到着です"
+        case 4:
+            return "あと4駅で到着です"
+        case 5:
+            return "あと5駅で到着です"
+        default:
+            return "あと\(stationsRemaining)駅で到着です"
+        }
+    }
+    
     // MARK: - Repeat Settings Card
     
     private var repeatSettingsCard: some View {
@@ -707,6 +834,10 @@ struct TimetableAlertSetupView: View {
                 alert.notificationDistance = 0 // 経路ベースでは距離は使わない
                 alert.createdAt = Date()
                 
+                // スヌーズ設定を保存
+                alert.isSnoozeEnabled = isSnoozeEnabled
+                alert.snoozeStartStations = Int16(snoozeStartStations)
+                
                 // 繰り返し設定を保存（TimetableAlert+Extensionで定義）
                 // alert.repeatPattern = isRepeating ? repeatPattern : .none
                 // alert.repeatCustomDays = Array(customDays)
@@ -796,6 +927,20 @@ struct TimetableAlertSetupView: View {
                             characterStyle: characterStyle
                         )
                         print("✅ 通知スケジュール成功")
+                    }
+                    
+                    // スヌーズ通知の初期化
+                    if isSnoozeEnabled {
+                        do {
+                            try await SnoozeNotificationManager.shared.scheduleSnoozeNotifications(
+                                for: alert,
+                                currentStationCount: Int(snoozeStartStations),
+                                railway: route.sections.first?.railway
+                            )
+                            print("✅ スヌーズ通知スケジュール成功")
+                        } catch {
+                            print("⚠️ スヌーズ通知のスケジュールに失敗: \(error)")
+                        }
                     }
                 } catch {
                     print("⚠️ 通知のスケジュールに失敗: \(error)")
