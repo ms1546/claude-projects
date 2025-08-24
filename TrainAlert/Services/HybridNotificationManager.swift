@@ -547,6 +547,16 @@ final class HybridNotificationManager: ObservableObject {
         content.sound = .defaultCritical
         content.categoryIdentifier = "TRAIN_ARRIVAL"
         
+        // 履歴保存のためのuserInfoを追加
+        content.userInfo = [
+            "routeAlertId": routeAlert.routeId?.uuidString ?? "",
+            "stationName": routeAlert.arrivalStation ?? "不明",
+            "departureStation": routeAlert.departureStation ?? "",
+            "type": "hybrid",
+            "mode": decision.mode.rawValue,
+            "confidence": decision.confidence
+        ]
+        
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         try? await UNUserNotificationCenter.current().add(request)
         
