@@ -1311,6 +1311,8 @@ struct TimetableAlertSetupView: View {
                 await MainActor.run {
                     // エラー時は既存のactualStationsを維持
                     print("詳細な駅情報の取得に失敗: \(error)")
+                    print("[DEBUG] Error details: \(error.localizedDescription)")
+                    print("[DEBUG] Keeping section-based stations: \(actualStations.count) stations")
                     isLoadingStations = false
                 }
             }

@@ -560,10 +560,6 @@ struct StationNameRomanizer {
         "松": "matsu",
         "松戸": "Matsudo",
         
-        // 板
-        "板橋区役所前": "ItabashiKuyakushomae",
-        "板橋本町": "Itabashihoncho",
-        
         // 林
         "林": "bayashi",
         
@@ -910,7 +906,6 @@ struct StationNameRomanizer {
         "赤坂": "Akasaka",
         "赤坂見附": "AkasakaMitsuke",
         "赤羽": "Akabane",
-        "赤羽岩淵": "AkabaneIwabuchi",
         "赤羽橋": "Akabanebashi",
         
         // 足
