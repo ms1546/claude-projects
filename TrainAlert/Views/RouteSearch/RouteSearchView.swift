@@ -502,6 +502,85 @@ struct RouteSearchView: View {
             .padding(.vertical, 16)
             .background(Color.backgroundCard)
             
+            // 乗り換え詳細表示
+            if route.transferCount > 0 && route.sections.count > 1 {
+                VStack(spacing: 0) {
+                    // 区間ごとの詳細
+                    ForEach(Array(route.sections.enumerated()), id: \.offset) { index, section in
+                        VStack(spacing: 0) {
+                            // 区間情報
+                            HStack {
+                                // 路線カラー
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(getLineColor(for: section.railway ?? ""))
+                                    .frame(width: 4, height: 40)
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(section.railway ?? "")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundColor(Color.textPrimary)
+                                    
+                                    HStack(spacing: 4) {
+                                        Text(section.departureStation)
+                                            .font(.system(size: 11))
+                                            .foregroundColor(Color.textSecondary)
+                                        
+                                        Image(systemName: "arrow.right")
+                                            .font(.system(size: 9))
+                                            .foregroundColor(Color.textSecondary)
+                                        
+                                        Text(section.arrivalStation)
+                                            .font(.system(size: 11))
+                                            .foregroundColor(Color.textSecondary)
+                                    }
+                                }
+                                
+                                Spacer()
+                                
+                                // 時刻
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Text("\(formatTime(section.departureTime))-\(formatTime(section.arrivalTime))")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundColor(Color.textPrimary)
+                                    
+                                    Text("\(Int(section.arrivalTime.timeIntervalSince(section.departureTime) / 60))分")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(Color.textSecondary)
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 12)
+                            
+                            // 乗り換え情報（最後の区間以外）
+                            if index < route.sections.count - 1 {
+                                HStack {
+                                    Image(systemName: "arrow.triangle.turn.up.right.circle.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(Color.warmOrange)
+                                    
+                                    Text("\(section.arrivalStation)で乗り換え")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(Color.warmOrange)
+                                    
+                                    Spacer()
+                                    
+                                    if index < route.sections.count - 1 {
+                                        let transferTime = StationConnectionManager.shared.getTransferTime(for: section.arrivalStation)
+                                        Text("乗換時間: 約\(transferTime)分")
+                                            .font(.system(size: 10))
+                                            .foregroundColor(Color.textSecondary)
+                                    }
+                                }
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 8)
+                                .background(Color.warmOrange.opacity(0.1))
+                            }
+                        }
+                    }
+                }
+                .background(Color.backgroundSecondary)
+            }
+            
             // 下部の追加情報
             HStack {
                 if route.trainType != nil {

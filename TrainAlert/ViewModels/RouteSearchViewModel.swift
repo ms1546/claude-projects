@@ -45,6 +45,7 @@ class RouteSearchViewModel: ObservableObject {
     private let heartRailsClient = HeartRailsAPIClient.shared
     private let cacheManager = APICacheManager.shared
     private let favoriteRouteManager = FavoriteRouteManager.shared
+    private let routeSearchAlgorithm = RouteSearchAlgorithm()
     private var searchTask: Task<Void, Never>?
     private var stationSearchTask: Task<Void, Never>?
     private var departureSearchWorkItem: DispatchWorkItem?
@@ -74,10 +75,8 @@ class RouteSearchViewModel: ObservableObject {
     
     /// 現在サポートされている路線検索の制約を取得
     var searchConstraintMessage: String? {
-        guard let departureStation = selectedDepartureStation else { return nil }
-        
-        // 将来的に複数路線対応時はここを変更
-        return "\(departureStation.railwayTitle?.ja ?? departureStation.railway ?? "")の駅のみ検索可能"
+        // 乗り換え対応により制約メッセージを更新
+        nil  // 制約なし
     }
     
     var formattedDepartureTime: String {
@@ -342,6 +341,13 @@ class RouteSearchViewModel: ObservableObject {
                     print("⚠️ 異なる路線間の経路検索です")
                     print("  出発: \(departureStation.railway ?? "") - \(departureStation.stationTitle?.ja ?? "")")
                     print("  到着: \(arrivalStation.railway ?? "") - \(arrivalStation.stationTitle?.ja ?? "")")
+                    
+                    // 乗り換え経路探索を実行
+                    await searchTransferRoute(
+                        from: departureStation,
+                        to: arrivalStation
+                    )
+                    return
                 }
                 
                 // ODPT APIがサポートしている路線かチェック
@@ -571,19 +577,27 @@ class RouteSearchViewModel: ObservableObject {
     
     // MARK: - Private Methods
     
-    /// 駅候補をフィルタリング（将来の複数路線対応のため分離）
+    /// 駅候補をフィルタリング（乗り換え対応版）
     private func filterStations(_ stations: [ODPTStation], for searchType: StationType) -> [ODPTStation] {
-        // 現在は同一路線のみサポート
-        // 将来的にはここで複数路線の乗換を考慮したフィルタリングを実装
+        // 乗り換え対応のため、同一路線の制限を緩和
+        // ただし、完全に自由ではなく、妥当な経路のみを候補として表示
         
         switch searchType {
         case .arrival:
+            // 到着駅の選択時は、基本的にすべての駅を候補として表示
+            // ただし、同一路線の駅を優先的に表示
             if let departureRailway = selectedDepartureStation?.railway {
-                return stations.filter { $0.railway == departureRailway }
+                // 同一路線の駅を先頭に、その他の駅を後ろに配置
+                let sameLineStations = stations.filter { $0.railway == departureRailway }
+                let otherStations = stations.filter { $0.railway != departureRailway }
+                return sameLineStations + otherStations
             }
         case .departure:
+            // 出発駅の選択時も同様
             if let arrivalRailway = selectedArrivalStation?.railway {
-                return stations.filter { $0.railway == arrivalRailway }
+                let sameLineStations = stations.filter { $0.railway == arrivalRailway }
+                let otherStations = stations.filter { $0.railway != arrivalRailway }
+                return sameLineStations + otherStations
             }
         }
         
@@ -823,6 +837,114 @@ class RouteSearchViewModel: ObservableObject {
             errorMessage = "エラーが発生しました: \(error.localizedDescription)"
         }
         showError = true
+    }
+    
+    /// 乗り換え経路を検索
+    private func searchTransferRoute(from departureStation: ODPTStation, to arrivalStation: ODPTStation) async {
+        print("🚃 Starting transfer route search...")
+        
+        do {
+            // 経路探索を実行
+            let searchResults = try await routeSearchAlgorithm.searchRoute(
+                from: departureStation.stationTitle?.ja ?? departureStation.title,
+                departureLine: departureStation.railwayTitle?.ja ?? departureStation.railway ?? "",
+                to: arrivalStation.stationTitle?.ja ?? arrivalStation.title,
+                arrivalLine: arrivalStation.railwayTitle?.ja ?? arrivalStation.railway
+            )
+            
+            print("Found \(searchResults.count) transfer routes")
+            
+            // RouteSearchResultに変換
+            var routeResults: [RouteSearchResult] = []
+            
+            for (index, result) in searchResults.enumerated() {
+                print("Converting route \(index + 1):")
+                print("  Total time: \(result.totalTime) minutes")
+                print("  Transfer count: \(result.transferCount)")
+                print("  Sections: \(result.sections.count)")
+                
+                // 各区間の詳細情報を出力
+                for (sectionIndex, section) in result.sections.enumerated() {
+                    print("  Section \(sectionIndex + 1): \(section.fromStation) -> \(section.toStation) (\(section.line))")
+                }
+                
+                // 出発時刻を計算（現在時刻から適切な時刻を選択）
+                let calendar = Calendar.current
+                var dateComponents = calendar.dateComponents([.year, .month, .day], from: departureTime)
+                dateComponents.hour = calendar.component(.hour, from: departureTime)
+                dateComponents.minute = calendar.component(.minute, from: departureTime)
+                
+                guard let baseTime = calendar.date(from: dateComponents) else { continue }
+                
+                // 到着時刻を計算
+                let arrivalTime = baseTime.addingTimeInterval(TimeInterval(result.totalTime * 60))
+                
+                // RouteSection配列を作成
+                var routeSections: [RouteSection] = []
+                var currentTime = baseTime
+                
+                for section in result.sections {
+                    let sectionDepartureTime = currentTime
+                    let sectionArrivalTime = currentTime.addingTimeInterval(TimeInterval(section.duration * 60))
+                    
+                    routeSections.append(RouteSection(
+                        departureStation: section.fromStation,
+                        arrivalStation: section.toStation,
+                        departureTime: sectionDepartureTime,
+                        arrivalTime: sectionArrivalTime,
+                        trainType: nil,  // 乗り換え検索では列車種別は不明
+                        trainNumber: nil,
+                        railway: section.line
+                    ))
+                    
+                    // 次の区間の開始時刻を更新（乗り換え時間を考慮）
+                    if section != result.sections.last {
+                        let transferTime = StationConnectionManager.shared.getTransferTime(for: section.toStation)
+                        currentTime = sectionArrivalTime.addingTimeInterval(TimeInterval(transferTime * 60))
+                    } else {
+                        currentTime = sectionArrivalTime
+                    }
+                }
+                
+                let routeResult = RouteSearchResult(
+                    departureStation: departureStation.stationTitle?.ja ?? departureStation.title,
+                    arrivalStation: arrivalStation.stationTitle?.ja ?? arrivalStation.title,
+                    departureTime: baseTime,
+                    arrivalTime: arrivalTime,
+                    trainType: nil,
+                    trainNumber: nil,
+                    transferCount: result.transferCount,
+                    sections: routeSections,
+                    isActualArrivalTime: false  // 乗り換え検索では推定時刻
+                )
+                
+                routeResults.append(routeResult)
+                
+                // 最大5件まで
+                if routeResults.count >= 5 {
+                    break
+                }
+            }
+            
+            // 結果を設定
+            await MainActor.run {
+                if routeResults.isEmpty {
+                    self.errorMessage = "乗り換え経路が見つかりませんでした"
+                    self.showError = true
+                    self.searchResults = []
+                } else {
+                    self.searchResults = routeResults
+                    print("✅ Set \(routeResults.count) transfer routes")
+                }
+            }
+        } catch {
+            print("Transfer route search error: \(error)")
+            await MainActor.run {
+                self.errorMessage = "乗り換え経路の検索に失敗しました"
+                self.showError = true
+                self.searchResults = []
+            }
+        }
     }
     
     // MARK: - Favorite Route Methods
