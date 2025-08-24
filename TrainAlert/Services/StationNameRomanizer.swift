@@ -20,6 +20,7 @@ struct StationNameRomanizer {
         
         // あ
         "あ": "a",
+        "赤羽岩淵": "AkabaneIwabuchi",
         
         // お
         "お台場海浜公園": "OdaibaKaihinKoen",
@@ -71,6 +72,10 @@ struct StationNameRomanizer {
         
         // ア
         "ア": "a",
+        
+        // イ
+        "板橋区役所前": "ItabashiKuyakushomae",
+        "板橋本町": "ItabashiHoncho",
         
         // カ
         "カ": "ka",

@@ -74,11 +74,11 @@ struct TimetableAlertSetupView: View {
                         notificationStationCard
                     }
                     
-                    // ハイブリッド通知設定
-                    hybridNotificationCard
-                    
                     // スヌーズ設定
                     snoozeSettingsCard
+                    
+                    // ハイブリッド通知設定
+                    hybridNotificationCard
                     
                     // 繰り返し設定
                     repeatSettingsCard
@@ -1060,7 +1060,7 @@ struct TimetableAlertSetupView: View {
                                         .fill(stationsRemaining == 1 ? Color.orange : Color.trainSoftBlue)
                                         .frame(width: 8, height: 8)
                                     
-                                    Text(station.name)
+                                    Text(getDisplayStationName(station.name))
                                         .font(.subheadline)
                                         .foregroundColor(stationsRemaining == 1 ? .orange : .textPrimary)
                                     
@@ -1137,7 +1137,7 @@ struct TimetableAlertSetupView: View {
                         HStack {
                             Image(systemName: "bell.badge")
                                 .foregroundColor(Color.trainSoftBlue)
-                            Text("\(notificationStation.name)駅で通知")
+                            Text("\(getDisplayStationName(notificationStation.name))駅で通知")
                                 .font(.subheadline)
                                 .fontWeight(.medium)
                                 .foregroundColor(Color.textPrimary)
@@ -1291,7 +1291,8 @@ struct TimetableAlertSetupView: View {
                     print("[DEBUG] actualStopStations after filter: \(actualStopStations.count) stations")
                     print("[DEBUG] actualStopStations names: \(actualStopStations.map { $0.stationName })")
                     actualStations = actualStopStations.map { station in
-                        (name: station.stationName, time: parseTimeString(station.departureTime ?? station.arrivalTime))
+                        print("[STATION NAME DEBUG] Mapping station: '\(station.stationName)' (id: \(station.stationId))")
+                        return (name: station.stationName, time: parseTimeString(station.departureTime ?? station.arrivalTime))
                     }
                     updateMaxSnoozeStations()
                     isLoadingStations = false
@@ -1499,6 +1500,25 @@ struct TimetableAlertSetupView: View {
         if snoozeStartStations > maxSnoozeStations {
             snoozeStartStations = maxSnoozeStations
         }
+    }
+    
+    private func getDisplayStationName(_ stationName: String) -> String {
+        // 既に日本語名の場合はそのまま返す（日本語文字を含むかチェック）
+        let japaneseCharacterSet = CharacterSet(charactersIn: "あ-んア-ン一-龠")
+        if stationName.rangeOfCharacter(from: japaneseCharacterSet) != nil {
+            return stationName
+        }
+        
+        // 英語名の場合は日本語名に変換を試みる
+        let romanizer = StationNameRomanizer.shared
+        if let japaneseName = romanizer.toJapanese(stationName) {
+            print("[STATION NAME DISPLAY] Converted '\(stationName)' to '\(japaneseName)'")
+            return japaneseName
+        }
+        
+        // 変換できない場合は元の名前を返す
+        print("[STATION NAME DISPLAY] No conversion found for '\(stationName)'")
+        return stationName
     }
     
     private func formatNextNotificationDate(_ date: Date) -> String {
