@@ -39,7 +39,8 @@ class SnoozeNotificationManager: ObservableObject {
         railway: String? = nil
     ) async throws {
         // スヌーズが無効の場合は何もしない
-        guard alert.isSnoozeEnabled else { return }
+        guard alert.responds(to: #selector(getter: Alert.isSnoozeEnabled)) else { return }
+        guard alert.value(forKey: "isSnoozeEnabled") as? Bool ?? false else { return }
         
         // 既存のスヌーズ通知をキャンセル
         await cancelSnoozeNotifications(for: alert)
@@ -48,7 +49,7 @@ class SnoozeNotificationManager: ObservableObject {
         var notificationIds: [String] = []
         
         // スヌーズ開始駅数から降車駅までの各駅で通知を設定
-        let startStation = Int(alert.snoozeStartStations)
+        let startStation = alert.responds(to: #selector(getter: Alert.snoozeStartStations)) ? (alert.value(forKey: "snoozeStartStations") as? Int16).map { Int($0) } ?? 3 : 3
         
         for stationsRemaining in (1...startStation).reversed() {
             // 現在地から通知対象駅までの駅数差
@@ -84,16 +85,33 @@ class SnoozeNotificationManager: ObservableObject {
         }
         
         // 通知IDを保存
-        alert.snoozeNotificationIdArray = notificationIds
+        if alert.responds(to: #selector(setter: Alert.snoozeNotificationIds)) {
+            if let data = try? JSONEncoder().encode(notificationIds),
+               let idsString = String(data: data, encoding: .utf8) {
+                alert.setValue(idsString, forKey: "snoozeNotificationIds")
+            }
+        }
     }
     
     /// スヌーズ通知をキャンセル
     /// - Parameter alert: アラート設定
     func cancelSnoozeNotifications(for alert: Alert) async {
-        let identifiers = alert.snoozeNotificationIdArray
+        var identifiers: [String] = []
+        
+        // snoozeNotificationIdsを安全に取得
+        if alert.responds(to: #selector(getter: Alert.snoozeNotificationIds)),
+           let idsString = alert.value(forKey: "snoozeNotificationIds") as? String,
+           let data = idsString.data(using: .utf8),
+           let ids = try? JSONDecoder().decode([String].self, from: data) {
+            identifiers = ids
+        }
+        
         if !identifiers.isEmpty {
             notificationCenter.removePendingNotificationRequests(withIdentifiers: identifiers)
-            alert.clearSnoozeNotificationIds()
+            // snoozeNotificationIdsをクリア
+            if alert.responds(to: #selector(setter: Alert.snoozeNotificationIds)) {
+                alert.setValue(nil, forKey: "snoozeNotificationIds")
+            }
         }
     }
     
@@ -105,7 +123,8 @@ class SnoozeNotificationManager: ObservableObject {
         for alert: Alert,
         currentStationCount: Int
     ) async throws {
-        guard alert.isSnoozeEnabled else { return }
+        guard alert.responds(to: #selector(getter: Alert.isSnoozeEnabled)),
+              alert.isSnoozeEnabled else { return }
         
         // 現在の駅数に応じた通知があるか確認
         let notificationId = generateSnoozeNotificationId(
@@ -114,7 +133,15 @@ class SnoozeNotificationManager: ObservableObject {
         )
         
         // 該当する通知があれば即座に発火
-        if alert.snoozeNotificationIdArray.contains(notificationId) {
+        var storedIds: [String] = []
+        if alert.responds(to: #selector(getter: Alert.snoozeNotificationIds)),
+           let idsString = alert.value(forKey: "snoozeNotificationIds") as? String,
+           let data = idsString.data(using: .utf8),
+           let ids = try? JSONDecoder().decode([String].self, from: data) {
+            storedIds = ids
+        }
+        
+        if storedIds.contains(notificationId) {
             let content = createSnoozeNotificationContent(
                 alert: alert,
                 stationsRemaining: currentStationCount,

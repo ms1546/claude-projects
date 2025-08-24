@@ -34,7 +34,7 @@ struct TimetableAlertSetupView: View {
     @State private var isSnoozeEnabled = false
     @State private var snoozeStartStations: Int = 3
     @State private var snoozeStartStationsDouble: Double = 3.0  // Slider用
-    @State private var maxSnoozeStations: Int = 3  // 実際の駅数に基づいて更新（初期値を安全な値に）
+    @State private var maxSnoozeStations: Int = 5  // 実際の駅数に基づいて更新（初期値を十分大きくする）
     
     // AI設定の状態を監視
     @AppStorage("useAIGeneratedMessages") private var useAIGeneratedMessages = false
@@ -132,8 +132,9 @@ struct TimetableAlertSetupView: View {
             // APIキーの状態をチェック
             checkAPIKeyStatus()
             
-            // スヌーズ設定の初期化
-            let validSnoozeValue = min(snoozeStartStations, max(1, maxSnoozeStations))
+            // スヌーズ設定の初期化（絶対に安全な値で初期化）
+            let safeMaxStations = max(2, maxSnoozeStations)
+            let validSnoozeValue = min(max(1, snoozeStartStations), safeMaxStations)
             snoozeStartStations = validSnoozeValue
             snoozeStartStationsDouble = Double(validSnoozeValue)
             
@@ -463,7 +464,7 @@ struct TimetableAlertSetupView: View {
             if isSnoozeEnabled {
                 VStack(spacing: 12) {
                     // 駅数が少なすぎる場合の警告
-                    if maxSnoozeStations < 1 {
+                    if actualStations.count <= 2 {
                         HStack {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(.orange)
@@ -491,23 +492,32 @@ struct TimetableAlertSetupView: View {
                                 .foregroundColor(Color.trainSoftBlue)
                         }
                         
-                        if maxSnoozeStations >= 1 {
+                        // Sliderの範囲を計算（絶対にエラーが出ないようにする）
+                        let sliderRange = 1.0...Double(max(2, maxSnoozeStations))
+                        let sliderBound = max(2, maxSnoozeStations)
+                        
+                        if sliderBound > 1 {
                             HStack {
                                 Text("1駅前")
                                     .font(.caption2)
                                     .foregroundColor(Color.textSecondary)
                                 
                                 Slider(
-                                    value: $snoozeStartStationsDouble,
-                                    in: 1...Double(maxSnoozeStations),
+                                    value: Binding(
+                                        get: { 
+                                            min(max(1.0, snoozeStartStationsDouble), Double(sliderBound))
+                                        },
+                                        set: { newValue in
+                                            snoozeStartStationsDouble = min(max(1.0, newValue), Double(sliderBound))
+                                            snoozeStartStations = Int(snoozeStartStationsDouble)
+                                        }
+                                    ),
+                                    in: sliderRange,
                                     step: 1
                                 )
                                 .tint(.trainSoftBlue)
-                                .onChange(of: snoozeStartStationsDouble) { newValue in
-                                    snoozeStartStations = min(Int(newValue), maxSnoozeStations)
-                                }
                                 
-                                Text("\(maxSnoozeStations)駅前")
+                                Text("\(sliderBound)駅前")
                                     .font(.caption2)
                                     .foregroundColor(Color.textSecondary)
                             }
@@ -927,8 +937,12 @@ struct TimetableAlertSetupView: View {
                 alert.createdAt = Date()
                 
                 // スヌーズ設定を保存
-                alert.isSnoozeEnabled = isSnoozeEnabled
-                alert.snoozeStartStations = Int16(snoozeStartStations)
+                if alert.responds(to: #selector(setter: Alert.isSnoozeEnabled)) {
+                    alert.isSnoozeEnabled = isSnoozeEnabled
+                }
+                if alert.responds(to: #selector(setter: Alert.snoozeStartStations)) {
+                    alert.snoozeStartStations = Int16(snoozeStartStations)
+                }
                 
                 // 繰り返し設定を保存（TimetableAlert+Extensionで定義）
                 // alert.repeatPattern = isRepeating ? repeatPattern : .none
@@ -1290,6 +1304,9 @@ struct TimetableAlertSetupView: View {
                 loadActualStations()
             }
         }
+        .onChange(of: snoozeStartStations) { _ in
+            // スヌーズ駅数が変更されたらプレビューを更新
+        }
     }
     
     private func loadActualStations() {
@@ -1570,20 +1587,36 @@ struct TimetableAlertSetupView: View {
     private func updateMaxSnoozeStations() {
         // 実際の駅数から最大スヌーズ駅数を計算
         // 出発駅を除いた駅数が最大値（到着駅の1駅前まで通知可能）
-        let availableStations = max(1, actualStations.count - 2)
+        let totalStations = actualStations.count
+        
+        // 駅数が2つ以下の場合（出発駅と到着駅のみ）はスヌーズ不可
+        if totalStations <= 2 {
+            maxSnoozeStations = 2  // 最小値を2に設定（Sliderエラー完全回避）
+            // スヌーズを自動的に無効化
+            if isSnoozeEnabled {
+                isSnoozeEnabled = false
+            }
+            return
+        }
+        
+        let availableStations = totalStations - 2
         
         // 通知設定が駅数ベースの場合、その設定値を上限とする
         if notificationType == "station" {
-            maxSnoozeStations = min(notificationStations, availableStations)
+            maxSnoozeStations = max(2, min(notificationStations, availableStations))
         } else {
-            maxSnoozeStations = min(5, availableStations)  // 最大5駅前まで
+            maxSnoozeStations = max(2, min(5, availableStations))  // 最大5駅前まで、最小2
         }
         
         // 現在の設定値が最大値を超えている場合は調整
         if snoozeStartStations > maxSnoozeStations {
-            snoozeStartStations = max(1, maxSnoozeStations)
-            snoozeStartStationsDouble = Double(max(1, maxSnoozeStations))
+            snoozeStartStations = maxSnoozeStations
+            snoozeStartStationsDouble = Double(maxSnoozeStations)
         }
+        
+        // 値の妥当性を再確認
+        snoozeStartStations = min(max(1, snoozeStartStations), maxSnoozeStations)
+        snoozeStartStationsDouble = Double(snoozeStartStations)
     }
     
     private func getDisplayStationName(_ stationName: String) -> String {

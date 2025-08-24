@@ -93,12 +93,19 @@ public class Alert: NSManagedObject {
         notificationTime = 5  // 5分前
         notificationDistance = 500  // 500m
         snoozeInterval = 5  // 5分
-        characterStyle = TrainAlert.CharacterStyle.healing.rawValue
+        characterStyle = TrainAlert.CharacterStyle.gyaru.rawValue
         
         // スヌーズ機能のデフォルト値
-        isSnoozeEnabled = false
-        snoozeStartStations = 3  // デフォルトは3駅前から
-        snoozeNotificationIds = nil
+        // Core Dataモデルの同期問題を回避するため、responds(to:)でチェック
+        if responds(to: #selector(setter: isSnoozeEnabled)) {
+            isSnoozeEnabled = false
+        }
+        if responds(to: #selector(setter: snoozeStartStations)) {
+            snoozeStartStations = 3  // デフォルトは3駅前から
+        }
+        if responds(to: #selector(setter: snoozeNotificationIds)) {
+            snoozeNotificationIds = nil
+        }
     }
     
     // MARK: - Validation
@@ -174,13 +181,15 @@ public class Alert: NSManagedObject {
     
     /// スヌーズ機能の有効/無効を切り替え
     func toggleSnooze() {
+        guard responds(to: #selector(setter: isSnoozeEnabled)) else { return }
         isSnoozeEnabled.toggle()
     }
     
     /// スヌーズ通知IDの配列を取得
     var snoozeNotificationIdArray: [String] {
         get {
-            guard let idsString = snoozeNotificationIds,
+            guard responds(to: #selector(getter: snoozeNotificationIds)),
+                  let idsString = snoozeNotificationIds,
                   let data = idsString.data(using: .utf8),
                   let ids = try? JSONDecoder().decode([String].self, from: data) else {
                 return []
@@ -188,6 +197,7 @@ public class Alert: NSManagedObject {
             return ids
         }
         set {
+            guard responds(to: #selector(setter: snoozeNotificationIds)) else { return }
             if let data = try? JSONEncoder().encode(newValue),
                let idsString = String(data: data, encoding: .utf8) {
                 snoozeNotificationIds = idsString
@@ -273,10 +283,6 @@ public class Alert: NSManagedObject {
 // MARK: - Fetch Requests
 
 extension Alert {
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<Alert> {
-        NSFetchRequest<Alert>(entityName: "Alert")
-    }
-    
     /// アクティブなアラートを取得するFetch Request
     /// - Returns: NSFetchRequest
     static func activeAlertsFetchRequest() -> NSFetchRequest<Alert> {
@@ -317,46 +323,6 @@ extension Alert {
     }
 }
 
-// MARK: - Core Data Properties
-
-extension Alert {
-    @NSManaged public var alertId: UUID?
-    @NSManaged public var arrivalTime: Date?
-    @NSManaged public var characterStyle: String?
-    @NSManaged public var createdAt: Date?
-    @NSManaged public var departureStation: String?
-    @NSManaged public var isActive: Bool
-    @NSManaged public var isSnoozeEnabled: Bool
-    @NSManaged public var lastNotifiedAt: Date?
-    @NSManaged public var lineName: String?
-    @NSManaged public var notificationDistance: Double
-    @NSManaged public var notificationStationsBefore: Int16
-    @NSManaged public var notificationTime: Int16
-    @NSManaged public var notificationType: String?
-    @NSManaged public var snoozeCount: Int16
-    @NSManaged public var snoozeInterval: Int16
-    @NSManaged public var snoozeNotificationIds: String?
-    @NSManaged public var snoozeStartStations: Int16
-    @NSManaged public var stationName: String?
-    @NSManaged public var updatedAt: Date?
-    @NSManaged public var station: Station?
-    @NSManaged public var histories: NSSet?
-}
-
-// MARK: Generated accessors for histories
-extension Alert {
-    @objc(addHistoriesObject:)
-    @NSManaged public func addToHistories(_ value: History)
-
-    @objc(removeHistoriesObject:)
-    @NSManaged public func removeFromHistories(_ value: History)
-
-    @objc(addHistories:)
-    @NSManaged public func addToHistories(_ values: NSSet)
-
-    @objc(removeHistories:)
-    @NSManaged public func removeFromHistories(_ values: NSSet)
-}
 
 // MARK: - Identifiable
 
@@ -393,3 +359,4 @@ enum AlertValidationError: LocalizedError {
         }
     }
 }
+
