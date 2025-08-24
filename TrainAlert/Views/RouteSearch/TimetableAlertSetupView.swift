@@ -511,19 +511,86 @@ struct TimetableAlertSetupView: View {
     }
     
     private func getSnoozePreviewText(for stationsRemaining: Int) -> String {
-        switch stationsRemaining {
-        case 1:
-            return "次の駅で降車です！"
-        case 2:
-            return "あと2駅で到着です"
-        case 3:
-            return "あと3駅で到着です"
-        case 4:
-            return "あと4駅で到着です"
-        case 5:
-            return "あと5駅で到着です"
-        default:
-            return "あと\(stationsRemaining)駅で到着です"
+        // キャラクタースタイルに応じたAI生成風プレビューメッセージ
+        switch characterStyle {
+        case .healing:
+            switch stationsRemaining {
+            case 1:
+                return "もうすぐ降車駅に到着しますね✨ お荷物の確認をして、ゆっくりとご準備くださいませ。素敵な一日になりますように💫"
+            case 2:
+                return "あと2駅で到着です☺️ そろそろお支度を始めましょうか。今日もあなたらしく、無理せずにいきましょうね🌸"
+            case 3:
+                return "降車駅まであと3駅です😌 まだ少しお時間がありますので、ゆったりとお過ごしください。必要な時にまたお知らせしますね"
+            case 4:
+                return "あと4駅の地点を通過中です🚃 今はリラックスタイムです。お疲れが出ていませんか？もう少しの間、ゆっくりしていてくださいね"
+            default:
+                return "降車駅まで\(stationsRemaining)駅です😊 まだ余裕がありますので、車窓の景色でも楽しんでいてください。時間になったらお知らせしますね"
+            }
+        case .gyaru:
+            switch stationsRemaining {
+            case 1:
+                return "ヤバっ！マジで次降りるよ〜！💦 荷物チェックして〜！降り遅れたらマジ終わるから気をつけて〜！がんばっ💪✨"
+            case 2:
+                return "あと2駅だよ〜！そろそろ準備始めよ〜？✨ てか眠くない？大丈夫？もうちょいだから頑張ろ〜！ファイト〜！"
+            case 3:
+                return "あと3駅〜！まだちょい時間あるけど〜、そろそろ心の準備しとこ？😘 でもまだ焦らなくて大丈夫だよ〜♪"
+            case 4:
+                return "4駅前通過〜！まだ全然余裕じゃん！😎 でも油断は禁物だよ〜？また近くなったら教えるから安心して〜♡"
+            default:
+                return "まだ\(stationsRemaining)駅もあるじゃ〜ん！めっちゃ余裕〜♪ 今はゆっくりしてて〜！でも寝過ぎないでよ？😝"
+            }
+        case .butler:
+            switch stationsRemaining {
+            case 1:
+                return "お客様、次の駅でお降りでございます。お忘れ物がないよう、今一度お手回り品のご確認をお願いいたします。本日もご利用ありがとうございました"
+            case 2:
+                return "あと2駅でございます。そろそろお支度を始められてはいかがでしょうか。お荷物の整理など、ゆっくりとご準備くださいませ"
+            case 3:
+                return "降車駅まであと3駅でございます。まだお時間に余裕がございますが、念のためお知らせいたしました。引き続きごゆっくりお過ごしください"
+            case 4:
+                return "現在、降車駅の4駅手前を走行中でございます。まだ十分にお時間がございますので、どうぞお寛ぎくださいませ"
+            default:
+                return "お客様の降車駅まで、あと\(stationsRemaining)駅でございます。まだお時間に余裕がございますので、ごゆるりとお過ごしくださいませ"
+            }
+        case .sporty:
+            switch stationsRemaining {
+            case 1:
+                return "ラストスパートだ！次で降車！💪 荷物チェックOK？立ち上がる準備はできてる？最後まで気を抜かずにいこう！ファイト！🔥"
+            case 2:
+                return "残り2駅！ウォーミングアップ開始の時間だ！🏃 軽くストレッチして、降車の準備を始めよう！あと少しだ、頑張ろう！"
+            case 3:
+                return "あと3駅でゴール！そろそろ準備運動かな？💯 まだ少し時間はあるけど、心の準備は大事だよ！一緒に頑張ろう！"
+            case 4:
+                return "4駅前通過！まだ余裕のペース配分だね👍 今は体力温存タイム！でも油断は禁物、集中力キープでいこう！"
+            default:
+                return "ゴールまで残り\(stationsRemaining)駅！今はまだリラックスタイムだ😄 でもメンタルは常に準備OK状態でいこうね！ナイスファイト！"
+            }
+        case .tsundere:
+            switch stationsRemaining {
+            case 1:
+                return "つ、次で降りるんだからね！ちゃんと準備してる？💢 べ、別にあなたが降り遅れても知らないんだから...でも、ちゃんと降りなさいよ！"
+            case 2:
+                return "あと2駅よ...そろそろ準備したら？😤 まさか寝ぼけてるんじゃないでしょうね？し、心配なんかしてないけど...一応確認しただけよ！"
+            case 3:
+                return "降車駅まであと3駅ね...まだ時間はあるけど💭 油断してると危ないわよ？べ、別にあなたのためじゃなくて、私の仕事だから言ってるだけなんだから！"
+            case 4:
+                return "4駅前...まだ余裕があるわね😌 でも調子に乗って寝過ごさないでよ？あ、あなたがどうなろうと知ったことじゃないけど...一応ね"
+            default:
+                return "まだ\(stationsRemaining)駅もあるのね...まあ、ゆっくりしてなさい😏 で、でも！寝過ごしたりしないでよ？私、何度も起こさないからね！"
+            }
+        case .kansai:
+            switch stationsRemaining {
+            case 1:
+                return "おっ！次やで〜！降りる準備せなアカンで〜！😄 荷物忘れたらアカンから、もう一回確認しときや〜！ほな、気ぃつけて降りてや〜！"
+            case 2:
+                return "あと2駅やな〜！ぼちぼち準備始めよか〜？🎵 まだちょい時間あるけど、そろそろ起きときや〜！寝過ごしたら知らんで〜！"
+            case 3:
+                return "降りるとこまであと3駅やで〜！😊 まだ余裕あるけど、そろそろ心の準備しとき〜！でもまあ、焦らんでもええで〜"
+            case 4:
+                return "4駅前通過中や〜！まだまだ時間あるな〜👌 今はのんびりしててもええけど、また近なったら教えたるから安心しぃ〜！"
+            default:
+                return "あと\(stationsRemaining)駅もあるやん！めっちゃ余裕やな〜😁 今はゆっくりしてたらええで〜！でも寝すぎたらアカンで？ほどほどにな〜！"
+            }
         }
     }
     
@@ -855,7 +922,7 @@ struct TimetableAlertSetupView: View {
                 let station: Station
                 if let existing = existingStation {
                     station = existing
-                    print("Using existing station: \(stationName)")
+                    // Using existing station
                 } else {
                     // 新規作成
                     station = Station(context: viewContext)
@@ -869,10 +936,7 @@ struct TimetableAlertSetupView: View {
                     station.createdAt = Date()
                     station.lastUsedAt = nil
                     
-                    print("Created new station: \(stationName)")
-                    print("  stationId: \(stationId)")
-                    print("  latitude: \(station.latitude)")
-                    print("  longitude: \(station.longitude)")
+                    // Created new station
                 }
                 
                 // 最終使用日時を更新
@@ -880,7 +944,7 @@ struct TimetableAlertSetupView: View {
                 
                 // アラートとの関連付け
                 alert.station = station
-                print("Station relationship established successfully")
+                // Station relationship established successfully
                 
                 // 経路情報をUserDefaultsに保存（一時的な対応）
                 let routeInfo = [
@@ -893,10 +957,7 @@ struct TimetableAlertSetupView: View {
                 UserDefaults.standard.set(characterStyle.rawValue, forKey: "defaultCharacterStyle")
                 
                 try viewContext.save()
-                print("✅ Core Data保存成功")
-                print("  Alert ID: \(alert.alertId?.uuidString ?? "nil")")
-                print("  Station: \(alert.station?.name ?? "nil")")
-                print("  Notification: \(alert.notificationTime)分前")
+                // Core Data保存成功
                 
                 // 通知をスケジュール
                 // 到着駅の位置情報は暫定的にnil（将来的に駅の座標を取得）
@@ -913,7 +974,7 @@ struct TimetableAlertSetupView: View {
                             notificationMinutes: notificationType == "time" ? Int(notificationMinutes) : 5,
                             alertId: alert.alertId?.uuidString ?? ""
                         )
-                        print("✅ 繰り返し通知スケジュール成功")
+                        // 繰り返し通知スケジュール成功
                     } else {
                         // 単発の通知をスケジュール
                         try await notificationManager.scheduleTrainAlert(
@@ -923,7 +984,7 @@ struct TimetableAlertSetupView: View {
                             targetLocation: CLLocation(latitude: station.latitude, longitude: station.longitude),
                             characterStyle: characterStyle
                         )
-                        print("✅ 通知スケジュール成功")
+                        // 通知スケジュール成功
                     }
                     
                     // スヌーズ通知の初期化
@@ -934,18 +995,18 @@ struct TimetableAlertSetupView: View {
                                 currentStationCount: Int(snoozeStartStations),
                                 railway: route.sections.first?.railway
                             )
-                            print("✅ スヌーズ通知スケジュール成功")
+                            // スヌーズ通知スケジュール成功
                         } catch {
-                            print("⚠️ スヌーズ通知のスケジュールに失敗: \(error)")
+                            // スヌーズ通知のスケジュールに失敗
                         }
                     }
                 } catch {
-                    print("⚠️ 通知のスケジュールに失敗: \(error)")
+                    // 通知のスケジュールに失敗
                 }
                 
                 await MainActor.run {
                     isSaving = false
-                    print("✅ トントン設定完了")
+                    // トントン設定完了
                     
                     // 成功のHaptic feedback
                     let notificationFeedback = UINotificationFeedbackGenerator()
@@ -996,9 +1057,7 @@ struct TimetableAlertSetupView: View {
                     }
                 }
             } catch {
-                print("❌ トントン保存エラー: \(error)")
-                print("  Error type: \(type(of: error))")
-                print("  Error description: \(error.localizedDescription)")
+                // トントン保存エラー
                 
                 await MainActor.run {
                     isSaving = false
@@ -1208,9 +1267,7 @@ struct TimetableAlertSetupView: View {
     private func loadActualStations() {
         // まずrouteのsectionsから駅リストを構築
         if !route.sections.isEmpty {
-            print("[DEBUG] loadActualStations: Building from sections")
-            print("[DEBUG] route.sections count: \(route.sections.count)")
-            print("[DEBUG] route.sections: \(route.sections.map { "\($0.departureStation) -> \($0.arrivalStation)" })")
+            // [DEBUG] loadActualStations: Building from sections
             var stations: [(name: String, time: Date?)] = []
             var addedStations = Set<String>()
             
@@ -1233,17 +1290,17 @@ struct TimetableAlertSetupView: View {
                 }
             }
             
-            print("[DEBUG] stations from sections: \(stations.map { $0.name })")
+            // [DEBUG] stations from sections
             actualStations = stations
             updateMaxSnoozeStations()
             
             // trainNumberがある場合は、より詳細な情報を取得
             if let trainNumber = route.trainNumber,
                !trainNumber.isEmpty {
-                print("[DEBUG] trainNumber found: \(trainNumber), loading detailed stations")
+                // [DEBUG] trainNumber found, loading detailed stations
                 loadDetailedStations(trainNumber: trainNumber)
             } else {
-                print("[DEBUG] No trainNumber, using sections data only")
+                // [DEBUG] No trainNumber, using sections data only
             }
             return
         }
@@ -1287,32 +1344,22 @@ struct TimetableAlertSetupView: View {
                 await MainActor.run {
                     // 通過駅を除外して実際の停車駅のみを取得
                     let actualStopStations = stopStations.filter { !$0.isPassingStation }
-                    print("[DEBUG] getStopStations returned: \(stopStations.count) stations")
-                    print("[DEBUG] actualStopStations after filter: \(actualStopStations.count) stations")
-                    print("[DEBUG] actualStopStations names: \(actualStopStations.map { $0.stationName })")
+                    // [DEBUG] getStopStations returned stations
                     actualStations = actualStopStations.map { station in
-                        print("[STATION NAME DEBUG] Mapping station: '\(station.stationName)' (id: \(station.stationId))")
-                        return (name: station.stationName, time: parseTimeString(station.departureTime ?? station.arrivalTime))
+                        // [STATION NAME DEBUG] Mapping station
+                        (name: station.stationName, time: parseTimeString(station.departureTime ?? station.arrivalTime))
                     }
                     updateMaxSnoozeStations()
                     isLoadingStations = false
                     
                     // デバッグ: 通知駅の確認
                     let notificationIndex = actualStations.count - notificationStations - 1
-                    print("[DEBUG] Notification calculation:")
-                    print("  actualStations.count: \(actualStations.count)")
-                    print("  notificationStations: \(notificationStations)")
-                    print("  notificationIndex: \(notificationIndex)")
-                    if notificationIndex >= 0 && notificationIndex < actualStations.count {
-                        print("  notification will be at: \(actualStations[notificationIndex].name)")
-                    }
+                    // [DEBUG] Notification calculation
                 }
             } catch {
                 await MainActor.run {
                     // エラー時は既存のactualStationsを維持
-                    print("詳細な駅情報の取得に失敗: \(error)")
-                    print("[DEBUG] Error details: \(error.localizedDescription)")
-                    print("[DEBUG] Keeping section-based stations: \(actualStations.count) stations")
+                    // 詳細な駅情報の取得に失敗
                     isLoadingStations = false
                 }
             }
@@ -1514,12 +1561,12 @@ struct TimetableAlertSetupView: View {
         // 英語名の場合は日本語名に変換を試みる
         let romanizer = StationNameRomanizer.shared
         if let japaneseName = romanizer.toJapanese(stationName) {
-            print("[STATION NAME DISPLAY] Converted '\(stationName)' to '\(japaneseName)'")
+            // [STATION NAME DISPLAY] Converted to Japanese name
             return japaneseName
         }
         
         // 変換できない場合は元の名前を返す
-        print("[STATION NAME DISPLAY] No conversion found for '\(stationName)'")
+        // [STATION NAME DISPLAY] No conversion found
         return stationName
     }
     
