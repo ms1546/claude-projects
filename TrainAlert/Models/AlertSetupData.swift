@@ -5,12 +5,11 @@
 //  Created by Claude on 2024/01/08.
 //
 
-import Foundation
 import CoreLocation
+import Foundation
 
 /// アラート設定フロー中のデータを保持するモデル
 class AlertSetupData: ObservableObject {
-    
     // MARK: - Properties
     
     /// 選択された駅
@@ -28,6 +27,12 @@ class AlertSetupData: ObservableObject {
     /// キャラクタースタイル
     @Published var characterStyle: CharacterStyle = .gyaru
     
+    /// スヌーズ機能の有効/無効
+    @Published var isSnoozeEnabled: Bool = false
+    
+    /// スヌーズ開始駅数
+    @Published var snoozeStartStations: Int = 3
+    
     // MARK: - Validation Properties
     
     var isStationSelected: Bool {
@@ -39,7 +44,7 @@ class AlertSetupData: ObservableObject {
     }
     
     var isNotificationDistanceValid: Bool {
-        notificationDistance >= 50 && notificationDistance <= 10000
+        notificationDistance >= 50 && notificationDistance <= 10_000
     }
     
     var isSnoozeIntervalValid: Bool {
@@ -64,15 +69,15 @@ class AlertSetupData: ObservableObject {
     }
     
     var notificationDistanceDisplayString: String {
-        if notificationDistance < 1000 {
+        if notificationDistance < 1_000 {
             return String(format: "%.0fm", notificationDistance)
         } else {
-            return String(format: "%.1fkm", notificationDistance / 1000)
+            return String(format: "%.1fkm", notificationDistance / 1_000)
         }
     }
     
     var snoozeIntervalDisplayString: String {
-        return "\(snoozeInterval)分"
+        "\(snoozeInterval)分"
     }
     
     // MARK: - Methods
@@ -84,6 +89,8 @@ class AlertSetupData: ObservableObject {
         notificationDistance = 500
         snoozeInterval = 5
         characterStyle = .gyaru
+        isSnoozeEnabled = false
+        snoozeStartStations = 3
     }
     
     /// 通知時間を設定
@@ -95,7 +102,7 @@ class AlertSetupData: ObservableObject {
     /// 通知距離を設定
     /// - Parameter meters: メートル（50-10000）
     func setNotificationDistance(_ meters: Double) {
-        notificationDistance = max(50, min(10000, meters))
+        notificationDistance = max(50, min(10_000, meters))
     }
     
     /// スヌーズ間隔を設定
@@ -106,12 +113,14 @@ class AlertSetupData: ObservableObject {
     
     /// 設定データをアラートに変換（コピー用）
     func toAlertSettings() -> AlertSettings {
-        return AlertSettings(
+        AlertSettings(
             station: selectedStation,
             notificationTime: notificationTime,
             notificationDistance: notificationDistance,
             snoozeInterval: snoozeInterval,
-            characterStyle: characterStyle
+            characterStyle: characterStyle,
+            isSnoozeEnabled: isSnoozeEnabled,
+            snoozeStartStations: snoozeStartStations
         )
     }
 }
@@ -123,11 +132,14 @@ struct AlertSettings {
     let notificationDistance: Double
     let snoozeInterval: Int
     let characterStyle: CharacterStyle
+    let isSnoozeEnabled: Bool
+    let snoozeStartStations: Int
     
     var isValid: Bool {
         station != nil &&
         notificationTime >= 0 && notificationTime <= 60 &&
-        notificationDistance >= 50 && notificationDistance <= 10000 &&
-        snoozeInterval >= 1 && snoozeInterval <= 30
+        notificationDistance >= 50 && notificationDistance <= 10_000 &&
+        snoozeInterval >= 1 && snoozeInterval <= 30 &&
+        snoozeStartStations >= 1 && snoozeStartStations <= 5
     }
 }

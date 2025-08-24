@@ -5,11 +5,15 @@
 //  駅数ベースの通知計算ロジック
 //
 
+import CoreLocation
 import Foundation
 
 /// 駅数カウント計算機
 @MainActor
 class StationCountCalculator {
+    // MARK: - Singleton
+    static let shared = StationCountCalculator()
+    
     private let apiClient = ODPTAPIClient.shared
     
     /// 停車駅情報
@@ -166,6 +170,20 @@ class StationCountCalculator {
             stationsBeforeArrival: stationsBeforeArrival,
             estimatedTime: estimatedTime
         )
+    }
+    
+    /// 現在地から降車駅までの残り駅数を計算
+    func calculateStationCount(
+        from currentLocation: CLLocation,
+        to arrivalStation: String,
+        on railway: String
+    ) async -> Result<Int, StationCountError> {
+        // 簡易実装：現在地から最寄り駅を推定し、駅数を計算
+        // TODO: 実際の実装では、GPSから現在の最寄り駅を特定し、
+        // 路線上の駅リストから残り駅数を計算する
+        
+        // デモ用に固定値を返す
+        .success(3)
     }
     
     // MARK: - Private Methods

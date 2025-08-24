@@ -98,6 +98,11 @@ public class Alert: NSManagedObject {
         notificationDistance = 500  // 500m
         snoozeInterval = 5  // 5分
         characterStyle = TrainAlert.CharacterStyle.healing.rawValue
+        
+        // スヌーズ機能のデフォルト値
+        isSnoozeEnabled = false
+        snoozeStartStations = 3  // デフォルトは3駅前から
+        snoozeNotificationIds = nil
     }
     
     // MARK: - Validation
@@ -167,6 +172,45 @@ public class Alert: NSManagedObject {
     /// アラートを無効にする
     func deactivate() {
         isActive = false
+    }
+    
+    // MARK: - Snooze Methods
+    
+    /// スヌーズ機能の有効/無効を切り替え
+    func toggleSnooze() {
+        isSnoozeEnabled.toggle()
+    }
+    
+    /// スヌーズ通知IDの配列を取得
+    var snoozeNotificationIdArray: [String] {
+        get {
+            guard let idsString = snoozeNotificationIds,
+                  let data = idsString.data(using: .utf8),
+                  let ids = try? JSONDecoder().decode([String].self, from: data) else {
+                return []
+            }
+            return ids
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let idsString = String(data: data, encoding: .utf8) {
+                snoozeNotificationIds = idsString
+            }
+        }
+    }
+    
+    /// スヌーズ通知IDを追加
+    func addSnoozeNotificationId(_ id: String) {
+        var ids = snoozeNotificationIdArray
+        if !ids.contains(id) {
+            ids.append(id)
+            snoozeNotificationIdArray = ids
+        }
+    }
+    
+    /// スヌーズ通知IDをクリア
+    func clearSnoozeNotificationIds() {
+        snoozeNotificationIdArray = []
     }
     
     /// 通知設定を更新
@@ -293,6 +337,11 @@ extension Alert {
     @NSManaged public var histories: NSSet?
     @NSManaged public var notificationStationsBefore: Int16
     @NSManaged public var notificationType: String?
+    
+    // スヌーズ機能関連
+    @NSManaged public var isSnoozeEnabled: Bool
+    @NSManaged public var snoozeStartStations: Int16
+    @NSManaged public var snoozeNotificationIds: String?
 }
 
 // MARK: - Generated accessors for histories

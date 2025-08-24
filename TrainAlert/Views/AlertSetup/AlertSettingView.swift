@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct AlertSettingView: View {
-    
     // MARK: - Properties
     
     @ObservedObject var setupData: AlertSetupData
@@ -20,6 +19,8 @@ struct AlertSettingView: View {
     @State private var tempNotificationTime: Double
     @State private var tempNotificationDistance: Double
     @State private var tempSnoozeInterval: Double
+    @State private var isSnoozeEnabled: Bool = false
+    @State private var snoozeStartStations: Double = 3
     
     // MARK: - Init
     
@@ -51,6 +52,9 @@ struct AlertSettingView: View {
                     
                     // Snooze Interval Setting
                     snoozeIntervalSection
+                    
+                    // Snooze Feature Setting
+                    snoozeFeatureSection
                     
                     // Navigation Buttons
                     navigationButtons
@@ -219,7 +223,7 @@ struct AlertSettingView: View {
                         
                         Slider(
                             value: $tempNotificationDistance,
-                            in: 50...10000,
+                            in: 50...10_000,
                             step: 50
                         ) {
                             Text("通知距離")
@@ -282,6 +286,105 @@ struct AlertSettingView: View {
         }
     }
     
+    private var snoozeFeatureSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            sectionHeader(
+                title: "駅ごと通知（スヌーズ）",
+                subtitle: "各駅で段階的に通知を受け取る"
+            )
+            
+            Card {
+                VStack(spacing: 20) {
+                    // スヌーズ機能ON/OFFトグル
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("駅ごと通知を有効にする")
+                                .font(.headline)
+                                .foregroundColor(.textPrimary)
+                            
+                            Text("降車駅に近づくにつれて通知頻度が上がります")
+                                .font(.caption)
+                                .foregroundColor(.textSecondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Toggle("", isOn: $isSnoozeEnabled)
+                            .labelsHidden()
+                            .tint(.trainSoftBlue)
+                    }
+                    
+                    // スヌーズ開始駅数の設定（スヌーズが有効な場合のみ表示）
+                    if isSnoozeEnabled {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Text("通知開始")
+                                    .font(.subheadline)
+                                    .foregroundColor(.textPrimary)
+                                
+                                Spacer()
+                                
+                                Text("\(Int(snoozeStartStations))駅前から")
+                                    .font(.title3)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.trainSoftBlue)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text("1駅前")
+                                        .font(.caption)
+                                        .foregroundColor(.textSecondary)
+                                    
+                                    Spacer()
+                                    
+                                    Text("5駅前")
+                                        .font(.caption)
+                                        .foregroundColor(.textSecondary)
+                                }
+                                
+                                Slider(
+                                    value: $snoozeStartStations,
+                                    in: 1...5,
+                                    step: 1
+                                ) {
+                                    Text("通知開始駅数")
+                                }
+                                .tint(.trainSoftBlue)
+                            }
+                            
+                            // プレビュー表示
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("通知タイミング")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.textSecondary)
+                                
+                                ForEach((1...Int(snoozeStartStations)).reversed(), id: \.self) { station in
+                                    HStack {
+                                        Image(systemName: "bell.fill")
+                                            .font(.caption)
+                                            .foregroundColor(.trainSoftBlue)
+                                        
+                                        Text(getSnoozePreviewText(for: station))
+                                            .font(.caption)
+                                            .foregroundColor(.textSecondary)
+                                        
+                                        Spacer()
+                                    }
+                                }
+                            }
+                            .padding(.top, 8)
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        .animation(.easeInOut(duration: 0.3), value: isSnoozeEnabled)
+                    }
+                }
+                .padding(16)
+            }
+        }
+    }
+    
     private var navigationButtons: some View {
         VStack(spacing: 12) {
             PrimaryButton(
@@ -327,15 +430,15 @@ struct AlertSettingView: View {
     
     private var notificationDistanceDisplayText: String {
         let distance = tempNotificationDistance
-        if distance < 1000 {
+        if distance < 1_000 {
             return String(format: "%.0fm", distance)
         } else {
-            return String(format: "%.1fkm", distance / 1000)
+            return String(format: "%.1fkm", distance / 1_000)
         }
     }
     
     private var snoozeIntervalDisplayText: String {
-        return "\(Int(tempSnoozeInterval))分"
+        "\(Int(tempSnoozeInterval))分"
     }
     
     private var isFormValid: Bool {
@@ -345,8 +448,25 @@ struct AlertSettingView: View {
         
         return setupData.selectedStation != nil &&
                time >= 0 && time <= 60 &&
-               distance >= 50 && distance <= 10000 &&
+               distance >= 50 && distance <= 10_000 &&
                snooze >= 1 && snooze <= 30
+    }
+    
+    private func getSnoozePreviewText(for stationsRemaining: Int) -> String {
+        switch stationsRemaining {
+        case 1:
+            return "次の駅で降車です！"
+        case 2:
+            return "あと2駅で到着です"
+        case 3:
+            return "あと3駅で到着です"
+        case 4:
+            return "あと4駅で到着です"
+        case 5:
+            return "あと5駅で到着です"
+        default:
+            return "あと\(stationsRemaining)駅で到着です"
+        }
     }
     
     // MARK: - Methods
@@ -355,6 +475,8 @@ struct AlertSettingView: View {
         setupData.setNotificationTime(Int(tempNotificationTime))
         setupData.setNotificationDistance(tempNotificationDistance)
         setupData.setSnoozeInterval(Int(tempSnoozeInterval))
+        setupData.isSnoozeEnabled = isSnoozeEnabled
+        setupData.snoozeStartStations = Int(snoozeStartStations)
         
         // Haptic feedback for value changes
         let impactFeedback = UIImpactFeedbackGenerator(style: .light)

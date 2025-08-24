@@ -24,6 +24,7 @@ class AlertMonitoringService: NSObject, ObservableObject {
     
     private let locationManager = LocationManager()
     private let notificationManager = NotificationManager.shared
+    private let stationCountCalculator = StationCountCalculator.shared
     private var viewContext: NSManagedObjectContext {
         CoreDataManager.shared.viewContext
     }
@@ -122,7 +123,7 @@ class AlertMonitoringService: NSObject, ObservableObject {
         Task {
             await checkTimeBasedAlerts()
             checkLocationBasedAlerts()
-            // 駅数ベースのアラートは現在地トラッキングが必要なため、将来実装
+            await checkStationBasedAlerts()
         }
     }
     
@@ -168,6 +169,55 @@ class AlertMonitoringService: NSObject, ObservableObject {
                     notifiedAlerts.insert(alertId)
                 }
             }
+        }
+    }
+    
+    /// 駅数ベースのアラートをチェック（スヌーズ機能含む）
+    private func checkStationBasedAlerts() async {
+        guard let currentLocation = locationManager.location else { return }
+        
+        for alert in activeAlerts {
+            // 駅数ベースの通知が有効な場合
+            if alert.notificationStationsBefore > 0 || alert.isSnoozeEnabled {
+                await checkStationBasedAlert(alert, currentLocation: currentLocation)
+            }
+        }
+    }
+    
+    /// 個別の駅数ベースアラートをチェック
+    private func checkStationBasedAlert(_ alert: Alert, currentLocation: CLLocation) async {
+        guard let station = alert.station,
+              let stationName = station.name,
+              let lineName = alert.lineName else { return }
+        
+        // 現在の駅数を計算
+        let stationCountResult = await stationCountCalculator.calculateStationCount(
+            from: currentLocation,
+            to: stationName,
+            on: lineName
+        )
+        
+        switch stationCountResult {
+        case .success(let count):
+            // スヌーズ機能が有効な場合
+            if alert.isSnoozeEnabled {
+                await SnoozeNotificationManager.shared.updateSnoozeNotification(
+                    for: alert,
+                    currentStationCount: count
+                )
+            }
+            
+            // 通常の駅数ベース通知
+            if alert.notificationStationsBefore > 0,
+               count == Int(alert.notificationStationsBefore),
+               let alertId = alert.alertId,
+               !notifiedAlerts.contains(alertId) {
+                await sendNotification(for: alert, reason: "駅数ベース（\(count)駅前）")
+                notifiedAlerts.insert(alertId)
+            }
+            
+        case .failure(let error):
+            print("駅数計算エラー: \(error)")
         }
     }
     

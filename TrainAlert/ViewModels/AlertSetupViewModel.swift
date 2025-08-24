@@ -158,6 +158,10 @@ class AlertSetupViewModel: ObservableObject {
                     alert.notificationTime = Int16(self.setupData.notificationTime)
                     alert.notificationDistance = self.setupData.notificationDistance
                     alert.snoozeInterval = Int16(self.setupData.snoozeInterval)
+                    
+                    // スヌーズ機能の設定
+                    alert.isSnoozeEnabled = self.setupData.isSnoozeEnabled
+                    alert.snoozeStartStations = Int16(self.setupData.snoozeStartStations)
                     // Map from global CharacterStyle to Alert's internal CharacterStyle
                     let mappedStyle: String = {
                         switch self.setupData.characterStyle {
