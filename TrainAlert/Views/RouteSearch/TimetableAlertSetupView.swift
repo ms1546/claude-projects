@@ -88,7 +88,7 @@ struct TimetableAlertSetupView: View {
                     
                     // 保存ボタン
                     PrimaryButton(
-                        "目覚ましを設定",
+                        "トントンを設定",
                         isEnabled: !isSaving && isValidNotificationSetting(),
                         action: saveAlert
                     )
@@ -99,9 +99,9 @@ struct TimetableAlertSetupView: View {
                 .padding(.top, 16)
             }
         }
-        .navigationTitle("目覚まし設定")
+        .navigationTitle("トントン設定")
         .navigationBarTitleDisplayMode(.inline)
-        // 目覚まし成功メッセージは表示せず、直接ホームに戻る
+        // トントン成功メッセージは表示せず、直接ホームに戻る
         .alert("エラー", isPresented: $showError) {
             Button("OK") {
                 showError = false
@@ -803,7 +803,7 @@ struct TimetableAlertSetupView: View {
                 
                 await MainActor.run {
                     isSaving = false
-                    print("✅ 目覚まし設定完了")
+                    print("✅ トントン設定完了")
                     
                     // 成功のHaptic feedback
                     let notificationFeedback = UINotificationFeedbackGenerator()
@@ -812,7 +812,7 @@ struct TimetableAlertSetupView: View {
                     // HomeViewを更新
                     NotificationCenter.default.post(name: NSNotification.Name("RefreshHomeView"), object: nil)
                     
-                    // 目覚まし監視サービスを更新
+                    // トントン監視サービスを更新
                     AlertMonitoringService.shared.reloadAlerts()
                     
                     // ハイブリッド通知の監視を開始（RouteAlertではなく通常のAlertで代用）
@@ -854,7 +854,7 @@ struct TimetableAlertSetupView: View {
                     }
                 }
             } catch {
-                print("❌ 目覚まし保存エラー: \(error)")
+                print("❌ トントン保存エラー: \(error)")
                 print("  Error type: \(type(of: error))")
                 print("  Error description: \(error.localizedDescription)")
                 

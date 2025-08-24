@@ -11,7 +11,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleDisplayName</key>
-	<string>トレ眠</string>
+	<string>駅トントン</string>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>
@@ -38,9 +38,9 @@
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>TrainAlertは、降車駅に近づいたことを検知してお知らせするために、あなたの位置情報を使用します。</string>
+	<string>駅トントンは、降車駅に近づいたことを検知してお知らせするために、あなたの位置情報を使用します。</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>TrainAlertは、アプリがバックグラウンドにある時でも、降車駅に近づいたことを検知してお知らせするために、あなたの位置情報を使用します。</string>
+	<string>駅トントンは、アプリがバックグラウンドにある時でも、降車駅に近づいたことを検知してお知らせするために、あなたの位置情報を使用します。</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

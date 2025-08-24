@@ -34,12 +34,12 @@ struct HomeView: View {
                     .ignoresSafeArea()
 
                 if viewModel.allAlerts.isEmpty {
-                    // 目覚ましがない場合はScrollView
+                    // トントンがない場合はScrollView
                     ScrollView {
                         emptyStateSection
                     }
                 } else {
-                    // 目覚ましがある場合はList（スワイプ対応）
+                    // トントンがある場合はList（スワイプ対応）
                     VStack(spacing: 0) {
                         quickActionsSection
                         
@@ -73,7 +73,7 @@ struct HomeView: View {
             .navigationBarHidden(true)
             .sheet(isPresented: $showingAlertSetup) {
                 StationSearchForAlertView {
-                    // 目覚まし作成完了時にシートを閉じる
+                    // トントン作成完了時にシートを閉じる
                     showingAlertSetup = false
                 }
                 .environmentObject(locationManager)
@@ -136,9 +136,9 @@ struct HomeView: View {
     private var quickActionsSection: some View {
         VStack(spacing: 0) {
             if !viewModel.allAlerts.isEmpty {
-                // 既存の目覚ましがある場合は上部に作成ボタン
+                // 既存のトントンがある場合は上部に作成ボタン
                 HStack {
-                    Text("目覚まし")
+                    Text("トントン")
                         .font(.largeTitle)
                         .fontWeight(.bold)
                         .foregroundColor(.textPrimary)
@@ -184,7 +184,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 0) {
             // シンプルなテキストベースのUI
             VStack(alignment: .leading, spacing: 12) {
-                Text("目覚まし")
+                Text("トントン")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .foregroundColor(.textPrimary)
@@ -197,7 +197,7 @@ struct HomeView: View {
             .padding(.top, 20)
             .padding(.bottom, 32)
             
-            // 目覚まし作成オプション
+            // トントン作成オプション
             VStack(spacing: 16) {
                 // 駅から設定
                 Button(action: { showingAlertSetup = true }) {
@@ -360,7 +360,7 @@ struct SubActionButton: View {
     }
 }
 
-// Custom 目覚ましCard for HomeView
+// Custom トントンCard for HomeView
 struct HomeAlertCard: View {
     let alert: Alert
     let onToggle: () -> Void

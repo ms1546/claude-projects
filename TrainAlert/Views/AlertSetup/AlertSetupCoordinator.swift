@@ -117,7 +117,7 @@ struct AlertSetupCoordinator: View {
                     .progressViewStyle(CircularProgressViewStyle(tint: .trainSoftBlue))
                     .scaleEffect(1.5)
                 
-                Text("目覚ましを作成中...")
+                Text("トントンを作成中...")
                     .font(.body)
                     .foregroundColor(.textPrimary)
             }
@@ -144,8 +144,8 @@ struct AlertSetupCoordinator: View {
     }
     
     private func handleAlertCreationSuccess() {
-        alertTitle = "目覚まし作成完了"
-        alertMessage = "目覚ましが正常に作成されました。ホーム画面で目覚ましの状態を確認できます。"
+        alertTitle = "トントン作成完了"
+        alertMessage = "トントンが正常に作成されました。ホーム画面でトントンの状態を確認できます。"
         showAlert = true
         
         // Haptic feedback for success

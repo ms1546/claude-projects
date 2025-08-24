@@ -63,7 +63,7 @@ struct StationAlertSetupView: View {
                     
                     // 保存ボタン
                     PrimaryButton(
-                        "目覚ましを設定",
+                        "トントンを設定",
                         isEnabled: !isSaving,
                         action: saveAlert
                     )
@@ -74,7 +74,7 @@ struct StationAlertSetupView: View {
                 .padding(.top, 16)
             }
         }
-        .navigationTitle("目覚まし設定")
+        .navigationTitle("トントン設定")
         .navigationBarTitleDisplayMode(.inline)
         .alert("エラー", isPresented: $showError) {
             Button("OK") {
@@ -285,7 +285,7 @@ struct StationAlertSetupView: View {
                     Image(systemName: "app.badge.fill")
                         .foregroundColor(.orange)
                         .font(.title3)
-                    Text("トレ眠")
+                    Text("駅トントン")
                         .fontWeight(.semibold)
                         .foregroundColor(Color.textPrimary)
                     Spacer()
@@ -401,7 +401,7 @@ struct StationAlertSetupView: View {
                 
                 await MainActor.run {
                     isSaving = false
-                    print("✅ 目覚まし設定完了")
+                    print("✅ トントン設定完了")
                     
                     // 成功のHaptic feedback
                     let notificationFeedback = UINotificationFeedbackGenerator()
@@ -410,7 +410,7 @@ struct StationAlertSetupView: View {
                     // HomeViewを更新
                     NotificationCenter.default.post(name: NSNotification.Name("RefreshHomeView"), object: nil)
                     
-                    // 目覚まし監視サービスを更新
+                    // トントン監視サービスを更新
                     AlertMonitoringService.shared.reloadAlerts()
                     
                     // コールバックを呼び出して全体を閉じる
@@ -420,7 +420,7 @@ struct StationAlertSetupView: View {
                     dismiss()
                 }
             } catch {
-                print("❌ 目覚まし保存エラー: \(error)")
+                print("❌ トントン保存エラー: \(error)")
                 
                 await MainActor.run {
                     isSaving = false
