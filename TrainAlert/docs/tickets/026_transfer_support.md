@@ -5,9 +5,10 @@
 
 ## 優先度: High
 ## 見積もり: 24h
-## ステータス: [ ] Not Started / [x] In Progress / [ ] Completed
+## ステータス: [ ] Not Started / [ ] In Progress / [x] Completed
 
 ## 実装開始日: 2025-08-24
+## 実装完了日: 2025-08-24 (PR: pending)
 
 ## タスク
 ### 経路検索の拡張
