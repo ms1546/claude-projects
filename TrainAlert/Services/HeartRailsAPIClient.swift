@@ -78,10 +78,12 @@ final class HeartRailsAPIClient {
     
     /// 駅名で検索
     func searchStations(by name: String) async throws -> [HeartRailsStation] {
-        guard !name.isEmpty else { return [] }
+        // 前後の空白をトリム
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return [] }
         
         // まずエイリアスをチェック
-        let searchName = stationAliases[name] ?? name
+        let searchName = stationAliases[trimmedName] ?? trimmedName
         
         // 入力されたままで検索（エイリアスがあればそれを使用）
         var stations = await searchStationsExact(name: searchName)
@@ -118,17 +120,20 @@ final class HeartRailsAPIClient {
     
     /// 駅名で完全一致検索（内部メソッド）
     private func searchStationsExact(name: String) async -> [HeartRailsStation] {
+        // 念のため再度トリム
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        
         var components = URLComponents(string: "\(baseURL)/station")!
         components.queryItems = [
             URLQueryItem(name: "method", value: "getStations"),
-            URLQueryItem(name: "name", value: name)
+            URLQueryItem(name: "name", value: trimmedName)
         ]
         
         guard let url = components.url else {
             return []
         }
         
-        print("HeartRails API: Searching for '\(name)' - URL: \(url.absoluteString)")
+        print("HeartRails API: Searching for '\(trimmedName)' - URL: \(url.absoluteString)")
         
         do {
             let (data, response) = try await session.data(from: url)
