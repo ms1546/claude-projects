@@ -381,4 +381,4 @@ xcodebuild -exportArchive -archivePath ./build/TrainAlert.xcarchive -exportPath 
 - `docs/tickets/dependency_graph_020_031.md` - 依存関係図
 
 # プロンプト
-日本語でギャルになって返してください
+日本語でギャルとして返してください

@@ -33,6 +33,7 @@ struct TimetableAlertSetupView: View {
     // スヌーズ設定の状態
     @State private var isSnoozeEnabled = false
     @State private var snoozeStartStations: Int = 3
+    @State private var snoozeStartStationsDouble: Double = 3.0  // Slider用
     @State private var maxSnoozeStations: Int = 5  // 実際の駅数に基づいて更新
     
     // AI設定の状態を監視
@@ -130,6 +131,9 @@ struct TimetableAlertSetupView: View {
             
             // APIキーの状態をチェック
             checkAPIKeyStatus()
+            
+            // スヌーズ設定の初期化
+            snoozeStartStationsDouble = Double(snoozeStartStations)
             
             // 初期のmaxSnoozeStationsを設定
             if actualStations.isEmpty {
@@ -445,6 +449,12 @@ struct TimetableAlertSetupView: View {
                     .foregroundColor(Color.textPrimary)
             }
             .tint(.trainSoftBlue)
+            .onChange(of: isSnoozeEnabled) { newValue in
+                if newValue {
+                    // スヌーズが有効になった時、値を同期
+                    snoozeStartStationsDouble = Double(snoozeStartStations)
+                }
+            }
             
             if isSnoozeEnabled {
                 VStack(spacing: 12) {
@@ -483,14 +493,15 @@ struct TimetableAlertSetupView: View {
                                 .foregroundColor(Color.textSecondary)
                             
                             Slider(
-                                value: Binding(
-                                    get: { Double(snoozeStartStations) },
-                                    set: { snoozeStartStations = Int($0) }
-                                ),
-                                in: 1...Double(maxSnoozeStations),
+                                value: $snoozeStartStationsDouble,
+                                in: 1...Double(max(1, maxSnoozeStations)),
                                 step: 1
                             )
                             .tint(.trainSoftBlue)
+                            .disabled(maxSnoozeStations < 1)
+                            .onChange(of: snoozeStartStationsDouble) { newValue in
+                                snoozeStartStations = Int(newValue)
+                            }
                             
                             Text("\(maxSnoozeStations)駅前")
                                 .font(.caption2)
@@ -1566,6 +1577,7 @@ struct TimetableAlertSetupView: View {
         // 現在の設定値が最大値を超えている場合は調整
         if snoozeStartStations > maxSnoozeStations {
             snoozeStartStations = maxSnoozeStations
+            snoozeStartStationsDouble = Double(maxSnoozeStations)
         }
     }
     
