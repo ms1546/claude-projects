@@ -33,6 +33,7 @@ struct TimetableAlertSetupView: View {
     // スヌーズ設定の状態
     @State private var isSnoozeEnabled = false
     @State private var snoozeStartStations: Int = 3
+    @State private var maxSnoozeStations: Int = 5  // 実際の駅数に基づいて更新
     
     // AI設定の状態を監視
     @AppStorage("useAIGeneratedMessages") private var useAIGeneratedMessages = false
@@ -68,6 +69,11 @@ struct TimetableAlertSetupView: View {
                     // 通知設定
                     notificationSettingsCard
                     
+                    // 通知される駅（駅数ベースまたはスヌーズ有効時）
+                    if notificationType == "station" || isSnoozeEnabled {
+                        notificationStationCard
+                    }
+                    
                     // ハイブリッド通知設定
                     hybridNotificationCard
                     
@@ -76,11 +82,6 @@ struct TimetableAlertSetupView: View {
                     
                     // 繰り返し設定
                     repeatSettingsCard
-                    
-                    // 駅数ベースの場合は停車駅プレビューを表示
-                    if notificationType == "station" {
-                        notificationStationCard
-                    }
                     
                     // キャラクター設定
                     characterSettingsCard
@@ -129,6 +130,16 @@ struct TimetableAlertSetupView: View {
             
             // APIキーの状態をチェック
             checkAPIKeyStatus()
+            
+            // 初期のmaxSnoozeStationsを設定
+            if actualStations.isEmpty {
+                // 最小限の駅数で初期化
+                actualStations = [
+                    (name: route.departureStation, time: route.departureTime),
+                    (name: route.arrivalStation, time: route.arrivalTime)
+                ]
+                updateMaxSnoozeStations()
+            }
         }
     }
     
@@ -433,74 +444,60 @@ struct TimetableAlertSetupView: View {
             
             if isSnoozeEnabled {
                 VStack(spacing: 12) {
-                    // 開始駅数の設定
-                    HStack {
-                        Text("通知開始")
-                            .font(.caption)
-                            .foregroundColor(Color.textSecondary)
-                        
-                        Spacer()
-                        
-                        Text("\(snoozeStartStations)駅前から")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(Color.trainSoftBlue)
-                    }
-                    
-                    HStack {
-                        Text("1駅前")
-                            .font(.caption2)
-                            .foregroundColor(Color.textSecondary)
-                        
-                        Slider(
-                            value: Binding(
-                                get: { Double(snoozeStartStations) },
-                                set: { snoozeStartStations = Int($0) }
-                            ),
-                            in: 1...5,
-                            step: 1
-                        )
-                        .tint(.trainSoftBlue)
-                        
-                        Text("5駅前")
-                            .font(.caption2)
-                            .foregroundColor(Color.textSecondary)
-                    }
-                    
-                    // 通知される駅のプレビュー
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("通知される駅（予定）")
-                            .font(.caption2)
-                            .fontWeight(.semibold)
-                            .foregroundColor(Color.textSecondary)
-                            .padding(.top, 4)
-                        
-                        ForEach((1...snoozeStartStations).reversed(), id: \.self) { station in
-                            HStack(spacing: 8) {
-                                Circle()
-                                    .fill(station == 1 ? Color.orange : Color.trainSoftBlue)
-                                    .frame(width: 6, height: 6)
-                                
-                                Text(getSnoozePreviewText(for: station))
-                                    .font(.caption2)
-                                    .foregroundColor(station == 1 ? .orange : .textSecondary)
-                                
-                                Spacer()
-                            }
-                            .padding(.vertical, 2)
+                    // 駅数が少なすぎる場合の警告
+                    if maxSnoozeStations < 1 {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                                .font(.caption)
+                            Text("経路が短すぎるため、スヌーズ機能を利用できません")
+                                .font(.caption)
+                                .foregroundColor(.orange)
                         }
-                    }
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.backgroundSecondary)
-                    )
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(8)
+                    } else {
+                        // 開始駅数の設定
+                        HStack {
+                            Text("通知開始")
+                                .font(.caption)
+                                .foregroundColor(Color.textSecondary)
+                            
+                            Spacer()
+                            
+                            Text("\(snoozeStartStations)駅前から")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(Color.trainSoftBlue)
+                        }
+                        
+                        HStack {
+                            Text("1駅前")
+                                .font(.caption2)
+                                .foregroundColor(Color.textSecondary)
+                            
+                            Slider(
+                                value: Binding(
+                                    get: { Double(snoozeStartStations) },
+                                    set: { snoozeStartStations = Int($0) }
+                                ),
+                                in: 1...Double(maxSnoozeStations),
+                                step: 1
+                            )
+                            .tint(.trainSoftBlue)
+                            
+                            Text("\(maxSnoozeStations)駅前")
+                                .font(.caption2)
+                                .foregroundColor(Color.textSecondary)
+                        }
                     
-                    Text("各駅で段階的に通知し、寝過ごしを防ぎます")
-                        .font(.caption2)
-                        .foregroundColor(Color.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                        Text("各駅で段階的に通知し、寝過ごしを防ぎます")
+                            .font(.caption2)
+                            .foregroundColor(Color.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
                 .animation(.easeInOut(duration: 0.3), value: isSnoozeEnabled)
@@ -1048,8 +1045,57 @@ struct TimetableAlertSetupView: View {
                     .foregroundColor(Color.textPrimary)
             }
             
-            // 通知駅の情報を表示
-            if isLoadingStations {
+            // スヌーズが有効な場合の説明
+            if isSnoozeEnabled && !isLoadingStations && !actualStations.isEmpty {
+                // スヌーズ通知の駅リスト
+                let totalStations = actualStations.count
+                if totalStations > 2 {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach((1...min(snoozeStartStations, totalStations - 2)).reversed(), id: \.self) { stationsRemaining in
+                            let stationIndex = totalStations - stationsRemaining - 1
+                            if stationIndex >= 0 && stationIndex < totalStations {
+                                let station = actualStations[stationIndex]
+                                HStack(spacing: 12) {
+                                    Circle()
+                                        .fill(stationsRemaining == 1 ? Color.orange : Color.trainSoftBlue)
+                                        .frame(width: 8, height: 8)
+                                    
+                                    Text(station.name)
+                                        .font(.subheadline)
+                                        .foregroundColor(stationsRemaining == 1 ? .orange : .textPrimary)
+                                    
+                                    Text("（\(getSnoozePreviewText(for: stationsRemaining))）")
+                                        .font(.caption)
+                                        .foregroundColor(.textSecondary)
+                                    
+                                    Spacer()
+                                    
+                                    if let time = station.time {
+                                        Text(formatTime(time))
+                                            .font(.caption)
+                                            .foregroundColor(.textSecondary)
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.backgroundSecondary)
+                    .cornerRadius(10)
+                } else {
+                    Text("経路が短すぎるため、スヌーズ通知を設定できません")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(10)
+                }
+            }
+            // 通知駅の情報を表示（駅数ベースの通知）
+            else if notificationType == "station" && isLoadingStations {
                 HStack {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .trainSoftBlue))
@@ -1059,7 +1105,7 @@ struct TimetableAlertSetupView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-            } else if !actualStations.isEmpty {
+            } else if notificationType == "station" && !actualStations.isEmpty {
                 // 通知駅のインデックスを計算（到着駅から数えて何駅前か）
                 let notificationIndex = actualStations.count - notificationStations - 1
                 
@@ -1147,8 +1193,13 @@ struct TimetableAlertSetupView: View {
                 loadActualStations()
             }
         }
+        .onChange(of: isSnoozeEnabled) { enabled in
+            if enabled {
+                loadActualStations()
+            }
+        }
         .onAppear {
-            if notificationType == "station" {
+            if notificationType == "station" || isSnoozeEnabled {
                 loadActualStations()
             }
         }
@@ -1184,6 +1235,7 @@ struct TimetableAlertSetupView: View {
             
             print("[DEBUG] stations from sections: \(stations.map { $0.name })")
             actualStations = stations
+            updateMaxSnoozeStations()
             
             // trainNumberがある場合は、より詳細な情報を取得
             if let trainNumber = route.trainNumber,
@@ -1203,6 +1255,7 @@ struct TimetableAlertSetupView: View {
                 (name: route.departureStation, time: route.departureTime),
                 (name: route.arrivalStation, time: route.arrivalTime)
             ]
+            updateMaxSnoozeStations()
             return
         }
         
@@ -1240,6 +1293,7 @@ struct TimetableAlertSetupView: View {
                     actualStations = actualStopStations.map { station in
                         (name: station.stationName, time: parseTimeString(station.departureTime ?? station.arrivalTime))
                     }
+                    updateMaxSnoozeStations()
                     isLoadingStations = false
                     
                     // デバッグ: 通知駅の確認
@@ -1433,6 +1487,18 @@ struct TimetableAlertSetupView: View {
             baseTime: route.arrivalTime,
             customDays: Array(customDays)
         )
+    }
+    
+    private func updateMaxSnoozeStations() {
+        // 実際の駅数から最大スヌーズ駅数を計算
+        // 出発駅を除いた駅数が最大値（到着駅の1駅前まで通知可能）
+        let availableStations = max(1, actualStations.count - 2)
+        maxSnoozeStations = min(5, availableStations)  // 最大5駅前まで
+        
+        // 現在の設定値が最大値を超えている場合は調整
+        if snoozeStartStations > maxSnoozeStations {
+            snoozeStartStations = maxSnoozeStations
+        }
     }
     
     private func formatNextNotificationDate(_ date: Date) -> String {
