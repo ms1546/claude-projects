@@ -156,13 +156,13 @@ class SnoozeNotificationManager: ObservableObject {
         let lineName = railway ?? alert.lineName ?? ""
         content.subtitle = "\(lineName) \(stationName)"
         
-        // ボディ（キャラクタースタイルを適用）
-        let baseMessage = generateSnoozeMessage(stationsRemaining: stationsRemaining)
-        let styledMessage = characterStyleGenerator.generateMessage(
-            baseMessage: baseMessage,
-            style: alert.characterStyleEnum
+        // ボディ（AI生成またはフォールバック）
+        let message = generateSnoozeNotificationMessage(
+            for: alert,
+            stationName: stationName,
+            stationsRemaining: stationsRemaining
         )
-        content.body = styledMessage
+        content.body = message
         
         // サウンド設定（駅数に応じて変化）
         content.sound = stationsRemaining == 1 ? .defaultCritical : .default
@@ -181,22 +181,106 @@ class SnoozeNotificationManager: ObservableObject {
         return content
     }
     
-    /// 駅数に応じたスヌーズメッセージを生成
-    private func generateSnoozeMessage(stationsRemaining: Int) -> String {
+    /// スヌーズ通知メッセージを生成（AI生成またはフォールバック）
+    private func generateSnoozeNotificationMessage(
+        for alert: Alert,
+        stationName: String,
+        stationsRemaining: Int
+    ) -> String {
+        // AI生成メッセージが有効で、APIキーが設定されているか確認
+        if UserDefaults.standard.bool(forKey: "useAIGeneratedMessages"),
+           let apiKey = try? KeychainManager.shared.getOpenAIAPIKey(),
+           !apiKey.isEmpty {
+            // AI生成を試みる（同期的に実行するため、タスクを作成）
+            let semaphore = DispatchSemaphore(value: 0)
+            var aiMessage: String?
+            
+            Task {
+                do {
+                    aiMessage = try await generateAISnoozeMessage(
+                        for: alert,
+                        stationName: stationName,
+                        stationsRemaining: stationsRemaining
+                    )
+                } catch {
+                    // AI生成エラー
+                }
+                semaphore.signal()
+            }
+            
+            // タイムアウト付きで待機（最大3秒）
+            if semaphore.wait(timeout: .now() + 3) == .success,
+               let message = aiMessage {
+                return message
+            }
+        }
+        
+        // フォールバック：固定メッセージを使用
+        return generateFallbackSnoozeMessage(
+            stationsRemaining: stationsRemaining,
+            style: alert.characterStyleEnum
+        )
+    }
+    
+    /// OpenAI APIを使用してスヌーズメッセージを生成
+    private func generateAISnoozeMessage(
+        for alert: Alert,
+        stationName: String,
+        stationsRemaining: Int
+    ) async throws -> String {
+        let openAI = OpenAIClient.shared
+        let characterStyle = alert.characterStyleEnum
+        
+        // 駅数に応じた到着時間の表現
+        let arrivalTimeString: String
         switch stationsRemaining {
         case 1:
-            return "次の駅で降車です！お忘れ物にご注意ください"
+            arrivalTimeString = "次の駅"
         case 2:
-            return "あと2駅で到着です！準備を始めましょう"
+            arrivalTimeString = "あと2駅"
         case 3:
-            return "あと3駅で到着です"
+            arrivalTimeString = "あと3駅"
         case 4:
-            return "あと4駅で到着予定です"
+            arrivalTimeString = "あと4駅"
         case 5:
-            return "あと5駅で到着予定です"
+            arrivalTimeString = "あと5駅"
         default:
-            return "あと\(stationsRemaining)駅で到着予定です"
+            arrivalTimeString = "あと\(stationsRemaining)駅"
         }
+        
+        return try await openAI.generateNotificationMessage(
+            for: stationName,
+            arrivalTime: arrivalTimeString,
+            characterStyle: characterStyle
+        )
+    }
+    
+    /// 駅数に応じたフォールバックメッセージを生成
+    private func generateFallbackSnoozeMessage(
+        stationsRemaining: Int,
+        style: CharacterStyle
+    ) -> String {
+        let baseMessage: String
+        switch stationsRemaining {
+        case 1:
+            baseMessage = "次の駅で降車です！お忘れ物にご注意ください"
+        case 2:
+            baseMessage = "あと2駅で到着です！準備を始めましょう"
+        case 3:
+            baseMessage = "あと3駅で到着です"
+        case 4:
+            baseMessage = "あと4駅で到着予定です"
+        case 5:
+            baseMessage = "あと5駅で到着予定です"
+        default:
+            baseMessage = "あと\(stationsRemaining)駅で到着予定です"
+        }
+        
+        // キャラクタースタイルを適用
+        return characterStyleGenerator.generateMessage(
+            baseMessage: baseMessage,
+            style: style
+        )
     }
     
     /// 通知をスケジュール
@@ -229,9 +313,9 @@ class SnoozeNotificationManager: ObservableObject {
         
         do {
             try await notificationCenter.add(request)
-            print("🔔 スヌーズ通知をスケジュール: \(identifier)")
+            // スヌーズ通知をスケジュール
         } catch {
-            print("❌ スヌーズ通知のスケジュールに失敗: \(error)")
+            // スヌーズ通知のスケジュールに失敗
         }
     }
 }

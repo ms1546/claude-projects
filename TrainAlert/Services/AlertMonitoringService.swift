@@ -101,7 +101,7 @@ class AlertMonitoringService: NSObject, ObservableObject {
         // 位置情報の更新を監視
         locationManager.$location
             .sink { [weak self] location in
-                guard let self = self, let _ = location, self.isMonitoring else { return }
+                guard let self = self, location != nil, self.isMonitoring else { return }
                 // 位置が更新されたらアラートをチェック
                 self.checkLocationBasedAlerts()
             }
@@ -201,10 +201,14 @@ class AlertMonitoringService: NSObject, ObservableObject {
         case .success(let count):
             // スヌーズ機能が有効な場合
             if alert.isSnoozeEnabled {
-                await SnoozeNotificationManager.shared.updateSnoozeNotification(
-                    for: alert,
-                    currentStationCount: count
-                )
+                do {
+                    try await SnoozeNotificationManager.shared.updateSnoozeNotification(
+                        for: alert,
+                        currentStationCount: count
+                    )
+                } catch {
+                    // スヌーズ通知の更新エラー
+                }
             }
             
             // 通常の駅数ベース通知
@@ -217,7 +221,8 @@ class AlertMonitoringService: NSObject, ObservableObject {
             }
             
         case .failure(let error):
-            print("駅数計算エラー: \(error)")
+            // 駅数計算エラー
+            monitoringError = error
         }
     }
     

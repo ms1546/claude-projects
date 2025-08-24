@@ -2,14 +2,23 @@
 <model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22225" systemVersion="23A344" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
     <entity name="Alert" representedClassName="Alert" syncable="YES">
         <attribute name="alertId" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="arrivalTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="characterStyle" optional="YES" attributeType="String"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="departureStation" optional="YES" attributeType="String"/>
         <attribute name="isActive" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="isSnoozeEnabled" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="lastNotifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lineName" optional="YES" attributeType="String"/>
         <attribute name="notificationDistance" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="notificationStationsBefore" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="notificationTime" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="notificationType" optional="YES" attributeType="String"/>
         <attribute name="snoozeCount" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="snoozeInterval" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="snoozeNotificationIds" optional="YES" attributeType="String"/>
+        <attribute name="snoozeStartStations" optional="YES" attributeType="Integer 16" defaultValueString="3" usesScalarValueType="YES"/>
+        <attribute name="stationName" optional="YES" attributeType="String"/>
         <attribute name="updatedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="histories" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="History" inverseName="alert" inverseEntity="History"/>
         <relationship name="station" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Station" inverseName="alerts" inverseEntity="Station"/>

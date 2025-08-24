@@ -44,17 +44,8 @@ struct AlertSettingView: View {
                     // Selected Station Info
                     selectedStationInfo
                     
-                    // Notification Time Setting
-                    notificationTimeSection
-                    
-                    // Notification Distance Setting
-                    notificationDistanceSection
-                    
-                    // Snooze Interval Setting
-                    snoozeIntervalSection
-                    
-                    // Snooze Feature Setting
-                    snoozeFeatureSection
+                    // Unified Notification Settings
+                    unifiedNotificationSettings
                     
                     // Navigation Buttons
                     navigationButtons
@@ -105,6 +96,137 @@ struct AlertSettingView: View {
         }
     }
     
+    private var unifiedNotificationSettings: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            sectionHeader(
+                title: "通知設定",
+                subtitle: "アラートの通知方法を設定します"
+            )
+            
+            Card {
+                VStack(spacing: 24) {
+                    // 通知タイミング
+                    VStack(spacing: 12) {
+                        HStack {
+                            Label("通知タイミング", systemImage: "clock")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.textPrimary)
+                            
+                            Spacer()
+                            
+                            Text(notificationTimeDisplayText)
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.trainSoftBlue)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text("到着時")
+                                    .font(.caption2)
+                                    .foregroundColor(.textSecondary)
+                                
+                                Spacer()
+                                
+                                Text("60分前")
+                                    .font(.caption2)
+                                    .foregroundColor(.textSecondary)
+                            }
+                            
+                            Slider(
+                                value: $tempNotificationTime,
+                                in: 0...60,
+                                step: 1
+                            )
+                            .tint(.trainSoftBlue)
+                        }
+                    }
+                    
+                    Divider()
+                    
+                    // スヌーズ機能
+                    VStack(spacing: 16) {
+                        HStack {
+                            Label("駅ごと通知（スヌーズ）", systemImage: "bell.badge")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.textPrimary)
+                            
+                            Spacer()
+                            
+                            Toggle("", isOn: $isSnoozeEnabled)
+                                .labelsHidden()
+                                .tint(.trainSoftBlue)
+                        }
+                        
+                        if isSnoozeEnabled {
+                            VStack(spacing: 12) {
+                                // 開始駅数の設定
+                                HStack {
+                                    Text("通知開始")
+                                        .font(.caption)
+                                        .foregroundColor(.textSecondary)
+                                    
+                                    Spacer()
+                                    
+                                    Text("\(Int(snoozeStartStations))駅前から")
+                                        .font(.caption)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.trainSoftBlue)
+                                }
+                                
+                                Slider(
+                                    value: $snoozeStartStations,
+                                    in: 1...5,
+                                    step: 1
+                                )
+                                .tint(.trainSoftBlue)
+                                
+                                // 通知される駅のプレビュー（コンパクト版）
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("通知される駅")
+                                        .font(.caption2)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.textSecondary)
+                                        .padding(.top, 4)
+                                    
+                                    ForEach((1...Int(snoozeStartStations)).reversed(), id: \.self) { station in
+                                        HStack(spacing: 8) {
+                                            Circle()
+                                                .fill(station == 1 ? Color.orange : Color.trainSoftBlue)
+                                                .frame(width: 6, height: 6)
+                                            
+                                            Text(getSnoozePreviewText(for: station))
+                                                .font(.caption2)
+                                                .foregroundColor(station == 1 ? .orange : .textSecondary)
+                                            
+                                            Spacer()
+                                            
+                                            Text(getEstimatedTimeText(for: station))
+                                                .font(.caption2)
+                                                .foregroundColor(.textSecondary.opacity(0.7))
+                                        }
+                                        .padding(.vertical, 2)
+                                    }
+                                }
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.backgroundSecondary)
+                                )
+                            }
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                            .animation(.easeInOut(duration: 0.3), value: isSnoozeEnabled)
+                        }
+                    }
+                }
+                .padding(20)
+            }
+        }
+    }
+    
     private var selectedStationInfo: some View {
         Card {
             HStack(spacing: 12) {
@@ -136,254 +258,13 @@ struct AlertSettingView: View {
         }
     }
     
-    private var notificationTimeSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(
-                title: "通知タイミング",
-                subtitle: "駅到着の何分前に通知するかを設定"
-            )
-            
-            Card {
-                VStack(spacing: 16) {
-                    HStack {
-                        Text("通知時間")
-                            .font(.headline)
-                            .foregroundColor(.textPrimary)
-                        
-                        Spacer()
-                        
-                        Text(notificationTimeDisplayText)
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.trainSoftBlue)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("到着時")
-                                .font(.caption)
-                                .foregroundColor(.textSecondary)
-                            
-                            Spacer()
-                            
-                            Text("60分前")
-                                .font(.caption)
-                                .foregroundColor(.textSecondary)
-                        }
-                        
-                        Slider(
-                            value: $tempNotificationTime,
-                            in: 0...60,
-                            step: 1
-                        ) {
-                            Text("通知時間")
-                        }
-                        .tint(.trainSoftBlue)
-                    }
-                }
-                .padding(16)
-            }
-        }
-    }
-    
-    private var notificationDistanceSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(
-                title: "通知距離",
-                subtitle: "駅からの距離による通知設定"
-            )
-            
-            Card {
-                VStack(spacing: 16) {
-                    HStack {
-                        Text("通知距離")
-                            .font(.headline)
-                            .foregroundColor(.textPrimary)
-                        
-                        Spacer()
-                        
-                        Text(notificationDistanceDisplayText)
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.trainSoftBlue)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("50m")
-                                .font(.caption)
-                                .foregroundColor(.textSecondary)
-                            
-                            Spacer()
-                            
-                            Text("10km")
-                                .font(.caption)
-                                .foregroundColor(.textSecondary)
-                        }
-                        
-                        Slider(
-                            value: $tempNotificationDistance,
-                            in: 50...10_000,
-                            step: 50
-                        ) {
-                            Text("通知距離")
-                        }
-                        .tint(.trainSoftBlue)
-                    }
-                }
-                .padding(16)
-            }
-        }
-    }
-    
-    private var snoozeIntervalSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(
-                title: "スヌーズ間隔",
-                subtitle: "再通知までの間隔を設定"
-            )
-            
-            Card {
-                VStack(spacing: 16) {
-                    HStack {
-                        Text("スヌーズ間隔")
-                            .font(.headline)
-                            .foregroundColor(.textPrimary)
-                        
-                        Spacer()
-                        
-                        Text(snoozeIntervalDisplayText)
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.trainSoftBlue)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("1分")
-                                .font(.caption)
-                                .foregroundColor(.textSecondary)
-                            
-                            Spacer()
-                            
-                            Text("30分")
-                                .font(.caption)
-                                .foregroundColor(.textSecondary)
-                        }
-                        
-                        Slider(
-                            value: $tempSnoozeInterval,
-                            in: 1...30,
-                            step: 1
-                        ) {
-                            Text("スヌーズ間隔")
-                        }
-                        .tint(.trainSoftBlue)
-                    }
-                }
-                .padding(16)
-            }
-        }
-    }
-    
-    private var snoozeFeatureSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(
-                title: "駅ごと通知（スヌーズ）",
-                subtitle: "各駅で段階的に通知を受け取る"
-            )
-            
-            Card {
-                VStack(spacing: 20) {
-                    // スヌーズ機能ON/OFFトグル
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("駅ごと通知を有効にする")
-                                .font(.headline)
-                                .foregroundColor(.textPrimary)
-                            
-                            Text("降車駅に近づくにつれて通知頻度が上がります")
-                                .font(.caption)
-                                .foregroundColor(.textSecondary)
-                        }
-                        
-                        Spacer()
-                        
-                        Toggle("", isOn: $isSnoozeEnabled)
-                            .labelsHidden()
-                            .tint(.trainSoftBlue)
-                    }
-                    
-                    // スヌーズ開始駅数の設定（スヌーズが有効な場合のみ表示）
-                    if isSnoozeEnabled {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Text("通知開始")
-                                    .font(.subheadline)
-                                    .foregroundColor(.textPrimary)
-                                
-                                Spacer()
-                                
-                                Text("\(Int(snoozeStartStations))駅前から")
-                                    .font(.title3)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.trainSoftBlue)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 8) {
-                                HStack {
-                                    Text("1駅前")
-                                        .font(.caption)
-                                        .foregroundColor(.textSecondary)
-                                    
-                                    Spacer()
-                                    
-                                    Text("5駅前")
-                                        .font(.caption)
-                                        .foregroundColor(.textSecondary)
-                                }
-                                
-                                Slider(
-                                    value: $snoozeStartStations,
-                                    in: 1...5,
-                                    step: 1
-                                ) {
-                                    Text("通知開始駅数")
-                                }
-                                .tint(.trainSoftBlue)
-                            }
-                            
-                            // プレビュー表示
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("通知タイミング")
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.textSecondary)
-                                
-                                ForEach((1...Int(snoozeStartStations)).reversed(), id: \.self) { station in
-                                    HStack {
-                                        Image(systemName: "bell.fill")
-                                            .font(.caption)
-                                            .foregroundColor(.trainSoftBlue)
-                                        
-                                        Text(getSnoozePreviewText(for: station))
-                                            .font(.caption)
-                                            .foregroundColor(.textSecondary)
-                                        
-                                        Spacer()
-                                    }
-                                }
-                            }
-                            .padding(.top, 8)
-                        }
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                        .animation(.easeInOut(duration: 0.3), value: isSnoozeEnabled)
-                    }
-                }
-                .padding(16)
-            }
-        }
-    }
+    // Legacy sections - kept for reference but not used
+    /*
+    private var notificationTimeSection: some View { ... }
+    private var notificationDistanceSection: some View { ... }
+    private var snoozeIntervalSection: some View { ... }
+    private var snoozeFeatureSection: some View { ... }
+    */
     
     private var navigationButtons: some View {
         VStack(spacing: 12) {
@@ -466,6 +347,23 @@ struct AlertSettingView: View {
             return "あと5駅で到着です"
         default:
             return "あと\(stationsRemaining)駅で到着です"
+        }
+    }
+    
+    private func getEstimatedTimeText(for stationsRemaining: Int) -> String {
+        // 現在地から通知対象駅までの駅数（総駅数から引く）
+        let stationsFromCurrent = Int(snoozeStartStations) - stationsRemaining
+        
+        // 推定時間（1駅あたり2-3分として計算）
+        let minTime = stationsFromCurrent * 2
+        let maxTime = stationsFromCurrent * 3
+        
+        if stationsFromCurrent == 0 {
+            return "通知開始時"
+        } else if minTime == maxTime {
+            return "約\(minTime)分後"
+        } else {
+            return "約\(minTime)〜\(maxTime)分後"
         }
     }
     
