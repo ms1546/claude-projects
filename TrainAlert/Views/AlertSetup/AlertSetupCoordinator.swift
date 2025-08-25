@@ -111,7 +111,13 @@ struct AlertSetupCoordinator: View {
         }
         .onAppear {
             if let alert = editingAlert {
+                print("🔧 編集モード開始: アラートID = \(alert.id.uuidString)")
+                print("🔧 駅名: \(alert.stationName ?? "nil")")
+                print("🔧 駅オブジェクト: \(alert.station?.name ?? "nil")")
                 viewModel.loadExistingAlert(alert)
+                print("🔧 loadExistingAlert完了")
+                print("🔧 setupData.selectedStation: \(viewModel.setupData.selectedStation?.name ?? "nil")")
+                print("🔧 currentStep: \(viewModel.currentStep)")
             }
         }
     }

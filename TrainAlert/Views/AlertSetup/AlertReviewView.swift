@@ -21,8 +21,13 @@ struct AlertReviewView: View {
     @State private var showConfirmation = false
     
     var body: some View {
-        NavigationView {
-            ScrollView {
+        let _ = print("🔧 AlertReviewView表示")
+        let _ = print("🔧 isEditMode: \(isEditMode)")
+        let _ = print("🔧 selectedStation: \(setupData.selectedStation?.name ?? "nil")")
+        Group {
+            if isEditMode {
+                // 編集モードではNavigationViewは不要（AlertSetupCoordinatorの一部として表示されるため）
+                ScrollView {
                 VStack(spacing: 24) {
                     // Header
                     headerView
@@ -40,9 +45,35 @@ struct AlertReviewView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 20)
+                }
+                .background(Color.backgroundPrimary)
+                .navigationBarHidden(true)
+            } else {
+                // 通常モードではNavigationViewが必要
+                NavigationView {
+                    ScrollView {
+                        VStack(spacing: 24) {
+                            // Header
+                            headerView
+                            
+                            // Summary Sections
+                            stationSummarySection
+                            notificationSettingsSection
+                            characterStyleSection
+                            
+                            // Final Message
+                            finalMessageSection
+                            
+                            // Navigation Buttons
+                            navigationButtons
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 20)
+                    }
+                    .background(Color.backgroundPrimary)
+                    .navigationBarHidden(true)
+                }
             }
-            .background(Color.backgroundPrimary)
-            .navigationBarHidden(true)
         }
         .alert(isEditMode ? "トントンを更新しますか？" : "トントンを作成しますか？", isPresented: $showConfirmation) {
             Button("キャンセル", role: .cancel) { }
@@ -64,24 +95,39 @@ struct AlertReviewView: View {
                         .font(.title2)
                         .foregroundColor(.trainSoftBlue)
                 }
-                .padding(.trailing, 8)
                 
                 Spacer()
                 
-                Text("設定確認")
+                Text("確認")
                     .font(.title2)
-                    .fontWeight(.bold)
+                    .fontWeight(.semibold)
                     .foregroundColor(.textPrimary)
                 
                 Spacer()
                 
-                // Placeholder for symmetry
-                Color.clear
-                    .frame(width: 32, height: 32)
+                // Placeholder for alignment
+                Image(systemName: "chevron.left")
+                    .font(.title2)
+                    .foregroundColor(.clear)
             }
             
+            // Progress Bar
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    // Background track
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.trainLightGray.opacity(0.3))
+                    
+                    // Progress
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.success)
+                        .frame(width: geometry.size.width)
+                }
+            }
+            .frame(height: 4)
+            
             // Progress indicator
-            ProgressView(value: 4, total: 4)
+            LinearProgressView(value: 1.0, total: 1.0)
                 .progressViewStyle(LinearProgressViewStyle(tint: .success))
                 .frame(height: 4)
                 .clipShape(Capsule())
@@ -112,114 +158,112 @@ struct AlertReviewView: View {
                     
                     Spacer()
                 }
-                .padding(16)
             }
         }
     }
     
     private var notificationSettingsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("通知設定", systemImage: "bell")
+            sectionHeader("通知設定", systemImage: "bell.badge")
             
             Card {
                 VStack(spacing: 16) {
                     // Notification Time
                     settingRow(
-                        label: "通知タイミング",
-                        value: setupData.notificationTimeDisplayString,
-                        icon: "clock"
+                        icon: "clock",
+                        title: "通知タイミング",
+                        value: setupData.notificationTimeDisplayString
                     )
                     
                     Divider()
-                        .background(Color.textSecondary.opacity(0.3))
                     
                     // Notification Distance
                     settingRow(
-                        label: "通知距離",
-                        value: setupData.notificationDistanceDisplayString,
-                        icon: "location"
+                        icon: "location.north.line",
+                        title: "通知距離",
+                        value: setupData.notificationDistanceDisplayString
                     )
                     
                     Divider()
-                        .background(Color.textSecondary.opacity(0.3))
                     
                     // Snooze Interval
                     settingRow(
-                        label: "スヌーズ間隔",
-                        value: setupData.snoozeIntervalDisplayString,
-                        icon: "repeat"
+                        icon: "moon.zzz",
+                        title: "スヌーズ間隔",
+                        value: setupData.snoozeIntervalDisplayString
                     )
                 }
-                .padding(16)
             }
         }
     }
     
     private var characterStyleSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("通知スタイル", systemImage: "person.crop.circle")
+            sectionHeader("キャラクター", systemImage: "sparkles")
             
             Card {
                 HStack(spacing: 12) {
-                    characterIcon
+                    Text(setupData.characterStyle.emoji)
+                        .font(.largeTitle)
                     
                     VStack(alignment: .leading, spacing: 4) {
                         Text(setupData.characterStyle.displayName)
                             .font(.headline)
                             .foregroundColor(.textPrimary)
                         
-                        Text(setupData.characterStyle.tone)
+                        Text(setupData.characterStyle.description)
                             .font(.caption)
                             .foregroundColor(.textSecondary)
+                            .lineLimit(2)
                     }
                     
                     Spacer()
                 }
-                .padding(16)
             }
         }
     }
     
     private var finalMessageSection: some View {
-        Card {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.success)
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader("メッセージプレビュー", systemImage: "bubble.left")
+            
+            Card {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(setupData.characterStyle.emoji)
+                            .font(.title2)
+                        Text(setupData.characterStyle.displayName)
+                            .font(.footnote)
+                            .foregroundColor(.textSecondary)
+                    }
                     
-                    Text("設定完了")
-                        .font(.headline)
+                    Text(getPreviewMessage())
+                        .font(.body)
                         .foregroundColor(.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                
-                Text(isEditMode ? "上記の設定でトントンを更新します。" : "上記の設定でトントンを作成します。必要に応じて後から設定を変更することも可能です。")
-                    .font(.body)
-                    .foregroundColor(.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(16)
         }
     }
     
     private var navigationButtons: some View {
         VStack(spacing: 12) {
             PrimaryButton(
-                isEditMode ? "トントンを更新" : "トントンを作成",
-                size: .fullWidth,
-                isEnabled: setupData.isFormValid && !isCreatingAlert, isLoading: isCreatingAlert
+                title: isEditMode ? "トントンを更新" : "トントンを作成",
+                icon: "checkmark.circle.fill"
             ) {
                 showConfirmation = true
             }
+            .disabled(isCreatingAlert || !setupData.isFormValid)
             
             SecondaryButton(
-                "戻って編集",
-                size: .fullWidth,
-                isEnabled: !isCreatingAlert
+                title: "戻る",
+                icon: "arrow.left"
             ) {
                 onBack()
             }
+            .disabled(isCreatingAlert)
         }
-        .padding(.top, 16)
     }
     
     // MARK: - Helper Views
@@ -227,77 +271,70 @@ struct AlertReviewView: View {
     private func sectionHeader(_ title: String, systemImage: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: systemImage)
+                .font(.caption)
                 .foregroundColor(.trainSoftBlue)
             
             Text(title)
-                .font(.title3)
-                .fontWeight(.bold)
+                .font(.headline)
+                .fontWeight(.semibold)
                 .foregroundColor(.textPrimary)
         }
     }
     
-    private func settingRow(label: String, value: String, icon: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundColor(.trainSoftBlue)
-                .frame(width: 24)
-            
-            Text(label)
-                .font(.body)
-                .foregroundColor(.textPrimary)
+    private func settingRow(icon: String, title: String, value: String) -> some View {
+        HStack {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.body)
+                    .foregroundColor(.trainSoftBlue)
+                    .frame(width: 24)
+                
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundColor(.textPrimary)
+            }
             
             Spacer()
             
             Text(value)
-                .font(.body)
+                .font(.subheadline)
                 .fontWeight(.medium)
-                .foregroundColor(.textPrimary)
+                .foregroundColor(.textSecondary)
         }
-    }
-    
-    private var characterIcon: some View {
-        Group {
-            switch setupData.characterStyle {
-            case .gyaru:
-                Text("💅")
-                    .font(.system(size: 32))
-            case .butler:
-                Text("🤵")
-                    .font(.system(size: 32))
-            case .kansai:
-                Text("🗣️")
-                    .font(.system(size: 32))
-            case .tsundere:
-                Text("😤")
-                    .font(.system(size: 32))
-            case .sporty:
-                Text("💪")
-                    .font(.system(size: 32))
-            case .healing:
-                Text("🌸")
-                    .font(.system(size: 32))
-            }
-        }
-        .frame(width: 40, height: 40)
     }
     
     // MARK: - Methods
     
-    private func createAlert() {
-        guard setupData.isFormValid else { return }
-        
-        isCreatingAlert = true
-        
-        // Add haptic feedback
-        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-        impactFeedback.impactOccurred()
-        
-        // Simulate API call delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            self.isCreatingAlert = false
-            self.onCreateAlert()
+    private func getPreviewMessage() -> String {
+        guard let station = setupData.selectedStation else {
+            return "駅が選択されていません"
         }
+        
+        let baseMessage = "もうすぐ\(station.name)だよ！"
+        
+        switch setupData.characterStyle {
+        case .friendly:
+            return baseMessage + "降りる準備をしてね😊"
+        case .polite:
+            return "間もなく\(station.name)に到着いたします。お降りの準備をお願いいたします。"
+        case .motivational:
+            return baseMessage + "さあ、降りる準備だ！ファイト🔥"
+        case .funny:
+            return baseMessage + "でもまだ寝ててもいいよ～（ウソ）😜"
+        case .gyaru:
+            return "マジもうすぐ\(station.name)やん～！降りる準備しときなよ〜💕"
+        case .tsundere:
+            return "もう\(station.name)よ！あんたのために教えてあげてるんだからね！"
+        case .kansai:
+            return "もうすぐ\(station.name)やで！そろそろ降りる準備せえや！"
+        case .butler:
+            return "お客様、間もなく\(station.name)に到着いたします。お降りのご準備を。"
+        }
+    }
+    
+    private func createAlert() {
+        isCreatingAlert = true
+        onCreateAlert()
     }
 }
 
@@ -307,7 +344,13 @@ struct AlertReviewView: View {
 struct AlertReviewView_Previews: PreviewProvider {
     static var previews: some View {
         let setupData = AlertSetupData()
-        // setupData.selectedStation = StationModel(id: "test", name: "テスト駅", latitude: 35.681236, longitude: 139.767125, lines: ["山手線"])
+        setupData.selectedStation = StationModel(
+            id: "preview-001",
+            name: "渋谷駅",
+            latitude: 35.6590,
+            longitude: 139.7040,
+            lines: ["JR山手線", "東急東横線"]
+        )
         setupData.notificationTime = 5
         setupData.notificationDistance = 500
         setupData.snoozeInterval = 5
@@ -315,8 +358,8 @@ struct AlertReviewView_Previews: PreviewProvider {
         
         return AlertReviewView(
             setupData: setupData,
-            onCreateAlert: {},
-            onBack: {},
+            onCreateAlert: { },
+            onBack: { },
             isEditMode: false
         )
         .preferredColorScheme(.dark)
