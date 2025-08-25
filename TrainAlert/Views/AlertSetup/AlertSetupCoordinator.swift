@@ -10,10 +10,11 @@ import SwiftUI
 struct AlertSetupCoordinator: View {
     // MARK: - Properties
     
-    @StateObject private var viewModel = AlertSetupViewModel()
+    @StateObject private var viewModel: AlertSetupViewModel
     @Environment(\.presentationMode) var presentationMode
     
     let onAlertCreated: (() -> Void)?
+    let editingAlert: Alert?
     
     // MARK: - State
     
@@ -23,8 +24,12 @@ struct AlertSetupCoordinator: View {
     
     // MARK: - Init
     
-    init(onAlertCreated: (() -> Void)? = nil) {
+    init(editingAlert: Alert? = nil, onAlertCreated: (() -> Void)? = nil) {
         self.onAlertCreated = onAlertCreated
+        self.editingAlert = editingAlert
+        
+        let viewModel = AlertSetupViewModel()
+        self._viewModel = StateObject(wrappedValue: viewModel)
     }
     
     var body: some View {
@@ -69,7 +74,8 @@ struct AlertSetupCoordinator: View {
                         },
                         onBack: {
                             viewModel.goToPreviousStep()
-                        }
+                        },
+                        isEditMode: editingAlert != nil
                     )
                 }
             }
@@ -103,6 +109,11 @@ struct AlertSetupCoordinator: View {
         } message: {
             Text(alertMessage)
         }
+        .onAppear {
+            if let alert = editingAlert {
+                viewModel.loadExistingAlert(alert)
+            }
+        }
     }
     
     // MARK: - Views
@@ -117,7 +128,7 @@ struct AlertSetupCoordinator: View {
                     .progressViewStyle(CircularProgressViewStyle(tint: .trainSoftBlue))
                     .scaleEffect(1.5)
                 
-                Text("トントンを作成中...")
+                Text(editingAlert != nil ? "トントンを更新中..." : "トントンを作成中...")
                     .font(.body)
                     .foregroundColor(.textPrimary)
             }
@@ -144,8 +155,8 @@ struct AlertSetupCoordinator: View {
     }
     
     private func handleAlertCreationSuccess() {
-        alertTitle = "トントン作成完了"
-        alertMessage = "トントンが正常に作成されました。ホーム画面でトントンの状態を確認できます。"
+        alertTitle = editingAlert != nil ? "トントン更新完了" : "トントン作成完了"
+        alertMessage = editingAlert != nil ? "トントンが正常に更新されました。" : "トントンが正常に作成されました。ホーム画面でトントンの状態を確認できます。"
         showAlert = true
         
         // Haptic feedback for success
@@ -176,10 +187,11 @@ struct AlertSetupCoordinator: View {
 
 struct AlertSetupFlow: View {
     @Environment(\.presentationMode) var presentationMode
+    let editingAlert: Alert?
     let onAlertCreated: (() -> Void)?
     
     var body: some View {
-        AlertSetupCoordinator(onAlertCreated: onAlertCreated)
+        AlertSetupCoordinator(editingAlert: editingAlert, onAlertCreated: onAlertCreated)
     }
 }
 
@@ -187,12 +199,13 @@ struct AlertSetupFlow: View {
 
 struct AlertSetupModifier: ViewModifier {
     @Binding var isPresented: Bool
+    let editingAlert: Alert?
     let onAlertCreated: (() -> Void)?
     
     func body(content: Content) -> some View {
         content
             .sheet(isPresented: $isPresented) {
-                AlertSetupFlow(onAlertCreated: onAlertCreated)
+                AlertSetupFlow(editingAlert: editingAlert, onAlertCreated: onAlertCreated)
             }
     }
 }
@@ -200,10 +213,12 @@ struct AlertSetupModifier: ViewModifier {
 extension View {
     func alertSetup(
         isPresented: Binding<Bool>,
+        editingAlert: Alert? = nil,
         onAlertCreated: (() -> Void)? = nil
     ) -> some View {
         self.modifier(AlertSetupModifier(
             isPresented: isPresented,
+            editingAlert: editingAlert,
             onAlertCreated: onAlertCreated
         ))
     }

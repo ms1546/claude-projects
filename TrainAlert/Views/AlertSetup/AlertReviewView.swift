@@ -13,6 +13,7 @@ struct AlertReviewView: View {
     @ObservedObject var setupData: AlertSetupData
     let onCreateAlert: () -> Void
     let onBack: () -> Void
+    let isEditMode: Bool
     
     // MARK: - State
     
@@ -43,13 +44,13 @@ struct AlertReviewView: View {
             .background(Color.backgroundPrimary)
             .navigationBarHidden(true)
         }
-        .alert("トントンを作成しますか？", isPresented: $showConfirmation) {
+        .alert(isEditMode ? "トントンを更新しますか？" : "トントンを作成しますか？", isPresented: $showConfirmation) {
             Button("キャンセル", role: .cancel) { }
-            Button("作成する") {
+            Button(isEditMode ? "更新する" : "作成する") {
                 createAlert()
             }
         } message: {
-            Text("設定した内容でトントンを作成します。")
+            Text(isEditMode ? "設定した内容でトントンを更新します。" : "設定した内容でトントンを作成します。")
         }
     }
     
@@ -191,7 +192,7 @@ struct AlertReviewView: View {
                         .foregroundColor(.textPrimary)
                 }
                 
-                Text("上記の設定でトントンを作成します。必要に応じて後から設定を変更することも可能です。")
+                Text(isEditMode ? "上記の設定でトントンを更新します。" : "上記の設定でトントンを作成します。必要に応じて後から設定を変更することも可能です。")
                     .font(.body)
                     .foregroundColor(.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -203,7 +204,7 @@ struct AlertReviewView: View {
     private var navigationButtons: some View {
         VStack(spacing: 12) {
             PrimaryButton(
-                "トントンを作成",
+                isEditMode ? "トントンを更新" : "トントンを作成",
                 size: .fullWidth,
                 isEnabled: setupData.isFormValid && !isCreatingAlert, isLoading: isCreatingAlert
             ) {
@@ -315,7 +316,8 @@ struct AlertReviewView_Previews: PreviewProvider {
         return AlertReviewView(
             setupData: setupData,
             onCreateAlert: {},
-            onBack: {}
+            onBack: {},
+            isEditMode: false
         )
         .preferredColorScheme(.dark)
     }

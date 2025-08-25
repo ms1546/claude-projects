@@ -24,6 +24,10 @@ class AlertSetupViewModel: ObservableObject {
     private let notificationManager: NotificationManager
     private var cancellables = Set<AnyCancellable>()
     
+    // 編集モード用のプロパティ
+    private var editingAlert: Alert?
+    @Published var isEditMode: Bool = false
+    
     // MARK: - Enums
     
     enum AlertSetupStep: Int, CaseIterable {
@@ -128,8 +132,13 @@ class AlertSetupViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            // Create alert in Core Data
-            let alert = try await createAlertInCoreData()
+            // 編集モードの場合は更新、それ以外は新規作成
+            let alert: Alert
+            if isEditMode {
+                alert = try await updateAlertInCoreData()
+            } else {
+                alert = try await createAlertInCoreData()
+            }
             
             // Schedule notifications if needed
             try await scheduleNotifications(for: alert)
@@ -147,7 +156,7 @@ class AlertSetupViewModel: ObservableObject {
     }
     
     private func createAlertInCoreData() async throws -> Alert {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Alert, Error>) in
             coreDataManager.persistentContainer.performBackgroundTask { context in
                 do {
                     // Create alert
@@ -197,6 +206,77 @@ class AlertSetupViewModel: ObservableObject {
                                 return
                             }
                             // Notify that alerts have been updated
+                            NotificationCenter.default.post(name: Notification.Name("AlertsUpdated"), object: nil)
+                            
+                            continuation.resume(returning: mainAlert)
+                        } catch {
+                            continuation.resume(throwing: error)
+                        }
+                    }
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+    
+    private func updateAlertInCoreData() async throws -> Alert {
+        guard let editingAlert = editingAlert else {
+            throw AlertSetupError.invalidForm
+        }
+        
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Alert, Error>) in
+            coreDataManager.persistentContainer.performBackgroundTask { context in
+                do {
+                    // 編集対象のアラートを取得
+                    guard let alert = try context.existingObject(with: editingAlert.objectID) as? Alert else {
+                        throw AlertSetupError.invalidForm
+                    }
+                    
+                    // 更新
+                    alert.notificationTime = Int16(self.setupData.notificationTime)
+                    alert.notificationDistance = self.setupData.notificationDistance
+                    alert.snoozeInterval = Int16(self.setupData.snoozeInterval)
+                    
+                    // キャラクタースタイルをマップ
+                    let mappedStyle: String = {
+                        switch self.setupData.characterStyle {
+                        case .gyaru, .healing:
+                            return "friendly"
+                        case .butler:
+                            return "polite"
+                        case .kansai, .sporty:
+                            return "motivational"
+                        case .tsundere:
+                            return "funny"
+                        }
+                    }()
+                    alert.characterStyle = mappedStyle
+                    
+                    // 駅を更新
+                    if let selectedStation = self.setupData.selectedStation {
+                        let stationEntity = self.findOrCreateStation(selectedStation, in: context)
+                        alert.station = stationEntity
+                    }
+                    
+                    // 保存
+                    try context.save()
+                    
+                    // メインコンテキストに返す
+                    let alertId = alert.objectID
+                    
+                    DispatchQueue.main.async {
+                        do {
+                            guard let mainAlert = try self.coreDataManager.viewContext.existingObject(with: alertId) as? Alert else {
+                                let error = NSError(
+                                    domain: "AlertSetup",
+                                    code: 1,
+                                    userInfo: [NSLocalizedDescriptionKey: "Failed to convert to Alert object"]
+                                )
+                                continuation.resume(throwing: AlertSetupError.coreDataError(error))
+                                return
+                            }
+                            // アラート更新を通知
                             NotificationCenter.default.post(name: Notification.Name("AlertsUpdated"), object: nil)
                             
                             continuation.resume(returning: mainAlert)
@@ -305,6 +385,51 @@ class AlertSetupViewModel: ObservableObject {
     
     func updateCharacterStyle(_ style: CharacterStyle) {
         setupData.characterStyle = style
+    }
+    
+    // MARK: - Edit Mode Methods
+    
+    /// 既存のアラートを読み込んで編集モードを初期化
+    func loadExistingAlert(_ alert: Alert) {
+        editingAlert = alert
+        isEditMode = true
+        
+        // 駅情報を読み込み
+        if let station = alert.station {
+            let stationModel = StationModel(
+                id: station.stationId ?? "",
+                name: station.name ?? "",
+                latitude: station.latitude,
+                longitude: station.longitude,
+                lines: station.lines ?? []
+            )
+            setupData.selectedStation = stationModel
+        }
+        
+        // 通知設定を読み込み
+        setupData.notificationTime = Int(alert.notificationTime)
+        setupData.notificationDistance = alert.notificationDistance
+        setupData.snoozeInterval = Int(alert.snoozeInterval)
+        
+        // キャラクタースタイルを逆マッピング
+        let style: CharacterStyle = {
+            switch alert.characterStyle {
+            case "friendly":
+                return .gyaru  // デフォルトとしてgyaruを使用
+            case "polite":
+                return .butler
+            case "motivational":
+                return .kansai  // デフォルトとしてkansaiを使用
+            case "funny":
+                return .tsundere
+            default:
+                return .gyaru
+            }
+        }()
+        setupData.characterStyle = style
+        
+        // 編集時はレビューステップから開始
+        currentStep = .review
     }
 }
 
