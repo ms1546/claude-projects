@@ -165,40 +165,55 @@ class NotificationHistoryManager {
         notificationType: String,
         stationName: String
     ) -> History? {
-        let context = coreDataManager.viewContext
+        // 別のコンテキストを使用して無限ループを回避
+        let backgroundContext = coreDataManager.newBackgroundContext()
+        var resultHistory: History?
         
-        // アラートを検索
-        let request = Alert.fetchRequest(alertId: alertId)
-        
-        do {
-            if let alert = try context.fetch(request).first {
-                // アラートに履歴を追加
-                let history = alert.addHistory(message: message)
-                
-                // 保存
-                try context.save()
-                // 通知履歴を保存
-                return history
-            } else {
-                // アラートが見つからない
-                // アラートが見つからない場合も独立した履歴として保存
-                return saveStandaloneHistory(
-                    message: message,
-                    notificationType: notificationType,
-                    stationName: stationName
-                )
+        // performAndWaitで同期的に実行
+        backgroundContext.performAndWait {
+            let request = Alert.fetchRequest(alertId: alertId)
+            
+            do {
+                if let alert = try backgroundContext.fetch(request).first {
+                    // 履歴を作成
+                    let history = History(context: backgroundContext)
+                    history.historyId = UUID()
+                    history.message = message
+                    history.notifiedAt = Date()
+                    history.alert = alert
+                    
+                    // 保存
+                    try backgroundContext.save()
+                    
+                    // 結果を保持
+                    resultHistory = history
+                } else {
+                    // アラートが見つからない場合も独立した履歴として保存
+                    let history = History(context: backgroundContext)
+                    history.historyId = UUID()
+                    history.message = message
+                    history.notifiedAt = Date()
+                    
+                    try backgroundContext.save()
+                    resultHistory = history
+                }
+            } catch {
+                // エラーの場合はリトライキューに追加
+                resultHistory = nil
             }
-        } catch {
-            // 通知履歴の保存に失敗
-            // リトライキューに追加
+        }
+        
+        // リトライが必要な場合
+        if resultHistory == nil {
             addToPendingSaves(
                 alertId: alertId,
                 message: message,
                 notificationType: notificationType,
                 stationName: stationName
             )
-            return nil
         }
+        
+        return resultHistory
     }
     
     /// 独立した履歴として保存（アラートに紐付かない）
@@ -207,21 +222,27 @@ class NotificationHistoryManager {
         notificationType: String,
         stationName: String
     ) -> History? {
-        let context = coreDataManager.viewContext
+        // 別のコンテキストを使用
+        let backgroundContext = coreDataManager.newBackgroundContext()
+        var resultHistory: History?
         
-        let history = History(context: context)
-        history.historyId = UUID()
-        history.notifiedAt = Date()
-        history.message = message
-        
-        do {
-            try context.save()
-            // 独立した通知履歴を保存
-            return history
-        } catch {
-            // 独立した通知履歴の保存に失敗
-            return nil
+        // performAndWaitで同期的に実行
+        backgroundContext.performAndWait {
+            let history = History(context: backgroundContext)
+            history.historyId = UUID()
+            history.notifiedAt = Date()
+            history.message = message
+            
+            do {
+                try backgroundContext.save()
+                resultHistory = history
+            } catch {
+                // 独立した通知履歴の保存に失敗
+                resultHistory = nil
+            }
         }
+        
+        return resultHistory
     }
     
     /// 履歴メッセージを構築
@@ -389,4 +410,3 @@ class NotificationHistoryManager {
         retryTimer = nil
     }
 }
-

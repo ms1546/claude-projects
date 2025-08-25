@@ -34,7 +34,7 @@ class SettingsViewModel: ObservableObject {
     
     // MARK: - AI Settings
     
-    @AppStorage("selectedCharacterStyle") var selectedCharacterStyle: String = CharacterStyle.healing.rawValue
+    @AppStorage("selectedCharacterStyle") var selectedCharacterStyle: String = CharacterStyle.gyaru.rawValue
     @AppStorage("useAIGeneratedMessages") var useAIGeneratedMessages: Bool = true
     // API Key is now stored in Keychain, not in UserDefaults
     @Published var openAIAPIKey: String = ""
@@ -265,7 +265,7 @@ class SettingsViewModel: ObservableObject {
         notificationPreviewEnabled = true
         
         // Reset AI settings
-        selectedCharacterStyle = CharacterStyle.healing.rawValue
+        selectedCharacterStyle = CharacterStyle.gyaru.rawValue
         useAIGeneratedMessages = true
         clearAPIKey()
         

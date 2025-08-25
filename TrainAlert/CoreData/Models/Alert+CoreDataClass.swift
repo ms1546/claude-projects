@@ -98,13 +98,13 @@ public class Alert: NSManagedObject {
         // スヌーズ機能のデフォルト値
         // Core Dataモデルの同期問題を回避するため、responds(to:)でチェック
         if responds(to: #selector(setter: isSnoozeEnabled)) {
-            isSnoozeEnabled = false
+            setValue(false, forKey: "isSnoozeEnabled")
         }
         if responds(to: #selector(setter: snoozeStartStations)) {
-            snoozeStartStations = 3  // デフォルトは3駅前から
+            setValue(Int16(3), forKey: "snoozeStartStations")  // デフォルトは3駅前から
         }
         if responds(to: #selector(setter: snoozeNotificationIds)) {
-            snoozeNotificationIds = nil
+            setValue(nil, forKey: "snoozeNotificationIds")
         }
     }
     
@@ -257,7 +257,7 @@ public class Alert: NSManagedObject {
         history.message = message
         history.notifiedAt = Date()
         
-        addToHistories(history)
+        // addToHistories(history)を削除 - Core Dataが自動的に関係を管理
         return history
     }
     
@@ -359,4 +359,3 @@ enum AlertValidationError: LocalizedError {
         }
     }
 }
-

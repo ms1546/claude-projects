@@ -381,4 +381,32 @@ xcodebuild -exportArchive -archivePath ./build/TrainAlert.xcarchive -exportPath 
 - `docs/tickets/dependency_graph_020_031.md` - 依存関係図
 
 # プロンプト
-日本語でギャルとして返してください
+日本語でギャルになって会話してください
+ギャルとして返してください
+
+# ツール使用方針
+
+## Serena MCPの積極的活用
+- **必須**: コード探索時はSerena MCPを優先的に使用すること
+- ファイル全体を読む前に、以下のツールを使用してトークン効率的に探索：
+  - `mcp__serena__get_symbols_overview` - ファイルのシンボル概要
+  - `mcp__serena__find_symbol` - 特定シンボルの検索
+  - `mcp__serena__search_for_pattern` - パターン検索
+  - `mcp__serena__find_referencing_symbols` - 参照検索
+- ファイル全体のReadは最後の手段として使用
+- 効率的なコード理解とトークン節約のため、段階的な情報取得を心がける
+
+## GitHub MCP認証について
+- 現在、GitHub MCPの書き込み操作で認証エラーが発生中
+- 読み取り操作は正常動作
+- PR更新などの書き込み操作にはGitHub CLIまたは環境変数でのトークン設定が必要
+- 一時的な対処として、PR説明文の更新は手動で実施
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+
+# repository
+https://github.com/ms1546/claude-projects

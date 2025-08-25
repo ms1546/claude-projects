@@ -113,6 +113,10 @@ final class HybridNotificationManager: ObservableObject {
     private var lastTimetableCheck: Date?
     private var stationApproachHistory: [(station: String, time: Date, distance: CLLocationDistance)] = []
     
+    // 通知の重複を防ぐためのキャッシュ
+    private var lastNotificationInfo: (station: String, time: Date)?
+    private let notificationCooldownMinutes: TimeInterval = 5.0 // 同じ駅への通知は5分間隔
+    
     // MARK: - Initialization
     
     private init() {
@@ -178,6 +182,7 @@ final class HybridNotificationManager: ObservableObject {
         
         isMonitoring = true
         stationApproachHistory.removeAll()
+        lastNotificationInfo = nil // 通知履歴をリセット
         
         // 定期的な監視を開始
         monitoringTimer?.invalidate()
@@ -348,27 +353,15 @@ final class HybridNotificationManager: ObservableObject {
         }
         
         // TODO: 実際の駅の座標を取得する必要がある
-        // 仮の実装：距離を2000mとして仮定
-        let distance = 2_000.0 // 仮の値
-        let notificationDistance = 2_000.0
-        
-        // 駅への接近を記録
-        recordStationApproach(station: targetStationName, distance: distance)
-        
-        // 速度を推定
-        let estimatedSpeed = estimateCurrentSpeed()
-        let estimatedTimeToArrival = estimatedSpeed > 0 ? distance / estimatedSpeed : nil
-        
-        let shouldNotify = distance <= notificationDistance
-        let confidence = calculateLocationConfidence(accuracy: currentLocation.horizontalAccuracy, distance: distance)
-        
+        // 暫定対応：位置情報ベースの通知を無効化（実際の駅座標が取得できるまで）
+        logger.info("Location-based notification skipped: Station coordinates not available")
         return NotificationDecision(
-            shouldNotify: shouldNotify,
+            shouldNotify: false,
             mode: .locationOnly,
-            confidence: confidence,
-            estimatedTimeToArrival: estimatedTimeToArrival,
-            distanceToTarget: distance,
-            reason: shouldNotify ? "目的駅に接近しています" : "まだ目的駅から離れています",
+            confidence: 0.0,
+            estimatedTimeToArrival: nil,
+            distanceToTarget: nil,
+            reason: "駅の座標情報が利用できません",
             timestamp: Date()
         )
     }
@@ -517,7 +510,18 @@ final class HybridNotificationManager: ObservableObject {
     private func sendNotification(decision: NotificationDecision, routeAlert: RouteAlert) async {
         guard let notificationManager = notificationManager else { return }
         
-        var message = "もうすぐ\(routeAlert.arrivalStation ?? "目的駅")に到着します"
+        let targetStation = routeAlert.arrivalStation ?? "目的駅"
+        
+        // 重複通知チェック
+        if let lastInfo = lastNotificationInfo {
+            let timeSinceLastNotification = Date().timeIntervalSince(lastInfo.time)
+            if lastInfo.station == targetStation && timeSinceLastNotification < notificationCooldownMinutes * 60 {
+                logger.info("Skipping duplicate notification for \(targetStation) (cooldown: \(Int(timeSinceLastNotification))s)")
+                return
+            }
+        }
+        
+        var message = "もうすぐ\(targetStation)に到着します"
         
         // モードに応じてメッセージを調整
         switch decision.mode {
@@ -559,6 +563,16 @@ final class HybridNotificationManager: ObservableObject {
         
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         try? await UNUserNotificationCenter.current().add(request)
+        
+        // 最後の通知情報を記録
+        lastNotificationInfo = (station: targetStation, time: Date())
+        
+        // NotificationHistoryManagerにも記録
+        NotificationHistoryManager.shared.saveNotificationHistory(
+            userInfo: content.userInfo,
+            notificationType: "hybrid",
+            message: message
+        )
         
         logger.info("Sent hybrid notification: \(message)")
     }
