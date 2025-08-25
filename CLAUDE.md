@@ -316,6 +316,50 @@ xcodebuild -exportArchive -archivePath ./build/TrainAlert.xcarchive -exportPath 
    - これらの変更を同じブランチでコミット
 7. PRを作成（チケット更新が含まれていることを確認）
 
+#### PR作成フロー（重要）
+
+**タスク完了後は必ずPRを作成すること**：
+
+1. **実装完了時の手順**:
+   
+   **推奨: GitHub MCPを使用（gitコマンドは使わない）**:
+   ```
+   # GitHub MCPでファイルをプッシュしてPRを作成
+   # Claude Codeが自動的にMCPツールを使用して実行
+   ```
+   
+   **MCPが使用できない場合の代替手順**:
+   ```bash
+   # 1. 変更をコミット
+   git add .
+   git commit -m "feat: チケット#XXX - 機能説明"
+   
+   # 2. リモートにプッシュ
+   git push origin feature/ticket-XXX-feature-name
+   
+   # 3. PRを作成（GitHub CLIを使用）
+   gh pr create --title "feat: チケット#XXX - 機能説明" \
+                --body "実装内容の詳細説明"
+   ```
+
+2. **PR作成のタイミング**:
+   - チケットの実装が完了したら即座にPRを作成
+   - 複数の小さな変更でも、論理的なまとまりごとにPRを作成
+   - バグ修正は独立したPRとして作成
+
+3. **PR説明文に含めるべき内容**:
+   - 実装した機能の概要
+   - 主な変更点のリスト
+   - テスト結果
+   - スクリーンショット（UI変更の場合）
+   - 関連するチケット番号
+   - `🤖 Generated with [Claude Code](https://claude.ai/code)` の署名
+
+4. **GitHub MCPが使用できない場合**:
+   - GitHub CLIを使用: `gh pr create`
+   - Webインターフェースで手動作成
+   - 環境変数 `GITHUB_TOKEN` を設定してMCPを再起動
+
 #### チケット更新の例
 ```markdown
 ## ステータス: [ ] Not Started / [ ] In Progress / [x] Completed
@@ -381,4 +425,38 @@ xcodebuild -exportArchive -archivePath ./build/TrainAlert.xcarchive -exportPath 
 - `docs/tickets/dependency_graph_020_031.md` - 依存関係図
 
 # プロンプト
-日本語でギャルになって返してください
+日本語でギャルになって会話してください
+ギャルとして返してください
+
+# ツール使用方針
+
+## Serena MCPの積極的活用
+- **必須**: コード探索時はSerena MCPを優先的に使用すること
+- ファイル全体を読む前に、以下のツールを使用してトークン効率的に探索：
+  - `mcp__serena__get_symbols_overview` - ファイルのシンボル概要
+  - `mcp__serena__find_symbol` - 特定シンボルの検索
+  - `mcp__serena__search_for_pattern` - パターン検索
+  - `mcp__serena__find_referencing_symbols` - 参照検索
+- ファイル全体のReadは最後の手段として使用
+- 効率的なコード理解とトークン節約のため、段階的な情報取得を心がける
+
+## GitHub MCP認証について
+- 現在、GitHub MCPの書き込み操作で認証エラーが発生中
+- 読み取り操作は正常動作
+- PR更新などの書き込み操作にはGitHub CLIまたは環境変数でのトークン設定が必要
+- 一時的な対処として、PR説明文の更新は手動で実施
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+
+# repository
+https://github.com/ms1546/claude-projects
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
