@@ -27,8 +27,8 @@ struct AlertReviewView: View {
                     headerView
                     
                     // Summary Sections
-                    stationSummarySection
                     notificationSettingsSection
+                    stationSummarySection
                     characterStyleSection
                     
                     // Final Message
