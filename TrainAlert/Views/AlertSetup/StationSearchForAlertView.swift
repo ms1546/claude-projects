@@ -422,35 +422,50 @@ struct StationSearchForAlertView: View {
     }
     
     private func selectStation(_ stationModel: StationModel) {
-        // Core Dataで既存の駅を検索または新規作成
-        let fetchRequest = Station.fetchRequest(stationId: stationModel.id)
-        let existingStation = try? viewContext.fetch(fetchRequest).first
+        // バックグラウンドコンテキストで処理
+        let backgroundContext = CoreDataManager.shared.persistentContainer.newBackgroundContext()
         
-        let station: Station
-        if let existing = existingStation {
-            station = existing
-        } else {
-            let newStation = Station(context: viewContext)
-            newStation.stationId = stationModel.id
-            newStation.name = stationModel.name
-            newStation.latitude = stationModel.latitude
-            newStation.longitude = stationModel.longitude
-            newStation.lines = stationModel.lines
-            newStation.isFavorite = false
-            newStation.createdAt = Date()
-            
+        Task {
             do {
-                try viewContext.save()
-                station = newStation
+                var savedStationId: String?
+                
+                try await backgroundContext.perform {
+                    // Core Dataで既存の駅を検索または新規作成
+                    let fetchRequest = Station.fetchRequest(stationId: stationModel.id)
+                    let existingStation = try? backgroundContext.fetch(fetchRequest).first
+                    
+                    if existingStation != nil {
+                        savedStationId = stationModel.id
+                    } else {
+                        let newStation = Station(context: backgroundContext)
+                        newStation.stationId = stationModel.id
+                        newStation.name = stationModel.name
+                        newStation.latitude = stationModel.latitude
+                        newStation.longitude = stationModel.longitude
+                        newStation.lines = stationModel.lines
+                        newStation.isFavorite = false
+                        newStation.createdAt = Date()
+                        
+                        try backgroundContext.save()
+                        savedStationId = stationModel.id
+                    }
+                }
+                
+                // メインコンテキストから取得
+                if let stationId = savedStationId {
+                    await MainActor.run {
+                        let fetchRequest = Station.fetchRequest(stationId: stationId)
+                        if let station = try? viewContext.fetch(fetchRequest).first {
+                            selectedStation = station
+                            // Navigate to alert setup
+                            navigationPath.append(station)
+                        }
+                    }
+                }
             } catch {
                 print("Failed to save station: \(error)")
-                return
             }
         }
-        
-        selectedStation = station
-        // Navigate to alert setup
-        navigationPath.append(station)
     }
     
     private func formatDistance(_ distance: Double) -> String {

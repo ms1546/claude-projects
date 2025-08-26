@@ -688,71 +688,94 @@ struct TimetableAlertSetupView: View {
         
         Task {
             do {
-                // 一時的にAlertエンティティを使用（RouteAlertの問題を回避）
-                let alert = Alert(context: viewContext)
-                alert.alertId = UUID()
-                alert.isActive = true
-                alert.characterStyle = characterStyle.rawValue
-                alert.notificationType = notificationType
+                // バックグラウンドコンテキストで処理
+                let backgroundContext = CoreDataManager.shared.persistentContainer.newBackgroundContext()
+                var savedAlertId: UUID?
+                var savedStationName = ""
+                var savedStationLat: Double = 0
+                var savedStationLon: Double = 0
                 
-                // 通知タイプに応じて値を設定
-                if notificationType == "time" {
-                    alert.notificationTime = Int16(notificationMinutes)
-                    alert.notificationStationsBefore = 0
-                } else {
-                    alert.notificationTime = 0
-                    alert.notificationStationsBefore = Int16(notificationStations)
-                }
-                
-                alert.notificationDistance = 0 // 経路ベースでは距離は使わない
-                alert.createdAt = Date()
-                
-                // 繰り返し設定を保存（TimetableAlert+Extensionで定義）
-                // alert.repeatPattern = isRepeating ? repeatPattern : .none
-                // alert.repeatCustomDays = Array(customDays)
-                
-                // 経路情報を保存
-                alert.departureStation = route.departureStation
-                alert.arrivalTime = route.arrivalTime
-                
-                // 到着駅の情報を保存
-                // 既存の駅を検索または新規作成
-                let stationName = route.arrivalStation
-                let stationId = "station_\(stationName.replacingOccurrences(of: " ", with: "_"))"
-                
-                // 既存の駅を検索
-                let fetchRequest = Station.fetchRequest(stationId: stationId)
-                let existingStation = try? viewContext.fetch(fetchRequest).first
-                
-                let station: Station
-                if let existing = existingStation {
-                    station = existing
-                    print("Using existing station: \(stationName)")
-                } else {
-                    // 新規作成
-                    station = Station(context: viewContext)
-                    station.stationId = stationId
-                    station.name = stationName
-                    // 暫定的な座標（将来的には実際の駅座標を取得）
-                    station.latitude = 35.6812  // 東京駅の座標
-                    station.longitude = 139.7671
-                    station.lines = []
-                    station.isFavorite = false
-                    station.createdAt = Date()
-                    station.lastUsedAt = nil
+                try await backgroundContext.perform {
+                    // 到着駅の情報を保存
+                    // 既存の駅を検索または新規作成
+                    let stationName = route.arrivalStation
+                    let stationId = "station_\(stationName.replacingOccurrences(of: " ", with: "_"))"
                     
-                    print("Created new station: \(stationName)")
-                    print("  stationId: \(stationId)")
-                    print("  latitude: \(station.latitude)")
-                    print("  longitude: \(station.longitude)")
+                    // 既存の駅を検索
+                    let fetchRequest = Station.fetchRequest(stationId: stationId)
+                    let existingStation = try? backgroundContext.fetch(fetchRequest).first
+                    
+                    let station: Station
+                    if let existing = existingStation {
+                        station = existing
+                        print("Using existing station: \(stationName)")
+                    } else {
+                        // 新規作成
+                        station = Station(context: backgroundContext)
+                        station.stationId = stationId
+                        station.name = stationName
+                        // 暫定的な座標（将来的には実際の駅座標を取得）
+                        station.latitude = 35.6812  // 東京駅の座標
+                        station.longitude = 139.7671
+                        station.lines = []
+                        station.isFavorite = false
+                        station.createdAt = Date()
+                        station.lastUsedAt = nil
+                        
+                        print("Created new station: \(stationName)")
+                        print("  stationId: \(stationId)")
+                        print("  latitude: \(station.latitude)")
+                        print("  longitude: \(station.longitude)")
+                    }
+                    
+                    // 最終使用日時を更新
+                    station.lastUsedAt = Date()
+                    
+                    // 一時的にAlertエンティティを使用（RouteAlertの問題を回避）
+                    let alert = Alert(context: backgroundContext)
+                    alert.alertId = UUID()
+                    alert.isActive = true
+                    alert.characterStyle = characterStyle.rawValue
+                    alert.notificationType = notificationType
+                    
+                    // 通知タイプに応じて値を設定
+                    if notificationType == "time" {
+                        alert.notificationTime = Int16(notificationMinutes)
+                        alert.notificationStationsBefore = 0
+                    } else {
+                        alert.notificationTime = 0
+                        alert.notificationStationsBefore = Int16(notificationStations)
+                    }
+                    
+                    alert.notificationDistance = 0 // 経路ベースでは距離は使わない
+                    alert.createdAt = Date()
+                    
+                    // 繰り返し設定を保存（TimetableAlert+Extensionで定義）
+                    // alert.repeatPattern = isRepeating ? repeatPattern : .none
+                    // alert.repeatCustomDays = Array(customDays)
+                    
+                    // 経路情報を保存
+                    alert.departureStation = route.departureStation
+                    alert.arrivalTime = route.arrivalTime
+                    
+                    // アラートとの関連付け
+                    alert.station = station
+                    print("Station relationship established successfully")
+                    
+                    // バックグラウンドコンテキストで保存
+                    try backgroundContext.save()
+                    
+                    // 通知スケジュールのための情報を保存
+                    savedAlertId = alert.alertId
+                    savedStationName = station.name ?? ""
+                    savedStationLat = station.latitude
+                    savedStationLon = station.longitude
+                    
+                    print("✅ Core Data保存成功")
+                    print("  Alert ID: \(savedAlertId?.uuidString ?? "nil")")
+                    print("  Station: \(savedStationName)")
+                    print("  Notification: \(alert.notificationTime)分前")
                 }
-                
-                // 最終使用日時を更新
-                station.lastUsedAt = Date()
-                
-                // アラートとの関連付け
-                alert.station = station
-                print("Station relationship established successfully")
                 
                 // 経路情報をUserDefaultsに保存（一時的な対応）
                 let routeInfo = [
@@ -764,35 +787,29 @@ struct TimetableAlertSetupView: View {
                 UserDefaults.standard.set(routeInfo, forKey: "lastRouteInfo")
                 UserDefaults.standard.set(characterStyle.rawValue, forKey: "defaultCharacterStyle")
                 
-                try viewContext.save()
-                print("✅ Core Data保存成功")
-                print("  Alert ID: \(alert.alertId?.uuidString ?? "nil")")
-                print("  Station: \(alert.station?.name ?? "nil")")
-                print("  Notification: \(alert.notificationTime)分前")
-                
                 // 通知をスケジュール
                 // 到着駅の位置情報は暫定的にnil（将来的に駅の座標を取得）
                 do {
                     if isRepeating && repeatPattern != .none {
                         // 繰り返し通知をスケジュール
                         try await notificationManager.scheduleRepeatingNotification(
-                            for: route.arrivalStation,
+                            for: savedStationName,
                             departureStation: route.departureStation,
                             arrivalTime: route.arrivalTime,
                             pattern: repeatPattern,
                             customDays: Array(customDays),
                             characterStyle: characterStyle,
                             notificationMinutes: notificationType == "time" ? Int(notificationMinutes) : 5,
-                            alertId: alert.alertId?.uuidString ?? ""
+                            alertId: savedAlertId?.uuidString ?? ""
                         )
                         print("✅ 繰り返し通知スケジュール成功")
                     } else {
                         // 単発の通知をスケジュール
                         try await notificationManager.scheduleTrainAlert(
-                            for: route.arrivalStation,
+                            for: savedStationName,
                             arrivalTime: route.arrivalTime,
                             currentLocation: nil,
-                            targetLocation: CLLocation(latitude: station.latitude, longitude: station.longitude),
+                            targetLocation: CLLocation(latitude: savedStationLat, longitude: savedStationLon),
                             characterStyle: characterStyle
                         )
                         print("✅ 通知スケジュール成功")
@@ -816,10 +833,10 @@ struct TimetableAlertSetupView: View {
                     AlertMonitoringService.shared.reloadAlerts()
                     
                     // ハイブリッド通知の監視を開始（RouteAlertではなく通常のAlertで代用）
-                    if HybridNotificationManager.shared.isEnabled {
+                    if HybridNotificationManager.shared.isEnabled, let alertId = savedAlertId {
                         // RouteAlertの代わりに、保存した情報から仮のRouteAlertオブジェクトを作成
                         let tempRouteAlert = RouteAlert(context: viewContext)
-                        tempRouteAlert.routeId = alert.alertId
+                        tempRouteAlert.routeId = alertId
                         tempRouteAlert.departureStation = route.departureStation
                         tempRouteAlert.arrivalStation = route.arrivalStation
                         tempRouteAlert.departureTime = route.departureTime

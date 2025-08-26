@@ -5,7 +5,7 @@ Xcodeプロジェクトの初期設定とプロジェクト構造の構築
 
 ## 優先度: High
 ## 見積もり: 2h
-## ステータス: [x] Completed
+## ステータス: Completed
 
 ## タスク
 - [x] Xcodeで新規プロジェクト作成（iOS App, SwiftUI）
