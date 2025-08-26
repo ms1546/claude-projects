@@ -21,9 +21,6 @@ struct AlertReviewView: View {
     @State private var showConfirmation = false
     
     var body: some View {
-        _ = print("🔧 AlertReviewView表示")
-        _ = print("🔧 isEditMode: \(isEditMode)")
-        _ = print("🔧 selectedStation: \(setupData.selectedStation?.name ?? "nil")")
         Group {
             if isEditMode {
                 // 編集モードではNavigationViewは不要（AlertSetupCoordinatorの一部として表示されるため）
@@ -81,6 +78,11 @@ struct AlertReviewView: View {
             }
         } message: {
             Text(isEditMode ? "設定した内容でトントンを更新します。" : "設定した内容でトントンを作成します。")
+        }
+        .onAppear {
+            print("🔧 AlertReviewView表示")
+            print("🔧 isEditMode: \(isEditMode)")
+            print("🔧 selectedStation: \(setupData.selectedStation?.name ?? "nil")")
         }
     }
     
