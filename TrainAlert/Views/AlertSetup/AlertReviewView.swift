@@ -89,7 +89,7 @@ struct AlertReviewView: View {
     
     private var stationSummarySection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("降車駅", systemImage: "train.side.front.car")
+            sectionHeader("通知される駅", systemImage: "train.side.front.car")
             
             Card {
                 HStack(spacing: 12) {
