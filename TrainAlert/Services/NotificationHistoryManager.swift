@@ -26,6 +26,9 @@ class NotificationHistoryManager {
     private let maxRetryAttempts = 3
     private let retryInterval: TimeInterval = 5.0
     
+    // 再帰的な保存を防ぐフラグ
+    private var isProcessingRetry = false
+    
     // MARK: - Initialization
     
     private init() {
@@ -55,20 +58,37 @@ class NotificationHistoryManager {
         }
         let finalStationName = stationName ?? "不明な駅"
         
-        // 重複チェック: 同じ駅・同じタイプの通知が短時間に複数回保存されるのを防ぐ
-        let recentHistories = coreDataManager.fetchHistory(limit: 20)
-        let thirtySecondsAgo = Date().addingTimeInterval(-30)
-        
-        for history in recentHistories {
-            if let historyDate = history.notifiedAt,
-               historyDate > thirtySecondsAgo {
-                // 駅名と通知タイプが同じ場合は重複とみなす
-                if let historyMessage = history.message,
-                   historyMessage.contains(finalStationName) &&
-                   historyMessage.contains(getNotificationTypeEmoji(notificationType)) {
-                    // 重複通知を検出したためスキップ
-                    return nil
+        // 再帰的な保存を防ぐため、リトライ処理中は重複チェックをスキップ
+        if !isProcessingRetry {
+            // 重複チェック: 同じ駅・同じタイプの通知が短時間に複数回保存されるのを防ぐ
+            let backgroundContext = coreDataManager.persistentContainer.newBackgroundContext()
+            var isDuplicate = false
+            
+            backgroundContext.performAndWait {
+                let request: NSFetchRequest<History> = History.fetchRequest()
+                request.predicate = NSPredicate(format: "notifiedAt > %@", Date().addingTimeInterval(-30) as NSDate)
+                request.fetchLimit = 20
+                request.sortDescriptors = [NSSortDescriptor(key: "notifiedAt", ascending: false)]
+                
+                do {
+                    let recentHistories = try backgroundContext.fetch(request)
+                    
+                    for history in recentHistories {
+                        if let historyMessage = history.message,
+                           historyMessage.contains(finalStationName) &&
+                           historyMessage.contains(getNotificationTypeEmoji(notificationType)) {
+                            // 重複通知を検出したためスキップ
+                            isDuplicate = true
+                            break
+                        }
+                    }
+                } catch {
+                    // エラーが発生した場合は重複チェックをスキップ
                 }
+            }
+            
+            if isDuplicate {
+                return nil
             }
         }
         
@@ -119,23 +139,43 @@ class NotificationHistoryManager {
         routeAlert: RouteAlert,
         message: String
     ) -> History? {
-        let context = coreDataManager.viewContext
+        // バックグラウンドコンテキストを使用して保存
+        let backgroundContext = coreDataManager.persistentContainer.newBackgroundContext()
+        var savedHistoryId: UUID?
         
-        // 履歴を作成
-        let history = History(context: context)
-        history.historyId = UUID()
-        history.notifiedAt = Date()
-        history.message = message
-        
-        // 保存
-        do {
-            try context.save()
-            // RouteAlert通知履歴を保存
-            return history
-        } catch {
-            // RouteAlert通知履歴の保存に失敗
-            return nil
+        backgroundContext.performAndWait {
+            // 履歴を作成
+            let history = History(context: backgroundContext)
+            history.historyId = UUID()
+            history.notifiedAt = Date()
+            history.message = message
+            savedHistoryId = history.historyId
+            
+            // 保存
+            do {
+                try backgroundContext.save()
+                // RouteAlert通知履歴を保存
+            } catch {
+                // RouteAlert通知履歴の保存に失敗
+                savedHistoryId = nil
+            }
         }
+        
+        // メインコンテキストから保存された履歴を取得して返す
+        if let historyId = savedHistoryId {
+            let context = coreDataManager.viewContext
+            let request: NSFetchRequest<History> = History.fetchRequest()
+            request.predicate = NSPredicate(format: "historyId == %@", historyId as CVarArg)
+            request.fetchLimit = 1
+            
+            do {
+                return try context.fetch(request).first
+            } catch {
+                return nil
+            }
+        }
+        
+        return nil
     }
     
     // MARK: - Private Methods
@@ -165,39 +205,50 @@ class NotificationHistoryManager {
         notificationType: String,
         stationName: String
     ) -> History? {
-        let context = coreDataManager.viewContext
+        // バックグラウンドコンテキストを使用
+        let backgroundContext = coreDataManager.persistentContainer.newBackgroundContext()
+        var savedHistoryId: UUID?
         
-        // アラートを検索
-        let request = Alert.fetchRequest(alertId: alertId)
-        
-        do {
-            if let alert = try context.fetch(request).first {
-                // アラートに履歴を追加
-                let history = alert.addHistory(message: message)
-                
-                // 保存
-                try context.save()
-                // 通知履歴を保存
-                return history
-            } else {
-                // アラートが見つからない
-                // アラートが見つからない場合も独立した履歴として保存
-                return saveStandaloneHistory(
-                    message: message,
-                    notificationType: notificationType,
-                    stationName: stationName
-                )
+        backgroundContext.performAndWait {
+            // アラートを検索
+            let request = Alert.fetchRequest(alertId: alertId)
+            
+            do {
+                if let alert = try backgroundContext.fetch(request).first {
+                    // アラートに履歴を追加
+                    let history = alert.addHistory(message: message)
+                    savedHistoryId = history.historyId
+                    
+                    // 保存
+                    try backgroundContext.save()
+                    // 通知履歴を保存
+                }
+            } catch {
+                // 通知履歴の保存に失敗
+                savedHistoryId = nil
             }
-        } catch {
-            // 通知履歴の保存に失敗
-            // リトライキューに追加
-            addToPendingSaves(
-                alertId: alertId,
+        }
+        
+        // 保存成功した場合、メインコンテキストから履歴を取得して返す
+        if let historyId = savedHistoryId {
+            let context = coreDataManager.viewContext
+            let historyRequest: NSFetchRequest<History> = History.fetchRequest()
+            historyRequest.predicate = NSPredicate(format: "historyId == %@", historyId as CVarArg)
+            historyRequest.fetchLimit = 1
+            
+            do {
+                return try context.fetch(historyRequest).first
+            } catch {
+                return nil
+            }
+        } else {
+            // アラートが見つからない
+            // アラートが見つからない場合も独立した履歴として保存
+            return saveStandaloneHistory(
                 message: message,
                 notificationType: notificationType,
                 stationName: stationName
             )
-            return nil
         }
     }
     
@@ -207,21 +258,41 @@ class NotificationHistoryManager {
         notificationType: String,
         stationName: String
     ) -> History? {
-        let context = coreDataManager.viewContext
+        // バックグラウンドコンテキストを使用して無限ループを防ぐ
+        let backgroundContext = coreDataManager.persistentContainer.newBackgroundContext()
+        var savedHistoryId: UUID?
         
-        let history = History(context: context)
-        history.historyId = UUID()
-        history.notifiedAt = Date()
-        history.message = message
-        
-        do {
-            try context.save()
-            // 独立した通知履歴を保存
-            return history
-        } catch {
-            // 独立した通知履歴の保存に失敗
-            return nil
+        backgroundContext.performAndWait {
+            let history = History(context: backgroundContext)
+            history.historyId = UUID()
+            history.notifiedAt = Date()
+            history.message = message
+            savedHistoryId = history.historyId
+            
+            do {
+                try backgroundContext.save()
+                // 独立した通知履歴を保存
+            } catch {
+                // 独立した通知履歴の保存に失敗
+                savedHistoryId = nil
+            }
         }
+        
+        // メインコンテキストから保存された履歴を取得して返す
+        if let historyId = savedHistoryId {
+            let context = coreDataManager.viewContext
+            let request: NSFetchRequest<History> = History.fetchRequest()
+            request.predicate = NSPredicate(format: "historyId == %@", historyId as CVarArg)
+            request.fetchLimit = 1
+            
+            do {
+                return try context.fetch(request).first
+            } catch {
+                return nil
+            }
+        }
+        
+        return nil
     }
     
     /// 履歴メッセージを構築
@@ -277,24 +348,26 @@ class NotificationHistoryManager {
     /// 古い履歴を削除
     /// - Parameter days: 保持する日数（デフォルト: 30日）
     func cleanupOldHistory(olderThan days: Int = 30) {
-        let context = coreDataManager.viewContext
+        let backgroundContext = coreDataManager.persistentContainer.newBackgroundContext()
         let cutoffDate = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
         
-        let request: NSFetchRequest<History> = History.fetchRequest()
-        request.predicate = NSPredicate(format: "notifiedAt < %@", cutoffDate as NSDate)
-        
-        do {
-            let oldHistories = try context.fetch(request)
-            for history in oldHistories {
-                context.delete(history)
-            }
+        backgroundContext.perform {
+            let request: NSFetchRequest<History> = History.fetchRequest()
+            request.predicate = NSPredicate(format: "notifiedAt < %@", cutoffDate as NSDate)
             
-            if !oldHistories.isEmpty {
-                try context.save()
-                // 古い履歴を削除
+            do {
+                let oldHistories = try backgroundContext.fetch(request)
+                for history in oldHistories {
+                    backgroundContext.delete(history)
+                }
+                
+                if !oldHistories.isEmpty {
+                    try backgroundContext.save()
+                    // 古い履歴を削除
+                }
+            } catch {
+                // 古い履歴の削除に失敗
             }
-        } catch {
-            // 古い履歴の削除に失敗
         }
     }
     
@@ -344,8 +417,12 @@ class NotificationHistoryManager {
     /// 保存待ち履歴を処理
     private func processPendingSaves() {
         guard !pendingSaves.isEmpty else { return }
+        guard !isProcessingRetry else { return } // 既に処理中の場合はスキップ
         
         // 保存待ち履歴を処理中
+        
+        isProcessingRetry = true
+        defer { isProcessingRetry = false }
         
         let currentPendingSaves = pendingSaves
         pendingSaves.removeAll()
@@ -353,12 +430,24 @@ class NotificationHistoryManager {
         for (userInfo, notificationType, message) in currentPendingSaves {
             let attemptCount = userInfo["attemptCount"] as? Int ?? 1
             
-            // 再度保存を試みる
-            let result = saveNotificationHistory(
-                userInfo: userInfo,
-                notificationType: notificationType,
-                message: message
-            )
+            // 再度保存を試みる（再帰防止のため直接保存メソッドを呼ぶ）
+            var result: History?
+            
+            if let alertIdString = userInfo["alertId"] as? String,
+               let alertId = UUID(uuidString: alertIdString) {
+                result = saveHistoryForAlert(
+                    alertId: alertId,
+                    message: message ?? "",
+                    notificationType: notificationType,
+                    stationName: userInfo["stationName"] as? String ?? "不明の駅"
+                )
+            } else {
+                result = saveStandaloneHistory(
+                    message: message ?? "",
+                    notificationType: notificationType,
+                    stationName: userInfo["stationName"] as? String ?? "不明の駅"
+                )
+            }
             
             // 失敗した場合、試行回数をインクリメントして再度キューに追加
             if result == nil {
@@ -389,4 +478,3 @@ class NotificationHistoryManager {
         retryTimer = nil
     }
 }
-
