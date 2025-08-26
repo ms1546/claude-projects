@@ -21,6 +21,8 @@ struct HomeView: View {
     @State private var showingTimetableSearch = false
     @State private var selectedAlert: Alert?
     @State private var showingLocationPermission = false
+    @State private var showingAlertEdit = false
+    @State private var editingAlert: Alert?
     @State private var mapRegion = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503),
         span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
@@ -54,12 +56,20 @@ struct HomeView: View {
                                 .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
                                 .listRowBackground(Color.clear)
                                 .listRowSeparator(.hidden)
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                     Button(role: .destructive) {
                                         viewModel.deleteAlert(alert)
                                     } label: {
                                         Label("削除", systemImage: "trash")
                                     }
+                                    
+                                    Button {
+                                        editingAlert = alert
+                                        showingAlertEdit = true
+                                    } label: {
+                                        Label("編集", systemImage: "pencil")
+                                    }
+                                    .tint(.trainSoftBlue)
                                 }
                             }
                             .animation(.default, value: viewModel.allAlerts)
@@ -85,6 +95,16 @@ struct HomeView: View {
             .sheet(isPresented: $showingTimetableSearch) {
                 TimetableSearchView()
                     .environmentObject(locationManager)
+            }
+            .sheet(isPresented: $showingAlertEdit) {
+                if let alert = editingAlert {
+                    AlertSetupFlow(editingAlert: alert) {
+                        // 編集完了時にシートを閉じる
+                        showingAlertEdit = false
+                        editingAlert = nil
+                    }
+                    .environmentObject(locationManager)
+                }
             }
             .alert("位置情報の許可が必要です", isPresented: $showingLocationPermission) {
                 Button("設定を開く") {
