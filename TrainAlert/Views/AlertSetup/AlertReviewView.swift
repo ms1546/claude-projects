@@ -21,9 +21,6 @@ struct AlertReviewView: View {
     @State private var showConfirmation = false
     
     var body: some View {
-        let _ = print("🔧 AlertReviewView表示")
-        let _ = print("🔧 isEditMode: \(isEditMode)")
-        let _ = print("🔧 selectedStation: \(setupData.selectedStation?.name ?? "nil")")
         Group {
             if isEditMode {
                 // 編集モードではNavigationViewは不要（AlertSetupCoordinatorの一部として表示されるため）
@@ -81,6 +78,11 @@ struct AlertReviewView: View {
             }
         } message: {
             Text(isEditMode ? "設定した内容でトントンを更新します。" : "設定した内容でトントンを作成します。")
+        }
+        .onAppear {
+            print("🔧 AlertReviewView表示")
+            print("🔧 isEditMode: \(isEditMode)")
+            print("🔧 selectedStation: \(setupData.selectedStation?.name ?? "nil")")
         }
     }
     
@@ -278,17 +280,13 @@ struct AlertReviewView: View {
     private var navigationButtons: some View {
         VStack(spacing: 12) {
             PrimaryButton(
-                title: isEditMode ? "トントンを更新" : "トントンを作成",
-                icon: "checkmark.circle.fill"
+                isEditMode ? "トントンを更新" : "トントンを作成"
             ) {
-                showConfirmation = true
+                    showConfirmation = true
             }
             .disabled(isCreatingAlert || !setupData.isFormValid)
             
-            SecondaryButton(
-                title: "戻る",
-                icon: "arrow.left"
-            ) {
+            SecondaryButton("戻る") {
                 onBack()
             }
             .disabled(isCreatingAlert)
@@ -342,22 +340,18 @@ struct AlertReviewView: View {
         let baseMessage = "もうすぐ\(station.name)だよ！"
         
         switch setupData.characterStyle {
-        case .friendly:
+        case .healing:
             return baseMessage + "降りる準備をしてね😊"
-        case .polite:
-            return "間もなく\(station.name)に到着いたします。お降りの準備をお願いいたします。"
-        case .motivational:
-            return baseMessage + "さあ、降りる準備だ！ファイト🔥"
-        case .funny:
-            return baseMessage + "でもまだ寝ててもいいよ～（ウソ）😜"
         case .gyaru:
             return "マジもうすぐ\(station.name)やん～！降りる準備しときなよ〜💕"
+        case .butler:
+            return "お客様、間もなく\(station.name)に到着いたします。お降りのご準備を。"
+        case .sporty:
+            return baseMessage + "さあ、降りる準備だ！ファイト🔥"
         case .tsundere:
             return "もう\(station.name)よ！あんたのために教えてあげてるんだからね！"
         case .kansai:
             return "もうすぐ\(station.name)やで！そろそろ降りる準備せえや！"
-        case .butler:
-            return "お客様、間もなく\(station.name)に到着いたします。お降りのご準備を。"
         }
     }
     
