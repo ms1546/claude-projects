@@ -376,19 +376,29 @@ struct StationAlertSetupView: View {
         
         Task {
             do {
-                let alert = Alert(context: viewContext)
-                alert.alertId = UUID()
-                alert.isActive = true
-                alert.characterStyle = characterStyle.rawValue
-                alert.notificationTime = 0 // 距離ベースなので0に設定
-                alert.notificationDistance = notificationDistance
-                alert.createdAt = Date()
-                alert.station = station
+                // バックグラウンドコンテキストで処理
+                let backgroundContext = CoreDataManager.shared.persistentContainer.newBackgroundContext()
                 
-                // 最終使用日時を更新
-                station.lastUsedAt = Date()
+                try await backgroundContext.perform {
+                    // 駅をバックグラウンドコンテキストで取得
+                    let fetchRequest = Station.fetchRequest(stationId: station.stationId ?? "")
+                    guard let bgStation = try? backgroundContext.fetch(fetchRequest).first else { return }
+                    
+                    let alert = Alert(context: backgroundContext)
+                    alert.alertId = UUID()
+                    alert.isActive = true
+                    alert.characterStyle = characterStyle.rawValue
+                    alert.notificationTime = 0 // 距離ベースなので0に設定
+                    alert.notificationDistance = notificationDistance
+                    alert.createdAt = Date()
+                    alert.station = bgStation
+                    
+                    // 最終使用日時を更新
+                    bgStation.lastUsedAt = Date()
+                    
+                    try backgroundContext.save()
+                }
                 
-                try viewContext.save()
                 print("✅ Core Data保存成功")
                 
                 // 通知をスケジュール

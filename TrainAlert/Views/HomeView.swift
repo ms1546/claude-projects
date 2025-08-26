@@ -167,7 +167,7 @@ struct HomeView: View {
                     
                     Menu {
                         Button(action: { showingAlertSetup = true }) {
-                            Label("駅から設定", systemImage: "location.circle")
+                            Label("到着駅を設定", systemImage: "location.circle")
                         }
                         Button(action: { showingRouteSearch = true }) {
                             Label("経路から設定", systemImage: "arrow.triangle.turn.up.right.circle")
@@ -227,7 +227,7 @@ struct HomeView: View {
                             .foregroundColor(.trainSoftBlue)
                         
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("駅から設定")
+                            Text("到着駅を設定")
                                 .font(.headline)
                                 .foregroundColor(.textPrimary)
                             Text("降車駅を選んで通知設定")

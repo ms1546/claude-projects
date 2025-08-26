@@ -444,56 +444,73 @@ struct TrainSelectionView: View {
         
         Task {
             do {
-                // アラートエンティティを作成
-                let alert = Alert(context: viewContext)
-                alert.alertId = UUID()
-                alert.isActive = true
-                alert.characterStyle = characterStyle.rawValue
-                alert.notificationType = "time"
-                alert.notificationTime = Int16(notificationMinutes)
-                alert.notificationDistance = 0
-                alert.createdAt = Date()
+                // バックグラウンドコンテキストで処理
+                let backgroundContext = CoreDataManager.shared.persistentContainer.newBackgroundContext()
+                var savedAlertId: UUID?
+                var savedStationName = ""
+                var savedStationLat: Double = 0
+                var savedStationLon: Double = 0
                 
-                // 時刻表ベースの情報を保存
-                alert.departureStation = departureStation.stationTitle?.ja ?? departureStation.title
-                alert.arrivalTime = arrivalTime
-                // TODO: trainNumberプロパティを追加する必要あり
-                // alert.trainNumber = train.trainNumber
-                
-                // 到着駅の情報を作成または取得
-                let stationName = arrivalStation.stationTitle?.ja ?? arrivalStation.title
-                let stationId = arrivalStation.sameAs
-                
-                let fetchRequest = Station.fetchRequest(stationId: stationId)
-                let existingStation = try? viewContext.fetch(fetchRequest).first
-                
-                let station: Station
-                if let existing = existingStation {
-                    station = existing
-                } else {
-                    station = Station(context: viewContext)
-                    station.stationId = stationId
-                    station.name = stationName
-                    station.latitude = 35.6812  // TODO: 実際の座標を取得
-                    station.longitude = 139.7671
-                    // 路線名を適切に設定（日本語タイトルがなければIDをそのまま使用）
-                    let railwayName = departureStation.railwayTitle?.ja ?? departureStation.railway
-                    station.lines = [railwayName]
-                    station.isFavorite = false
-                    station.createdAt = Date()
+                try await backgroundContext.perform {
+                    // 到着駅の情報を作成または取得
+                    let stationName = arrivalStation.stationTitle?.ja ?? arrivalStation.title
+                    let stationId = arrivalStation.sameAs
+                    
+                    let fetchRequest = Station.fetchRequest(stationId: stationId)
+                    let existingStation = try? backgroundContext.fetch(fetchRequest).first
+                    
+                    let station: Station
+                    if let existing = existingStation {
+                        station = existing
+                    } else {
+                        station = Station(context: backgroundContext)
+                        station.stationId = stationId
+                        station.name = stationName
+                        station.latitude = 35.6812  // TODO: 実際の座標を取得
+                        station.longitude = 139.7671
+                        // 路線名を適切に設定（日本語タイトルがなければIDをそのまま使用）
+                        let railwayName = departureStation.railwayTitle?.ja ?? departureStation.railway
+                        station.lines = [railwayName]
+                        station.isFavorite = false
+                        station.createdAt = Date()
+                    }
+                    
+                    station.lastUsedAt = Date()
+                    
+                    // アラートエンティティを作成
+                    let alert = Alert(context: backgroundContext)
+                    alert.alertId = UUID()
+                    alert.isActive = true
+                    alert.characterStyle = characterStyle.rawValue
+                    alert.notificationType = "time"
+                    alert.notificationTime = Int16(notificationMinutes)
+                    alert.notificationDistance = 0
+                    alert.createdAt = Date()
+                    
+                    // 時刻表ベースの情報を保存
+                    alert.departureStation = departureStation.stationTitle?.ja ?? departureStation.title
+                    alert.arrivalTime = arrivalTime
+                    // TODO: trainNumberプロパティを追加する必要あり
+                    // alert.trainNumber = train.trainNumber
+                    
+                    alert.station = station
+                    
+                    // バックグラウンドコンテキストで保存
+                    try backgroundContext.save()
+                    
+                    // 通知スケジュールのための情報を保存
+                    savedAlertId = alert.alertId
+                    savedStationName = station.name ?? ""
+                    savedStationLat = station.latitude
+                    savedStationLon = station.longitude
                 }
-                
-                station.lastUsedAt = Date()
-                alert.station = station
-                
-                try viewContext.save()
                 
                 // 通知をスケジュール
                 try await notificationManager.scheduleTrainAlert(
-                    for: stationName,
+                    for: savedStationName,
                     arrivalTime: arrivalTime,
                     currentLocation: nil,
-                    targetLocation: CLLocation(latitude: station.latitude, longitude: station.longitude),
+                    targetLocation: CLLocation(latitude: savedStationLat, longitude: savedStationLon),
                     characterStyle: characterStyle
                 )
                 
