@@ -28,7 +28,6 @@ struct AlertReviewView: View {
                     
                     // Summary Sections
                     notificationSettingsSection
-                    stationSummarySection
                     characterStyleSection
                     
                     // Final Message
@@ -122,6 +121,36 @@ struct AlertReviewView: View {
             
             Card {
                 VStack(spacing: 16) {
+                    // Station Info
+                    HStack(spacing: 12) {
+                        Image(systemName: "mappin.and.ellipse")
+                            .font(.title3)
+                            .foregroundColor(.trainSoftBlue)
+                            .frame(width: 24)
+                        
+                        Text("通知される駅")
+                            .font(.body)
+                            .foregroundColor(.textPrimary)
+                        
+                        Spacer()
+                        
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(setupData.selectedStation?.name ?? "未選択")
+                                .font(.body)
+                                .fontWeight(.medium)
+                                .foregroundColor(.textPrimary)
+                            
+                            if let lines = setupData.selectedStation?.lines, !lines.isEmpty {
+                                Text(lines.joined(separator: " • "))
+                                    .font(.caption2)
+                                    .foregroundColor(.textSecondary)
+                            }
+                        }
+                    }
+                    
+                    Divider()
+                        .background(Color.textSecondary.opacity(0.3))
+                    
                     // Notification Time
                     settingRow(
                         label: "通知タイミング",
